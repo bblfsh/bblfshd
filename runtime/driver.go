@@ -1,4 +1,4 @@
-package core
+package runtime 
 
 import (
 	"fmt"
@@ -9,8 +9,14 @@ import (
 	"github.com/the-babelfish/server/utils"
 )
 
+type Driver struct {
+	Image DriverImage
+}
+
 type DriverImage interface {
 	Name() string
+	Digest() (Digest, error)
+	Inspect() (*types.ImageInspectInfo, error)
 	WriteTo(path string) error
 }
 
@@ -29,6 +35,30 @@ func NewDriverImage(imageName string) (DriverImage, error) {
 
 func (d *driverImage) Name() string {
 	return d.ref.StringWithinTransport()
+}
+
+func (d *driverImage) Digest() (Digest, error) {
+	img, err := d.image()
+	if err != nil {
+		return nil, err
+	}
+
+	defer img.Close()
+	i, err := img.Inspect()
+	if err != nil {
+		return nil, err
+	}
+
+	return ComputeDigest(i.Layers...), nil
+}
+func (d *driverImage) Inspect() (*types.ImageInspectInfo, error) {
+	img, err := d.image()
+	if err != nil {
+		return nil, err
+	}
+
+	defer img.Close()
+	return img.Inspect()
 }
 
 func (d *driverImage) WriteTo(path string) error {

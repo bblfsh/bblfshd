@@ -2,55 +2,45 @@ package main
 
 import (
 	"os"
-	"runtime"
 	"sync"
 
-	"github.com/opencontainers/runc/libcontainer"
-	_ "github.com/opencontainers/runc/libcontainer/nsenter"
-	"github.com/the-babelfish/server/core"
+	"github.com/the-babelfish/server/runtime"
 )
 
 func init() {
-	if len(os.Args) > 1 && os.Args[1] == "init" {
-		runtime.GOMAXPROCS(1)
-		runtime.LockOSThread()
-		factory, _ := libcontainer.New("")
-		if err := factory.StartInitialization(); err != nil {
-			panic(err)
-		}
-		panic("--this line should have never been executed, congratulations--")
-	}
+	runtime.Bootstrap()
 }
 
 var wg sync.WaitGroup
 
 func main() {
-	s := &core.Server{
-		RootPath: "/tmp/bb",
-	}
-
+	s := runtime.NewRuntime("/tmp/runtime")
 	if err := s.Init(); err != nil {
 		panic(err)
 	}
 
-	wg.Add(2)
-	go run(s, "/tmp/alpine")
-	go run(s, "/tmp/ubuntu")
+	p := &runtime.Process{
+		Args:   []string{"/bin/cat", "/etc/os-release"},
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+		//Stdin:  os.Stdin,
+	}
 
+	ubuntu, _ := runtime.NewDriverImage("docker://ubuntu:latest")
+	alpine, _ := runtime.NewDriverImage("docker://alpine:latest")
+
+	wg.Add(2)
+	go run(s, ubuntu, p)
+	go run(s, alpine, p)
 	wg.Wait()
 }
 
-func run(s *core.Server, rootfs string) {
-
-	p := &libcontainer.Process{
-		Args:   []string{"/bin/cat", "/etc/os-release"},
-		Env:    []string{"PATH=/bin"},
-		User:   "daemon",
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
+func run(s *runtime.Runtime, i runtime.DriverImage, p *runtime.Process) {
+	if err := s.InstallDriver(i, false); err != nil {
+		panic(err)
 	}
 
-	c, err := s.Command(core.GetConfig(rootfs), p)
+	c, err := s.Command(i, p)
 	if err != nil {
 		panic(err)
 	}
@@ -61,12 +51,3 @@ func run(s *core.Server, rootfs string) {
 
 	wg.Done()
 }
-
-/*
-i, err := core.NewDriverImage("docker://alpine:latest")
-if err != nil {
-	panic(err)
-}
-
-i.WriteTo(rootfs)
-*/

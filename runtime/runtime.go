@@ -1,24 +1,44 @@
-package core
+package runtime
 
 import (
 	"os"
+	"path/filepath"
+	"runtime"
 	"syscall"
 
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/configs"
+	_ "github.com/opencontainers/runc/libcontainer/nsenter"
 	"github.com/satori/go.uuid"
 )
 
-type Server struct {
-	RootPath string
+const (
+	storagePath    = "images"
+	containersPath = "containers"
+)
 
+type Runtime struct {
+	ContainerConfigFactory func() *configs.Config
+
+	root string
+
+	s *storage
 	f libcontainer.Factory
 }
 
-func (s *Server) Init() error {
+func NewRuntime(path string) *Runtime {
+	return &Runtime{
+		ContainerConfigFactory: ContainerConfigFactory,
+
+		root: path,
+		s:    NewStorage(filepath.Join(path, storagePath)),
+	}
+}
+
+func (r *Runtime) Init() error {
 	var err error
-	s.f, err = libcontainer.New(
-		s.RootPath,
+	r.f, err = libcontainer.New(
+		filepath.Join(r.root, containersPath),
 		libcontainer.Cgroupfs,
 		libcontainer.InitArgs(os.Args[0], "init"),
 	)
@@ -26,23 +46,34 @@ func (s *Server) Init() error {
 	return err
 }
 
-func (s *Server) Command(cfg *configs.Config, p *libcontainer.Process) (Command, error) {
-	c, err := s.f.Create(uuid.NewV4().String(), cfg)
+func (r *Runtime) InstallDriver(d DriverImage, update bool) error {
+	return r.s.Install(d, update)
+}
+
+func (r *Runtime) RemoveDriver(d DriverImage) error {
+	return r.s.Remove(d)
+}
+
+func (r *Runtime) Command(d DriverImage, p *Process) (Command, error) {
+	var err error
+	cfg := r.ContainerConfigFactory()
+	cfg.Rootfs, err = r.s.RootFS(d)
 	if err != nil {
 		return nil, err
 	}
 
-	return &containerCommand{
-		container: c,
-		process:   p,
-	}, nil
+	c, err := r.f.Create(uuid.NewV4().String(), cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return newCommand(c, p), nil
 }
 
-func GetConfig(rootfs string) *configs.Config {
+func ContainerConfigFactory() *configs.Config {
 	defaultMountFlags := syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
 
 	return &configs.Config{
-		Rootfs: rootfs,
 		Capabilities: []string{
 			"CAP_CHOWN",
 			"CAP_DAC_OVERRIDE",
@@ -141,5 +172,17 @@ func GetConfig(rootfs string) *configs.Config {
 				Soft: uint64(1025),
 			},
 		},
+	}
+}
+
+func Bootstrap() {
+	if len(os.Args) > 1 && os.Args[1] == "init" {
+		runtime.GOMAXPROCS(1)
+		runtime.LockOSThread()
+		factory, _ := libcontainer.New("")
+		if err := factory.StartInitialization(); err != nil {
+			panic(err)
+		}
+		panic("--this line should have never been executed, congratulations--")
 	}
 }
