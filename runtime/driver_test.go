@@ -10,7 +10,7 @@ import (
 )
 
 func TestName(t *testing.T) {
-	d, err := NewDriverImage("docker://busybox:latest")
+	d, err := NewDriverImage("//busybox:latest")
 	assert.Nil(t, err)
 
 	assert.Equal(t, d.Name(), "//busybox:latest")
@@ -19,7 +19,7 @@ func TestName(t *testing.T) {
 func TestDigest(t *testing.T) {
 	IfNetworking(t)
 
-	d, err := NewDriverImage("docker://busybox:latest")
+	d, err := NewDriverImage("//busybox:latest")
 	assert.Nil(t, err)
 
 	h, err := d.Digest()
@@ -30,7 +30,7 @@ func TestDigest(t *testing.T) {
 func TestInspect(t *testing.T) {
 	IfNetworking(t)
 
-	d, err := NewDriverImage("docker://busybox:latest")
+	d, err := NewDriverImage("//busybox:latest")
 	assert.Nil(t, err)
 
 	i, err := d.Inspect()
@@ -46,7 +46,7 @@ func TestWriteTo(t *testing.T) {
 	assert.Nil(t, err)
 	defer os.RemoveAll(dir)
 
-	d, err := NewDriverImage("docker://busybox:latest")
+	d, err := NewDriverImage("//busybox:latest")
 	assert.Nil(t, err)
 
 	err = d.WriteTo(dir)

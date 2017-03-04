@@ -1,4 +1,4 @@
-package runtime 
+package runtime
 
 import (
 	"io/ioutil"
@@ -16,7 +16,7 @@ func TestInstall(t *testing.T) {
 	assert.Nil(t, err)
 	defer os.RemoveAll(dir)
 
-	d, err := NewDriverImage("docker://busybox:latest")
+	d, err := NewDriverImage("//busybox:latest")
 	assert.Nil(t, err)
 
 	s := NewStorage(dir)
@@ -29,7 +29,7 @@ func TestStatusAndDirty(t *testing.T) {
 	assert.Nil(t, err)
 	defer os.RemoveAll(dir)
 
-	d, err := NewDriverImage("docker://busybox:latest")
+	d, err := NewDriverImage("//busybox:latest")
 	assert.Nil(t, err)
 
 	expected := ComputeDigest("foo")
@@ -53,7 +53,7 @@ func TestStatusEmpty(t *testing.T) {
 	assert.Nil(t, err)
 	defer os.RemoveAll(dir)
 
-	d, err := NewDriverImage("docker://busybox:latest")
+	d, err := NewDriverImage("//busybox:latest")
 	assert.Nil(t, err)
 
 	s := NewStorage(dir)
@@ -67,7 +67,7 @@ func TestRemove(t *testing.T) {
 	assert.Nil(t, err)
 	defer os.RemoveAll(dir)
 
-	d, err := NewDriverImage("docker://busybox:latest")
+	d, err := NewDriverImage("//busybox:latest")
 	assert.Nil(t, err)
 
 	err = os.MkdirAll(filepath.Join(dir, "busybox:latest", ComputeDigest("bar").String()), 0777)
@@ -87,7 +87,7 @@ func TestRemoveEmpty(t *testing.T) {
 	assert.Nil(t, err)
 	defer os.RemoveAll(dir)
 
-	d, err := NewDriverImage("docker://busybox:latest")
+	d, err := NewDriverImage("//busybox:latest")
 	assert.Nil(t, err)
 
 	s := NewStorage(dir)

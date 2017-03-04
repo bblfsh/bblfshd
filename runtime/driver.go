@@ -1,12 +1,13 @@
-package runtime 
+package runtime
 
 import (
 	"fmt"
 
+	"github.com/bblfsh/server/utils"
+
+	"github.com/containers/image/docker"
 	"github.com/containers/image/image"
-	"github.com/containers/image/transports"
 	"github.com/containers/image/types"
-	"github.com/the-babelfish/server/utils"
 )
 
 type Driver struct {
@@ -25,7 +26,7 @@ type driverImage struct {
 }
 
 func NewDriverImage(imageName string) (DriverImage, error) {
-	ref, err := transports.ParseImageName(imageName)
+	ref, err := docker.ParseReference(imageName)
 	if err != nil {
 		return nil, fmt.Errorf("Invalid source name %s: %v", imageName, err)
 	}
