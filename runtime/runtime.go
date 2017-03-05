@@ -6,10 +6,10 @@ import (
 	"runtime"
 	"syscall"
 
+	"github.com/imdario/go-ulid"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	_ "github.com/opencontainers/runc/libcontainer/nsenter"
-	"github.com/satori/go.uuid"
 )
 
 const (
@@ -62,7 +62,7 @@ func (r *Runtime) Command(d DriverImage, p *Process) (Command, error) {
 		return nil, err
 	}
 
-	c, err := r.f.Create(uuid.NewV4().String(), cfg)
+	c, err := r.f.Create(ulid.New().String(), cfg)
 	if err != nil {
 		return nil, err
 	}
