@@ -1,10 +1,13 @@
 # Package configuration
 PROJECT = server
 COMMANDS = test
-DEPENDENCIES = golang.org/x/tools/cmd/cover
+DEPENDENCIES = \
+	golang.org/x/tools/cmd/cover \
+	github.com/Masterminds/glide
 
 # Environment
 BASE_PATH := $(shell pwd)
+VENDOR_PATH := $(BASE_PATH)/vendor
 BUILD_PATH := $(BASE_PATH)/build
 CMD_PATH := $(BASE_PATH)/cmd
 SHA1 := $(shell git log --format='%H' -n 1 | cut -c1-10)
@@ -12,11 +15,12 @@ BUILD := $(shell date +"%m-%d-%Y_%H_%M_%S")
 BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 
 # Go parameters
-GOCMD = go
-GOBUILD = $(GOCMD) build
-GOCLEAN = $(GOCMD) clean
-GOGET = $(GOCMD) get -v
-GOTEST = $(GOCMD) test -v
+GO_CMD = go
+GO_BUILD = $(GO_CMD) build
+GO_CLEAN = $(GO_CMD) clean
+GO_GET = $(GO_CMD) get -v
+GO_TEST = $(GO_CMD) test -v
+GLIDE = glide
 
 # Coverage
 COVERAGE_REPORT = coverage.txt
@@ -24,9 +28,9 @@ COVERAGE_PROFILE = profile.out
 COVERAGE_MODE = atomic
 
 # Docker
-DOCKERCMD = docker
-DOCKERBUILD = $(DOCKERCMD) build
-DOCKERRUN = $(DOCKERCMD) run --rm
+DOCKER_CMD = docker
+DOCKER_BUILD = $(DOCKERCMD) build
+DOCKER_RUN = $(DOCKERCMD) run --rm
 DOCKER_BUILD_IMAGE = babelfish-build
 
 
@@ -40,18 +44,21 @@ LDFLAGS = -X main.version=$(BRANCH) -X main.build=$(BUILD)
 # Rules
 all: clean build
 
-dependencies:
-	@$(GOGET) -t ./...; \
-	for i in $(DEPENDENCIES); do $(GOGET) $$i; done
+dependencies: $(DEPENDENCIES) $(VENDOR_PATH)
+
+$(DEPENDENCIES):
+	$(GO_GET) $@/...
+
+$(VENDOR_PATH):
+	$(GLIDE) install
 
 test: dependencies
-	@$(GOTEST) ./...
+	$(GO_TEST) $(shell $(GLIDE) novendor)
 
 test-coverage: dependencies
-	@cd $(BASE_PATH); \
 	echo "" > $(COVERAGE_REPORT); \
-	for dir in `find . -name "*.go" | grep -o '.*/' | sort | uniq`; do \
-		$(GOTEST) $$dir -coverprofile=$(COVERAGE_PROFILE) -covermode=$(COVERAGE_MODE); \
+	for dir in `$(GO_CMD) list ./... | egrep -v '/(vendor|etc)/'`; do \
+		$(GO_TEST) $$dir -coverprofile=$(COVERAGE_PROFILE) -covermode=$(COVERAGE_MODE); \
 		if [ $$? != 0 ]; then \
 			exit 2; \
 		fi; \
@@ -59,20 +66,19 @@ test-coverage: dependencies
 			cat $(COVERAGE_PROFILE) >> $(COVERAGE_REPORT); \
 			rm $(COVERAGE_PROFILE); \
 		fi; \
-	done; \
+	done;
 
 build: dependencies
-	@$(DOCKERBUILD) -f Dockerfile.build -t $(DOCKER_BUILD_IMAGE) .; \
-	$(DOCKERRUN) -v $(GOPATH):/go $(DOCKER_BUILD_IMAGE) make build-local
+	$(DOCKER_BUILD) -f Dockerfile.build -t $(DOCKER_BUILD_IMAGE) .; \
+	$(DOCKER_RUN) -v $(GOPATH):/go $(DOCKER_BUILD_IMAGE) make build-internal
 
-build-local:
-	@cd $(BASE_PATH); \
+build-internal:
 	mkdir -p $(BUILD_PATH); \
 	for cmd in $(COMMANDS); do \
         cd $(CMD_PATH)/$${cmd}; \
-		$(GOCMD) build --ldflags '$(LDFLAGS)' -o $(BUILD_PATH)/$${cmd} .; \
-	done; \
+		$(GO_CMD) build --ldflags '$(LDFLAGS)' -o $(BUILD_PATH)/$${cmd} .; \
+	done;
 
 clean:
-	@rm -rf $(BUILD_PATH); \
+	rm -rf $(BUILD_PATH); \
 	$(GOCLEAN) .
