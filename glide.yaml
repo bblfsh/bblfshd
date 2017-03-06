@@ -1,0 +1,21 @@
+package: github.com/bblfsh/server
+import:
+- package: github.com/containers/image
+  subpackages:
+  - docker
+  - image
+  - types
+
+- package: github.com/opencontainers/image-spec
+  version: v1.0.0-rc4
+- package: github.com/imdario/go-ulid
+- package: github.com/opencontainers/runc
+  subpackages:
+  - libcontainer
+  - libcontainer/configs
+  - libcontainer/nsenter
+- package: github.com/pkg/errors
+testImport:
+- package: github.com/stretchr/testify
+  subpackages:
+  - assert
