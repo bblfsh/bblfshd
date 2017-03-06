@@ -1,10 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"sync"
 
-	"github.com/the-babelfish/server/runtime"
+	"github.com/bblfsh/server/runtime"
 )
 
 func init() {
@@ -26,8 +27,10 @@ func main() {
 		//Stdin:  os.Stdin,
 	}
 
-	ubuntu, _ := runtime.NewDriverImage("docker://ubuntu:latest")
-	alpine, _ := runtime.NewDriverImage("docker://alpine:latest")
+	ubuntu, _ := runtime.NewDriverImage("//ubuntu:latest")
+	alpine, _ := runtime.NewDriverImage("//alpine:latest")
+
+	fmt.Println(ubuntu, alpine)
 
 	wg.Add(2)
 	go run(s, ubuntu, p)

@@ -56,6 +56,7 @@ test: dependencies
 	$(GO_TEST) $(shell $(GLIDE) novendor)
 
 test-coverage: dependencies
+	export TEST_NETWORKING=1; \
 	echo "" > $(COVERAGE_REPORT); \
 	for dir in `$(GO_CMD) list ./... | egrep -v '/(vendor|etc)/'`; do \
 		$(GO_TEST) $$dir -coverprofile=$(COVERAGE_PROFILE) -covermode=$(COVERAGE_MODE); \
