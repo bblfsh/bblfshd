@@ -1,20 +1,54 @@
 package runtime
 
 import (
-	"flag"
+	"os"
+	"path/filepath"
 	"testing"
+
+	"github.com/bblfsh/sdk/manifest"
+	"github.com/containers/image/types"
 )
 
-var networking = flag.Bool("network", false, "excute tests using network")
-
-func init() {
-	flag.Parse()
-}
-
 func IfNetworking(t *testing.T) {
-	if *networking {
+	if len(os.Getenv("TEST_NETWORKING")) != 0 {
 		return
 	}
 
-	t.Skip("skipping network test use --network to run this test")
+	t.Skip("skipping network test use TEST_NETWORKING to run this test")
+}
+
+type FixtureDriverImage struct {
+	N string
+	M *manifest.Manifest
+}
+
+func (d *FixtureDriverImage) Name() string {
+	return d.N
+}
+
+func (d *FixtureDriverImage) Digest() (Digest, error) {
+	return ComputeDigest(d.N), nil
+}
+
+func (d *FixtureDriverImage) Inspect() (*types.ImageInspectInfo, error) {
+	return nil, nil
+}
+
+func (d *FixtureDriverImage) WriteTo(path string) error {
+	if err := os.MkdirAll(path, 0755); err != nil {
+		return err
+	}
+
+	w, err := os.Create(filepath.Join(path, manifest.Filename))
+	if err != nil {
+		return err
+	}
+
+	defer w.Close()
+
+	if d.M == nil {
+		d.M = &manifest.Manifest{}
+	}
+
+	return d.M.Encode(w)
 }

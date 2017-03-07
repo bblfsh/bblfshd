@@ -6,91 +6,123 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/bblfsh/sdk/manifest"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestInstall(t *testing.T) {
-	IfNetworking(t)
-
-	dir, err := ioutil.TempDir("", "core-storage-install")
+func TestStorageInstall(t *testing.T) {
+	dir, err := ioutil.TempDir("", "runtime-storage-install")
 	assert.Nil(t, err)
 	defer os.RemoveAll(dir)
 
-	d, err := NewDriverImage("//busybox:latest")
-	assert.Nil(t, err)
+	d := &FixtureDriverImage{"//foo", nil}
 
-	s := NewStorage(dir)
+	s := newStorage(dir)
 	err = s.Install(d, false)
 	assert.Nil(t, err)
 }
 
-func TestStatusAndDirty(t *testing.T) {
-	dir, err := ioutil.TempDir("", "core-storage-status")
+func TestStorageStatus(t *testing.T) {
+	dir, err := ioutil.TempDir("", "runtime-storage-install")
 	assert.Nil(t, err)
 	defer os.RemoveAll(dir)
 
-	d, err := NewDriverImage("//busybox:latest")
+	d := &FixtureDriverImage{"//foo", &manifest.Manifest{Language: "Go"}}
+
+	s := newStorage(dir)
+	err = s.Install(d, false)
 	assert.Nil(t, err)
 
-	expected := ComputeDigest("foo")
-	err = os.MkdirAll(filepath.Join(dir, "busybox:latest", expected.String()), 0777)
+	status, err := s.Status(d)
+	assert.Nil(t, err)
+	assert.False(t, status.Digest.IsZero())
+	assert.Equal(t, "Go", status.Manifest.Language)
+	assert.Equal(t, "foo", status.Reference)
+}
+
+func TestStorageStatusAndDirty(t *testing.T) {
+	dir, err := ioutil.TempDir("", "runtime-storage-status")
+	assert.Nil(t, err)
+	defer os.RemoveAll(dir)
+
+	d := &FixtureDriverImage{"//foo", &manifest.Manifest{Language: "Go"}}
+
+	s := newStorage(dir)
+	err = s.Install(d, false)
 	assert.Nil(t, err)
 
-	s := NewStorage(dir)
+	err = os.MkdirAll(filepath.Join(dir, "foo", ComputeDigest("bar").String()), 0777)
+	assert.Nil(t, err)
 	di, err := s.Status(d)
-	assert.Nil(t, err)
-	assert.Equal(t, expected, di)
-
-	err = os.MkdirAll(filepath.Join(dir, "busybox:latest", ComputeDigest("bar").String()), 0777)
-	assert.Nil(t, err)
-	di, err = s.Status(d)
 	assert.Equal(t, ErrDirtyDriverStorage, err)
-	assert.True(t, di.IsZero())
+	assert.Nil(t, di)
 }
 
-func TestStatusEmpty(t *testing.T) {
-	dir, err := ioutil.TempDir("", "core-storage-status-empty")
+func TestStorageStatusNotInstalled(t *testing.T) {
+	dir, err := ioutil.TempDir("", "runtime-storage-status-empty")
 	assert.Nil(t, err)
 	defer os.RemoveAll(dir)
 
 	d, err := NewDriverImage("//busybox:latest")
 	assert.Nil(t, err)
 
-	s := NewStorage(dir)
+	s := newStorage(dir)
 	di, err := s.Status(d)
-	assert.Nil(t, err)
-	assert.True(t, di.IsZero())
+	assert.Equal(t, ErrDriverNotInstalled, err)
+	assert.Nil(t, di)
 }
 
-func TestRemove(t *testing.T) {
-	dir, err := ioutil.TempDir("", "core-storage-remove")
+func TestStorageRemove(t *testing.T) {
+	dir, err := ioutil.TempDir("", "runtime-storage-remove")
+	assert.Nil(t, err)
+	defer os.RemoveAll(dir)
+
+	d := &FixtureDriverImage{"//foo", nil}
+
+	s := newStorage(dir)
+
+	err = s.Install(d, false)
+	assert.Nil(t, err)
+
+	err = s.Remove(d)
+	assert.Nil(t, err)
+
+	status, err := s.Status(d)
+	assert.Equal(t, ErrDriverNotInstalled, err)
+	assert.Nil(t, status)
+}
+
+func TestStorageRemoveEmpty(t *testing.T) {
+	dir, err := ioutil.TempDir("", "runtime-storage-remove-empty")
 	assert.Nil(t, err)
 	defer os.RemoveAll(dir)
 
 	d, err := NewDriverImage("//busybox:latest")
 	assert.Nil(t, err)
 
-	err = os.MkdirAll(filepath.Join(dir, "busybox:latest", ComputeDigest("bar").String()), 0777)
-	assert.Nil(t, err)
-
-	s := NewStorage(dir)
+	s := newStorage(dir)
 	err = s.Remove(d)
-	assert.Nil(t, err)
-
-	dirs, err := getDirs(filepath.Join(dir, "busybox:latest"))
-	assert.Nil(t, err)
-	assert.Len(t, dirs, 0)
+	assert.Equal(t, ErrDriverNotInstalled, err)
 }
 
-func TestRemoveEmpty(t *testing.T) {
-	dir, err := ioutil.TempDir("", "core-storage-remove-empty")
+func TestStorageList(t *testing.T) {
+	dir, err := ioutil.TempDir("", "runtime-storage-list")
 	assert.Nil(t, err)
 	defer os.RemoveAll(dir)
 
-	d, err := NewDriverImage("//busybox:latest")
+	s := newStorage(dir)
+
+	err = s.Install(&FixtureDriverImage{"//foo", nil}, false)
+	assert.Nil(t, err)
+	err = s.Install(&FixtureDriverImage{"//bar", nil}, false)
 	assert.Nil(t, err)
 
-	s := NewStorage(dir)
-	err = s.Remove(d)
+	list, err := s.List()
 	assert.Nil(t, err)
+	assert.Len(t, list, 2)
+
+	for _, status := range list {
+		assert.False(t, status.Digest.IsZero())
+		assert.True(t, len(status.Reference) > 0)
+	}
 }

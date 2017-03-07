@@ -5,25 +5,36 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	"github.com/bblfsh/sdk/manifest"
 )
 
-var ErrDirtyDriverStorage = errors.New("dirty driver storage")
+var (
+	ErrDirtyDriverStorage = errors.New("dirty driver storage")
+	ErrDriverNotInstalled = errors.New("driver not installed")
+)
 
+// storage represents the DriverImage storage, taking care of filesystem
+// image operations, such as install, update, remove, etc.
 type storage struct {
 	path string
 }
 
-func NewStorage(path string) *storage {
+func newStorage(path string) *storage {
 	return &storage{path: path}
 }
 
+// Install installs an DriverImage extracting his content to the filesystem,
+// only one version per image can be stored, update is required to overwrite a
+// previous image if already exists otherwise, Install fails if an previous
+// image already exists.
 func (s *storage) Install(d DriverImage, update bool) error {
-	current, err := s.Status(d)
-	if err != nil {
+	current, err := s.RootFS(d)
+	if err != nil && err != ErrDriverNotInstalled {
 		return err
 	}
 
-	exists := !current.IsZero()
+	exists := current != ""
 	if exists && !update {
 		return nil
 	}
@@ -43,31 +54,39 @@ func (s *storage) Install(d DriverImage, update bool) error {
 	return d.WriteTo(rootfs)
 }
 
+// RootFS returns the path in the host filesystem to an installed image.
 func (s *storage) RootFS(d DriverImage) (string, error) {
-	current, err := s.Status(d)
+	return s.rootFSFromBase(s.basePath(d))
+}
+
+func (s *storage) rootFSFromBase(path string) (string, error) {
+	dirs, err := getDirs(path)
 	if err != nil {
 		return "", err
 	}
 
-	return s.rootFSPath(d, current), nil
+	switch len(dirs) {
+	case 1:
+		return dirs[0], nil
+	case 0:
+		return "", ErrDriverNotInstalled
+	default:
+		return "", ErrDirtyDriverStorage
+	}
 }
 
-func (s *storage) Status(d DriverImage) (Digest, error) {
-	dirs, err := getDirs(s.basePath(d))
+// Status returns the current status in the storage for a given DriverImage, nil
+// is returned if the image is not installed.
+func (s *storage) Status(d DriverImage) (*DriverImageStatus, error) {
+	path, err := s.RootFS(d)
 	if err != nil {
 		return nil, err
 	}
 
-	switch len(dirs) {
-	case 1:
-		return NewDigest(dirs[0]), nil
-	case 0:
-		return nil, nil
-	default:
-		return nil, ErrDirtyDriverStorage
-	}
+	return newDriverImageStatus(path)
 }
 
+// Remove removes a given DriverImage from the filesystem.
 func (s *storage) Remove(d DriverImage) error {
 	path, err := s.RootFS(d)
 	if err != nil {
@@ -77,12 +96,37 @@ func (s *storage) Remove(d DriverImage) error {
 	return os.RemoveAll(path)
 }
 
+// List lists all the driver images installed on disk.
+func (s *storage) List() ([]*DriverImageStatus, error) {
+	dirs, err := getDirs(s.path)
+	if err != nil {
+		return nil, err
+	}
+
+	var list []*DriverImageStatus
+	for _, base := range dirs {
+		root, err := s.rootFSFromBase(base)
+		if err != nil {
+			return nil, err
+		}
+
+		status, err := newDriverImageStatus(root)
+		if err != nil {
+			return nil, err
+		}
+
+		list = append(list, status)
+	}
+
+	return list, nil
+}
+
 func (s *storage) rootFSPath(d DriverImage, di Digest) string {
 	return filepath.Join(s.basePath(d), di.String())
 }
 
 func (s *storage) basePath(d DriverImage) string {
-	return filepath.Join(s.path, d.Name()[2:])
+	return filepath.Join(s.path, d.Name())
 }
 
 func (s *storage) basePathExists(d DriverImage) (bool, error) {
@@ -115,8 +159,31 @@ func getDirs(path string) ([]string, error) {
 			continue
 		}
 
-		dirs = append(dirs, f.Name())
+		dirs = append(dirs, filepath.Join(path, f.Name()))
 	}
 
 	return dirs, nil
+}
+
+func newDriverImageStatus(path string) (*DriverImageStatus, error) {
+	manifest, err := manifest.Load(filepath.Join(path, manifest.Filename))
+	if err != nil {
+		return nil, err
+	}
+
+	base, digest := filepath.Split(path)
+	name := filepath.Base(base)
+
+	return &DriverImageStatus{
+		Reference: name,
+		Digest:    NewDigest(digest),
+		Manifest:  manifest,
+	}, nil
+}
+
+// DriverImageStatus represents the status of an installed driver image on disk.
+type DriverImageStatus struct {
+	Reference string
+	Digest    Digest
+	Manifest  *manifest.Manifest
 }

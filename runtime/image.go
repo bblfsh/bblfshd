@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/bblfsh/server/utils"
 
@@ -10,10 +11,7 @@ import (
 	"github.com/containers/image/types"
 )
 
-type Driver struct {
-	Image DriverImage
-}
-
+// DriverImage represents a docker image of a driver
 type DriverImage interface {
 	Name() string
 	Digest() (Digest, error)
@@ -25,19 +23,26 @@ type driverImage struct {
 	ref types.ImageReference
 }
 
-func NewDriverImage(imageName string) (DriverImage, error) {
-	ref, err := docker.ParseReference(imageName)
+// NewDriverImage returns a new DriverImage from a docker image reference.
+// The format of imageRef is defined by docker.ParseReference, the format can be
+// a non-normalized string like `bblfsh/rust-driver:lastest` or a normalized
+// referene like `//bblfsh/rust-driver:lastest`
+func NewDriverImage(imageRef string) (DriverImage, error) {
+	imageRef = strings.TrimPrefix(imageRef, "//")
+	ref, err := docker.ParseReference(fmt.Sprintf("//%s", imageRef))
 	if err != nil {
-		return nil, fmt.Errorf("Invalid source name %s: %v", imageName, err)
+		return nil, fmt.Errorf("invalid source ref %s: %v", imageRef, err)
 	}
 
 	return &driverImage{ref: ref}, nil
 }
 
+// Name returns the name of the driver image based on the image reference.
 func (d *driverImage) Name() string {
-	return d.ref.StringWithinTransport()
+	return strings.TrimPrefix(d.ref.StringWithinTransport(), "//")
 }
 
+// Digest computes a digest based on the image layers.
 func (d *driverImage) Digest() (Digest, error) {
 	img, err := d.image()
 	if err != nil {
@@ -52,6 +57,7 @@ func (d *driverImage) Digest() (Digest, error) {
 
 	return ComputeDigest(i.Layers...), nil
 }
+
 func (d *driverImage) Inspect() (*types.ImageInspectInfo, error) {
 	img, err := d.image()
 	if err != nil {
@@ -62,6 +68,7 @@ func (d *driverImage) Inspect() (*types.ImageInspectInfo, error) {
 	return img.Inspect()
 }
 
+// WriteTo writes the image to disk at the given path.
 func (d *driverImage) WriteTo(path string) error {
 	img, err := d.image()
 	if err != nil {

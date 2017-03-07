@@ -31,7 +31,7 @@ func NewRuntime(path string) *Runtime {
 		ContainerConfigFactory: ContainerConfigFactory,
 
 		root: path,
-		s:    NewStorage(filepath.Join(path, storagePath)),
+		s:    newStorage(filepath.Join(path, storagePath)),
 	}
 }
 
