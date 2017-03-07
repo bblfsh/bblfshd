@@ -43,7 +43,7 @@ func run(s *runtime.Runtime, i runtime.DriverImage, p *runtime.Process) {
 		panic(err)
 	}
 
-	c, err := s.Command(i, p)
+	c, err := s.Container(i, p)
 	if err != nil {
 		panic(err)
 	}

@@ -6,7 +6,6 @@ import (
 	"runtime"
 	"syscall"
 
-	"github.com/imdario/go-ulid"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	_ "github.com/opencontainers/runc/libcontainer/nsenter"
@@ -26,6 +25,7 @@ type Runtime struct {
 	f libcontainer.Factory
 }
 
+// NewRuntime create a new runtime using as storage the given path.
 func NewRuntime(path string) *Runtime {
 	return &Runtime{
 		ContainerConfigFactory: ContainerConfigFactory,
@@ -35,6 +35,7 @@ func NewRuntime(path string) *Runtime {
 	}
 }
 
+// Init initialize the runtime.
 func (r *Runtime) Init() error {
 	var err error
 	r.f, err = libcontainer.New(
@@ -46,15 +47,26 @@ func (r *Runtime) Init() error {
 	return err
 }
 
+// InstallDriver installs a DriverImage extracting his content to the storage,
+// only one version per image can be stored, update is required to overwrite a
+// previous image if already exists otherwise, Install fails if an previous
+// image already exists.
 func (r *Runtime) InstallDriver(d DriverImage, update bool) error {
 	return r.s.Install(d, update)
 }
 
+// RemoveDriver removes a given DriverImage from the image storage.
 func (r *Runtime) RemoveDriver(d DriverImage) error {
 	return r.s.Remove(d)
 }
 
-func (r *Runtime) Command(d DriverImage, p *Process) (Command, error) {
+// ListDrivers lists all the driver images installed on the storage.
+func (r *Runtime) ListDrivers() ([]*DriverImageStatus, error) {
+	return r.s.List()
+}
+
+// Container returns a container for the given DriverImage and Process
+func (r *Runtime) Container(d DriverImage, p *Process) (Container, error) {
 	var err error
 	cfg := r.ContainerConfigFactory()
 	cfg.Rootfs, err = r.s.RootFS(d)
@@ -62,14 +74,16 @@ func (r *Runtime) Command(d DriverImage, p *Process) (Command, error) {
 		return nil, err
 	}
 
-	c, err := r.f.Create(ulid.New().String(), cfg)
+	c, err := r.f.Create(NewULID().String(), cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	return newCommand(c, p), nil
+	return newContainer(c, p), nil
 }
 
+// ContainerConfigFactory is the default container config factory, is returns a
+// config.Config, with the default setup.
 func ContainerConfigFactory() *configs.Config {
 	defaultMountFlags := syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
 
@@ -175,6 +189,19 @@ func ContainerConfigFactory() *configs.Config {
 	}
 }
 
+// Bootstrap perform the init process of a container. This function should be
+// called at the init function of the application.
+//
+// Because containers are spawned in a two step process you will need a binary
+// that will be executed as the init process for the container. In libcontainer,
+// we use the current binary (/proc/self/exe) to be executed as the init
+// process, and use arg "init", we call the first step process "bootstrap", so
+// you always need a "init" function as the entry of "bootstrap".
+//
+// In addition to the go init function the early stage bootstrap is handled by
+// importing nsenter.
+//
+// https://github.com/opencontainers/runc/blob/master/libcontainer/README.md
 func Bootstrap() {
 	if len(os.Args) > 1 && os.Args[1] == "init" {
 		runtime.GOMAXPROCS(1)

@@ -24,7 +24,7 @@ func newStorage(path string) *storage {
 	return &storage{path: path}
 }
 
-// Install installs an DriverImage extracting his content to the filesystem,
+// Install installs a DriverImage extracting his content to the filesystem,
 // only one version per image can be stored, update is required to overwrite a
 // previous image if already exists otherwise, Install fails if an previous
 // image already exists.
