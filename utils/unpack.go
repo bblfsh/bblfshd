@@ -15,35 +15,57 @@ import (
 )
 
 func UnpackImage(src types.Image, target string) error {
-	raw, err := src.Reference().NewImageSource(nil, nil)
+	ref := src.Reference()
+	unpackLayer, err := getLayerUnpacker(ref)
+	if err != nil {
+		return err
+	}
+
+	raw, err := ref.NewImageSource(nil, nil)
 	if err != nil {
 		return err
 	}
 
 	for _, layer := range src.LayerInfos() {
-		fmt.Println(layer)
-		rc, size, err := raw.GetBlob(layer)
+		rc, _, err := raw.GetBlob(layer)
 		if err != nil {
 			return err
 		}
 
-		fmt.Println(unpackLayer(target, rc), size)
+		if err := unpackLayer(target, rc); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-func unpackLayer(dest string, r io.Reader) error {
-	entries := make(map[string]bool)
+func getLayerUnpacker(ref types.ImageReference) (func(string, io.Reader) error, error) {
+	transport := ref.Transport().Name()
+	switch transport {
+	case "docker-daemon":
+		return untar, nil
+	case "docker":
+		return untarGzip, nil
+	default:
+		return nil, fmt.Errorf("unsupported transport: %s", transport)
+	}
+}
+
+func untarGzip(dest string, r io.Reader) error {
 	gz, err := gzip.NewReader(r)
 	if err != nil {
 		return errors.Wrap(err, "error creating gzip reader")
 	}
 	defer gz.Close()
 
-	var dirs []*tar.Header
-	tr := tar.NewReader(gz)
+	return untar(dest, gz)
+}
 
+func untar(dest string, r io.Reader) error {
+	entries := make(map[string]bool)
+	var dirs []*tar.Header
+	tr := tar.NewReader(r)
 loop:
 	for {
 		hdr, err := tr.Next()
@@ -129,9 +151,19 @@ loop:
 				return fmt.Errorf("invalid symlink %q -> %q", path, hdr.Linkname)
 			}
 
-			if err := os.Symlink(hdr.Linkname, path); err != nil {
-				return err
+			err := os.Symlink(hdr.Linkname, path)
+			if err != nil {
+				if os.IsExist(err) {
+					if err := os.Remove(path); err != nil {
+						return err
+					}
+
+					if err := os.Symlink(hdr.Linkname, path); err != nil {
+						return err
+					}
+				}
 			}
+
 		case tar.TypeXGlobalHeader:
 			return nil
 		}

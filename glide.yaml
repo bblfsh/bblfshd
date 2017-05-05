@@ -1,5 +1,8 @@
 package: github.com/bblfsh/server
 import:
+- package: github.com/bblfsh/sdk
+  subpackages:
+  - protocol
 - package: github.com/containers/image
   version: 11dfba3e17bbb9c1ef50ee3687e5525e56dbd151
   subpackages:
@@ -7,6 +10,7 @@ import:
   - image
   - manifest
   - types
+  - transports
 - package: github.com/opencontainers/image-spec
   version: v1.0.0-rc5
 - package: github.com/opencontainers/runc
@@ -16,6 +20,12 @@ import:
   - libcontainer/configs
   - libcontainer/nsenter
 - package: github.com/pkg/errors
+- package: github.com/golang/protobuf
+  version: 7a211bcf3bce0e3f1d74f9894916e6f116ae83b4
+- package: golang.org/x/net
+  version: 7dcfb8076726a3fdd9353b6b8a1f1b6be6811bd6
+  subpackages:
+  - http2
 testImport:
 - package: github.com/stretchr/testify
   subpackages:

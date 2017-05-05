@@ -1,46 +1,67 @@
-hash: e311071797c7d27ad1567da80f4f99352187d17846f8029c7b57e2484efc8fd8
-updated: 2017-05-22T13:57:57.58252182+02:00
+hash: 531b17f74041be4a3de12b6511a33f6ade91cd41992af3592ca2b53c1443fe35
+updated: 2017-05-30T13:47:35.45712373+02:00
 imports:
 - name: github.com/bblfsh/sdk
-  version: 6326f5725dc04188164a338ee4594b666cbead60
+  version: 02e2f47d6fe1cce45161d87f6f4a0c41562e5a05
   subpackages:
   - manifest
+  - protocol
+  - protocol/driver
+  - protocol/jsonlines
+  - protocol/native
+  - uast
+  - uast/ann
 - name: github.com/BurntSushi/toml
   version: b26d9c308763d68093482582cea63d69be07a0f0
 - name: github.com/containers/image
   version: 11dfba3e17bbb9c1ef50ee3687e5525e56dbd151
   subpackages:
+  - directory
+  - directory/explicitfilepath
   - docker
+  - docker/archive
+  - docker/daemon
   - docker/policyconfiguration
   - docker/reference
+  - docker/tarfile
   - image
   - manifest
+  - oci/layout
+  - ostree
+  - pkg/compression
   - pkg/strslice
   - transports
   - types
 - name: github.com/containers/storage
   version: 5cbbc6bafb45bd7ef10486b673deb3b81bb3b787
   subpackages:
+  - pkg/archive
+  - pkg/fileutils
   - pkg/homedir
+  - pkg/idtools
+  - pkg/ioutils
+  - pkg/longpath
+  - pkg/pools
+  - pkg/promise
+  - pkg/system
 - name: github.com/coreos/go-systemd
   version: e97b35f834b17eaa82afe3d44715c34736bfa12b
   subpackages:
   - dbus
   - util
 - name: github.com/coreos/pkg
-  version: 1c941d73110817a80b9fa6e14d5d2b00d977ce2a
+  version: fa29b1d70f0beaddd4c7021607cc3c3be8ce94b8
   subpackages:
   - dlopen
 - name: github.com/docker/distribution
-  version: 08b06dc023674763e7b36d404cf0c7664cee1f5e
+  version: cd27f179f2c10c5d300e6d09025b538c475b0d51
   subpackages:
   - context
-  - digestset
+  - digest
   - reference
   - registry/api/errcode
   - registry/api/v2
   - registry/client
-  - registry/client/auth/challenge
   - registry/client/transport
   - registry/storage/cache
   - registry/storage/cache/memory
@@ -48,13 +69,32 @@ imports:
 - name: github.com/docker/docker
   version: 338565805c31783c63f9bb35d5b24f4c0c5656d3
   subpackages:
+  - api
+  - api/types
+  - api/types/blkiodev
+  - api/types/container
+  - api/types/events
+  - api/types/filters
+  - api/types/image
+  - api/types/mount
+  - api/types/network
+  - api/types/registry
+  - api/types/strslice
+  - api/types/swarm
+  - api/types/time
+  - api/types/versions
+  - api/types/volume
+  - client
+  - pkg/ioutils
   - pkg/longpath
   - pkg/mount
   - pkg/symlink
   - pkg/system
+  - pkg/tlsconfig
 - name: github.com/docker/go-connections
   version: a2afab9802043837035592f1c24827fb70766de9
   subpackages:
+  - nat
   - sockets
   - tlsconfig
 - name: github.com/docker/go-units
@@ -65,14 +105,23 @@ imports:
   version: 04f313413ffd65ce25f2541bfd2b2ceec5c0908c
 - name: github.com/godbus/dbus
   version: fe0e1d54eaeda11a9979659a8d32f459e88bee75
+- name: github.com/gogo/protobuf
+  version: 9df9efe4c742f1a2bfdedf1c3b6902fc6e814c6b
+  subpackages:
+  - gogoproto
+  - proto
+  - protoc-gen-gogo/descriptor
 - name: github.com/golang/protobuf
-  version: 69b215d01a5606c843240eab4937eab3acee6530
+  version: 7a211bcf3bce0e3f1d74f9894916e6f116ae83b4
   subpackages:
   - proto
+  - ptypes/any
 - name: github.com/gorilla/context
-  version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
+  version: 14f550f51af52180c2eefed15e5fd18d63c0a64a
 - name: github.com/gorilla/mux
-  version: 599cba5e7b6137d46ddf58fb1765f5d928e69604
+  version: e444e69cbd2e2e3e0749a2f3c717cec491552bbf
+- name: github.com/jessevdk/go-flags
+  version: 5695738f733662da3e9afc2283bba6f3c879002d
 - name: github.com/Microsoft/go-winio
   version: fff283ad5116362ca252298cfc9b95828956d85d
 - name: github.com/mrunalp/fileutils
@@ -120,6 +169,8 @@ imports:
   version: e7cb7fa329f456b3855136a2642b197bad7366ba
   subpackages:
   - capability
+- name: github.com/toqueteos/trie
+  version: 56fed4a05683322f125e2d78ee269bb102280392
 - name: github.com/vishvananda/netlink
   version: fe3b5664d23a11b52ba59bece4ff29c52772a56b
   subpackages:
@@ -127,20 +178,60 @@ imports:
 - name: github.com/vishvananda/netns
   version: 54f0e4339ce73702a0607f49922aaa1e749b418d
 - name: golang.org/x/net
-  version: d379faa25cbdc04d653984913a2ceb43b0bc46d7
+  version: 7dcfb8076726a3fdd9353b6b8a1f1b6be6811bd6
   subpackages:
   - context
+  - context/ctxhttp
+  - http2
+  - http2/hpack
+  - idna
+  - internal/timeseries
+  - lex/httplex
   - proxy
+  - trace
 - name: golang.org/x/sys
-  version: e48874b42435b4347fc52bdee0424a52abc974d7
+  version: 8f0908ab3b2457e2e15403d3697c9ef5cb4b57a9
   subpackages:
   - unix
   - windows
+- name: golang.org/x/text
+  version: 19e51611da83d6be54ddafce4a4af510cb3e9ea4
+  subpackages:
+  - secure/bidirule
+  - transform
+  - unicode/bidi
+  - unicode/norm
+- name: google.golang.org/genproto
+  version: d80a6e20e776b0b17a324d0ba1ab50a39c8e8944
+  subpackages:
+  - googleapis/rpc/status
+- name: google.golang.org/grpc
+  version: 79f73d62e5082ee8d6b86a2487fd6267c1495fcd
+  subpackages:
+  - codes
+  - credentials
+  - grpclb/grpc_lb_v1
+  - grpclog
+  - internal
+  - keepalive
+  - metadata
+  - naming
+  - peer
+  - stats
+  - status
+  - tap
+  - transport
+- name: gopkg.in/src-d/go-errors.v0
+  version: 0c303ec4c027302259ec1738f19f515aad25f13f
+- name: gopkg.in/src-d/simple-linguist.v1
+  version: 708f2e40bf35cdc6760a11293cad0a8e632b31a1
+- name: gopkg.in/toqueteos/substring.v1
+  version: c5f61671513240ddf5563635cc4a90e9f3ae4710
 - name: gopkg.in/yaml.v2
-  version: a3f3340b5840cee44f372bddb5880fcbc419b46a
+  version: bef53efd0c76e49e6de55ead051f886bea7e9420
 testImports:
 - name: github.com/davecgh/go-spew
-  version: 04cdfd42973bb9c8589fd6a731800cf222fde1a9
+  version: 5215b55f46b2b919f50a1df0eaa5886afe4e3b3d
   subpackages:
   - spew
 - name: github.com/pmezard/go-difflib
@@ -148,7 +239,8 @@ testImports:
   subpackages:
   - difflib
 - name: github.com/stretchr/testify
-  version: 4d4bfba8f1d1027c4fdbe371823030df51419987
+  version: e3a8ff8ce36581f87a15341206f205b1da467059
   subpackages:
   - assert
   - require
+  - suite
