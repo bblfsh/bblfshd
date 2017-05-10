@@ -9,6 +9,11 @@ matrix:
   allow_failures:
     - go: tip
 
+sudo: required
+
+services:
+  - docker
+
 before_install:
   - make dependencies
 
