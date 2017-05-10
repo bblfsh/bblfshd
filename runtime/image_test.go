@@ -26,12 +26,12 @@ func TestDriverImageFromNonNormalizedName(t *testing.T) {
 func TestDriverImageDigest(t *testing.T) {
 	IfNetworking(t)
 
-	d, err := NewDriverImage("//busybox:latest")
+	d, err := NewDriverImage("//smolav/busybox-test-image:latest")
 	assert.Nil(t, err)
 
 	h, err := d.Digest()
 	assert.Nil(t, err)
-	assert.Equal(t, h.String(), "eb34fc51f339f349df4258f68bb4a9cdbc38e3e4217cf1193a56dd0ece7d6331")
+	assert.Equal(t, "116d67f147f35850964c8c98231a3316623cb1de4d6fa29a12587b8882e69c4c", h.String())
 }
 
 func TestDriverImageInspect(t *testing.T) {
