@@ -4,6 +4,7 @@ COMMANDS = test
 DEPENDENCIES = \
 	golang.org/x/tools/cmd/cover \
 	github.com/Masterminds/glide
+NOVENDOR_PACKAGES := $(shell go list ./... | grep -v '/vendor/')
 
 # Environment
 BASE_PATH := $(shell pwd)
@@ -44,9 +45,12 @@ LDFLAGS = -X main.version=$(BRANCH) -X main.build=$(BUILD)
 # Rules
 all: clean build
 
-dependencies: $(DEPENDENCIES) $(VENDOR_PATH)
+dependencies: $(DEPENDENCIES) $(VENDOR_PATH) $(NOVENDOR_PACKAGES)
 
 $(DEPENDENCIES):
+	$(GO_GET) $@/...
+
+$(NOVENDOR_PACKAGES):
 	$(GO_GET) $@/...
 
 $(VENDOR_PATH):
@@ -60,7 +64,7 @@ test: dependencies docker-build
 
 test-internal:
 	export TEST_NETWORKING=1; \
-	$(GO_TEST) `go list ./... | grep -v '/vendor/'`
+	$(GO_TEST) $(NOVENDOR_PACKAGES)
 
 test-coverage: dependencies docker-build
 	$(DOCKER_RUN) -v $(GOPATH):/go $(DOCKER_BUILD_IMAGE) make test-coverage-internal
@@ -68,7 +72,7 @@ test-coverage: dependencies docker-build
 test-coverage-internal:
 	export TEST_NETWORKING=1; \
 	echo "" > $(COVERAGE_REPORT); \
-	for dir in `$(GO_CMD) list ./... | egrep -v '/vendor/'`; do \
+	for dir in $(NOVENDOR_PACKAGES); do \
 		$(GO_TEST) $$dir -coverprofile=$(COVERAGE_PROFILE) -covermode=$(COVERAGE_MODE); \
 		if [ $$? != 0 ]; then \
 			exit 2; \
