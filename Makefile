@@ -4,6 +4,7 @@ COMMANDS = test
 DEPENDENCIES = \
 	golang.org/x/tools/cmd/cover \
 	github.com/Masterminds/glide
+NOVENDOR_PACKAGES := $(shell go list ./... | grep -v '/vendor/')
 
 # Environment
 BASE_PATH := $(shell pwd)
@@ -29,9 +30,9 @@ COVERAGE_MODE = atomic
 
 # Docker
 DOCKER_CMD = docker
-DOCKER_BUILD = $(DOCKERCMD) build
-DOCKER_RUN = $(DOCKERCMD) run --rm
-DOCKER_BUILD_IMAGE = babelfish-build
+DOCKER_BUILD = $(DOCKER_CMD) build
+DOCKER_RUN = $(DOCKER_CMD) run --rm
+DOCKER_BUILD_IMAGE = bblfsh-server-build
 
 
 ifneq ($(origin TRAVIS_TAG), undefined)
@@ -44,21 +45,34 @@ LDFLAGS = -X main.version=$(BRANCH) -X main.build=$(BUILD)
 # Rules
 all: clean build
 
-dependencies: $(DEPENDENCIES) $(VENDOR_PATH)
+dependencies: $(DEPENDENCIES) $(VENDOR_PATH) $(NOVENDOR_PACKAGES)
 
 $(DEPENDENCIES):
+	$(GO_GET) $@/...
+
+$(NOVENDOR_PACKAGES):
 	$(GO_GET) $@/...
 
 $(VENDOR_PATH):
 	$(GLIDE) install
 
-test: dependencies
-	$(GO_TEST) $(shell $(GLIDE) novendor)
+docker-build:
+	$(DOCKER_BUILD) -f Dockerfile.build -t $(DOCKER_BUILD_IMAGE) .
 
-test-coverage: dependencies
+test: dependencies docker-build
+	$(DOCKER_RUN) -v $(GOPATH):/go $(DOCKER_BUILD_IMAGE) make test-internal
+
+test-internal:
+	export TEST_NETWORKING=1; \
+	$(GO_TEST) $(NOVENDOR_PACKAGES)
+
+test-coverage: dependencies docker-build
+	$(DOCKER_RUN) -v $(GOPATH):/go $(DOCKER_BUILD_IMAGE) make test-coverage-internal
+
+test-coverage-internal:
 	export TEST_NETWORKING=1; \
 	echo "" > $(COVERAGE_REPORT); \
-	for dir in `$(GO_CMD) list ./... | egrep -v '/(vendor|etc)/'`; do \
+	for dir in $(NOVENDOR_PACKAGES); do \
 		$(GO_TEST) $$dir -coverprofile=$(COVERAGE_PROFILE) -covermode=$(COVERAGE_MODE); \
 		if [ $$? != 0 ]; then \
 			exit 2; \
@@ -69,8 +83,7 @@ test-coverage: dependencies
 		fi; \
 	done;
 
-build: dependencies
-	$(DOCKER_BUILD) -f Dockerfile.build -t $(DOCKER_BUILD_IMAGE) .; \
+build: dependencies docker-build
 	$(DOCKER_RUN) -v $(GOPATH):/go $(DOCKER_BUILD_IMAGE) make build-internal
 
 build-internal:

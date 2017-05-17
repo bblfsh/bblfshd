@@ -6,59 +6,63 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDriverImageName(t *testing.T) {
-	d, err := NewDriverImage("//busybox:latest")
-	assert.Nil(t, err)
+	require := require.New(t)
 
-	assert.Equal(t, d.Name(), "busybox:latest")
+	d, err := NewDriverImage("//busybox:latest")
+	require.NoError(err)
+	require.Equal("busybox:latest", d.Name())
 }
 
 func TestDriverImageFromNonNormalizedName(t *testing.T) {
-	d, err := NewDriverImage("busybox:latest")
-	assert.Nil(t, err)
+	require := require.New(t)
 
-	assert.Equal(t, d.Name(), "busybox:latest")
+	d, err := NewDriverImage("busybox:latest")
+	require.NoError(err)
+	require.Equal("busybox:latest", d.Name())
 }
 
 func TestDriverImageDigest(t *testing.T) {
+	require := require.New(t)
 	IfNetworking(t)
-
-	d, err := NewDriverImage("//busybox:latest")
-	assert.Nil(t, err)
+	
+	d, err := NewDriverImage("//smolav/busybox-test-image:latest")
+	require.NoError(err)
 
 	h, err := d.Digest()
-	assert.Nil(t, err)
-	assert.Equal(t, h.String(), "eb34fc51f339f349df4258f68bb4a9cdbc38e3e4217cf1193a56dd0ece7d6331")
+	require.NoError(err)
+	require.Equal("116d67f147f35850964c8c98231a3316623cb1de4d6fa29a12587b8882e69c4c", h.String())
 }
 
 func TestDriverImageInspect(t *testing.T) {
+	require := require.New(t)
 	IfNetworking(t)
 
 	d, err := NewDriverImage("//busybox:latest")
-	assert.Nil(t, err)
+	require.NoError(err)
 
 	i, err := d.Inspect()
-	assert.Nil(t, err)
-
-	assert.Equal(t, i.Os, "linux")
+	require.NoError(err)
+	require.Equal("linux", i.Os)
 }
 
 func TestDriverImageWriteTo(t *testing.T) {
+	require := require.New(t)
 	IfNetworking(t)
 
 	dir, err := ioutil.TempDir("", "core-driver-writeto")
-	assert.Nil(t, err)
+	require.NoError(err)
 	defer os.RemoveAll(dir)
 
 	d, err := NewDriverImage("//busybox:latest")
-	assert.Nil(t, err)
+	require.NoError(err)
 
 	err = d.WriteTo(dir)
-	assert.Nil(t, err)
+	require.NoError(err)
 
 	_, err = os.Stat(filepath.Join(dir, "bin/busybox"))
-	assert.Nil(t, err)
+	require.NoError(err)
 }

@@ -7,74 +7,84 @@ import (
 	"testing"
 
 	"github.com/bblfsh/sdk/manifest"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestStorageInstall(t *testing.T) {
+	require := require.New(t)
+
 	dir, err := ioutil.TempDir("", "runtime-storage-install")
-	assert.Nil(t, err)
+	require.NoError(err)
 	defer os.RemoveAll(dir)
 
 	d := &FixtureDriverImage{"//foo", nil}
 
 	s := newStorage(dir)
 	err = s.Install(d, false)
-	assert.Nil(t, err)
+	require.NoError(err)
 }
 
 func TestStorageStatus(t *testing.T) {
+	require := require.New(t)
+
 	dir, err := ioutil.TempDir("", "runtime-storage-install")
-	assert.Nil(t, err)
+	require.NoError(err)
 	defer os.RemoveAll(dir)
 
 	d := &FixtureDriverImage{"//foo", &manifest.Manifest{Language: "Go"}}
 
 	s := newStorage(dir)
 	err = s.Install(d, false)
-	assert.Nil(t, err)
+	require.NoError(err)
 
 	status, err := s.Status(d)
-	assert.Nil(t, err)
-	assert.False(t, status.Digest.IsZero())
-	assert.Equal(t, "Go", status.Manifest.Language)
-	assert.Equal(t, "foo", status.Reference)
+	require.NoError(err)
+	require.False(status.Digest.IsZero())
+	require.Equal("Go", status.Manifest.Language)
+	require.Equal("foo", status.Reference)
 }
 
 func TestStorageStatusAndDirty(t *testing.T) {
+	require := require.New(t)
+
 	dir, err := ioutil.TempDir("", "runtime-storage-status")
-	assert.Nil(t, err)
+	require.NoError(err)
 	defer os.RemoveAll(dir)
 
 	d := &FixtureDriverImage{"//foo", &manifest.Manifest{Language: "Go"}}
 
 	s := newStorage(dir)
 	err = s.Install(d, false)
-	assert.Nil(t, err)
+	require.NoError(err)
 
 	err = os.MkdirAll(filepath.Join(dir, "foo", ComputeDigest("bar").String()), 0777)
-	assert.Nil(t, err)
+	require.NoError(err)
 	di, err := s.Status(d)
-	assert.Equal(t, ErrDirtyDriverStorage, err)
-	assert.Nil(t, di)
+	require.Equal(ErrDirtyDriverStorage, err)
+	require.Nil(di)
 }
 
 func TestStorageStatusNotInstalled(t *testing.T) {
+	require := require.New(t)
+
 	dir, err := ioutil.TempDir("", "runtime-storage-status-empty")
-	assert.Nil(t, err)
+	require.NoError(err)
 	defer os.RemoveAll(dir)
 
 	d, err := NewDriverImage("//busybox:latest")
-	assert.Nil(t, err)
+	require.NoError(err)
 
 	s := newStorage(dir)
 	di, err := s.Status(d)
-	assert.Equal(t, ErrDriverNotInstalled, err)
-	assert.Nil(t, di)
+	require.Equal(ErrDriverNotInstalled, err)
+	require.Nil(di)
 }
 
 func TestStorageRemove(t *testing.T) {
+	require := require.New(t)
+
 	dir, err := ioutil.TempDir("", "runtime-storage-remove")
-	assert.Nil(t, err)
+	require.NoError(err)
 	defer os.RemoveAll(dir)
 
 	d := &FixtureDriverImage{"//foo", nil}
@@ -82,47 +92,51 @@ func TestStorageRemove(t *testing.T) {
 	s := newStorage(dir)
 
 	err = s.Install(d, false)
-	assert.Nil(t, err)
+	require.NoError(err)
 
 	err = s.Remove(d)
-	assert.Nil(t, err)
+	require.NoError(err)
 
 	status, err := s.Status(d)
-	assert.Equal(t, ErrDriverNotInstalled, err)
-	assert.Nil(t, status)
+	require.Equal(ErrDriverNotInstalled, err)
+	require.Nil(status)
 }
 
 func TestStorageRemoveEmpty(t *testing.T) {
+	require := require.New(t)
+
 	dir, err := ioutil.TempDir("", "runtime-storage-remove-empty")
-	assert.Nil(t, err)
+	require.NoError(err)
 	defer os.RemoveAll(dir)
 
 	d, err := NewDriverImage("//busybox:latest")
-	assert.Nil(t, err)
+	require.NoError(err)
 
 	s := newStorage(dir)
 	err = s.Remove(d)
-	assert.Equal(t, ErrDriverNotInstalled, err)
+	require.Equal(ErrDriverNotInstalled, err)
 }
 
 func TestStorageList(t *testing.T) {
+	require := require.New(t)
+
 	dir, err := ioutil.TempDir("", "runtime-storage-list")
-	assert.Nil(t, err)
+	require.NoError(err)
 	defer os.RemoveAll(dir)
 
 	s := newStorage(dir)
 
 	err = s.Install(&FixtureDriverImage{"//foo", nil}, false)
-	assert.Nil(t, err)
+	require.NoError(err)
 	err = s.Install(&FixtureDriverImage{"//bar", nil}, false)
-	assert.Nil(t, err)
+	require.NoError(err)
 
 	list, err := s.List()
-	assert.Nil(t, err)
-	assert.Len(t, list, 2)
+	require.NoError(err)
+	require.Len(list, 2)
 
 	for _, status := range list {
-		assert.False(t, status.Digest.IsZero())
-		assert.True(t, len(status.Reference) > 0)
+		require.False(status.Digest.IsZero())
+		require.True(len(status.Reference) > 0)
 	}
 }
