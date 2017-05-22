@@ -1,14 +1,21 @@
-hash: 27637d2440244a41aafe6b37b42c3adb91426fff7008fc03ae1b945ed7f882fc
-updated: 2017-03-06T01:00:41.702119108+01:00
+hash: e311071797c7d27ad1567da80f4f99352187d17846f8029c7b57e2484efc8fd8
+updated: 2017-05-22T13:57:57.58252182+02:00
 imports:
+- name: github.com/bblfsh/sdk
+  version: 6326f5725dc04188164a338ee4594b666cbead60
+  subpackages:
+  - manifest
+- name: github.com/BurntSushi/toml
+  version: b26d9c308763d68093482582cea63d69be07a0f0
 - name: github.com/containers/image
-  version: 1d7e25b91705e4d1cddb5396baf112caeb1119f3
+  version: 11dfba3e17bbb9c1ef50ee3687e5525e56dbd151
   subpackages:
   - docker
   - docker/policyconfiguration
   - docker/reference
   - image
   - manifest
+  - pkg/strslice
   - transports
   - types
 - name: github.com/containers/storage
@@ -41,7 +48,6 @@ imports:
 - name: github.com/docker/docker
   version: 338565805c31783c63f9bb35d5b24f4c0c5656d3
   subpackages:
-  - api/types/strslice
   - pkg/longpath
   - pkg/mount
   - pkg/symlink
@@ -67,21 +73,21 @@ imports:
   version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
 - name: github.com/gorilla/mux
   version: 599cba5e7b6137d46ddf58fb1765f5d928e69604
-- name: github.com/imdario/go-ulid
-  version: 80e2735d1c2c2b1d963bccaa2306f67e5f8d5da9
 - name: github.com/Microsoft/go-winio
   version: fff283ad5116362ca252298cfc9b95828956d85d
 - name: github.com/mrunalp/fileutils
   version: 4ee1cc9a80582a0c75febdd5cfa779ee4361cbca
+- name: github.com/oklog/ulid
+  version: 66bb6560562feca7045b23db1ae85b01260f87c5
 - name: github.com/opencontainers/go-digest
   version: aa2ec055abd10d26d539eb630a92241b781ce4bc
 - name: github.com/opencontainers/image-spec
-  version: 86308139a22b005bfda7b2e49c02fade937b4180
+  version: 5faaada8762b465d5ce8a8da27b92d577a1aa576
   subpackages:
   - specs-go
   - specs-go/v1
 - name: github.com/opencontainers/runc
-  version: 291bf601105c97dc1aa631fdfb7fca63c947319b
+  version: 75f8da7c889acc4509a0cf6f0d3a8f9584778375
   subpackages:
   - libcontainer
   - libcontainer/apparmor
@@ -145,3 +151,4 @@ testImports:
   version: 4d4bfba8f1d1027c4fdbe371823030df51419987
   subpackages:
   - assert
+  - require
