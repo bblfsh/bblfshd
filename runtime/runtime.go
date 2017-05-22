@@ -88,21 +88,29 @@ func ContainerConfigFactory() *configs.Config {
 	defaultMountFlags := syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
 
 	return &configs.Config{
-		Capabilities: []string{
-			"CAP_CHOWN",
-			"CAP_DAC_OVERRIDE",
-			"CAP_FSETID",
-			"CAP_FOWNER",
-			"CAP_MKNOD",
-			"CAP_NET_RAW",
-			"CAP_SETGID",
-			"CAP_SETUID",
-			"CAP_SETFCAP",
-			"CAP_SETPCAP",
-			"CAP_NET_BIND_SERVICE",
-			"CAP_SYS_CHROOT",
-			"CAP_KILL",
-			"CAP_AUDIT_WRITE",
+		Capabilities: &configs.Capabilities{
+			Bounding: []string{
+				"CAP_AUDIT_WRITE",
+				"CAP_KILL",
+				"CAP_NET_BIND_SERVICE",
+			},
+			Permitted: []string{
+				"CAP_AUDIT_WRITE",
+				"CAP_KILL",
+				"CAP_NET_BIND_SERVICE",
+			},
+			Inheritable: []string{
+				"CAP_AUDIT_WRITE",
+				"CAP_KILL",
+				"CAP_NET_BIND_SERVICE",
+			},
+			Effective: []string{
+				"CAP_AUDIT_WRITE",
+				"CAP_KILL",
+			},
+			Ambient: []string{
+				"CAP_NET_BIND_SERVICE",
+			},
 		},
 		Namespaces: configs.Namespaces([]configs.Namespace{
 			{Type: configs.NEWNS},
