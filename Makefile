@@ -60,14 +60,14 @@ docker-build:
 	$(DOCKER_BUILD) -f Dockerfile.build -t $(DOCKER_BUILD_IMAGE) .
 
 test: dependencies docker-build
-	$(DOCKER_RUN) -v $(GOPATH):/go $(DOCKER_BUILD_IMAGE) make test-internal
+	$(DOCKER_RUN) --privileged -v $(GOPATH):/go $(DOCKER_BUILD_IMAGE) make test-internal
 
 test-internal:
 	export TEST_NETWORKING=1; \
 	$(GO_TEST) $(NOVENDOR_PACKAGES)
 
 test-coverage: dependencies docker-build
-	$(DOCKER_RUN) -v $(GOPATH):/go $(DOCKER_BUILD_IMAGE) make test-coverage-internal
+	$(DOCKER_RUN) --privileged -v $(GOPATH):/go $(DOCKER_BUILD_IMAGE) make test-coverage-internal
 
 test-coverage-internal:
 	export TEST_NETWORKING=1; \
