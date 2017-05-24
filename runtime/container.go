@@ -3,6 +3,7 @@ package runtime
 import (
 	"os"
 
+	"github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/runc/libcontainer"
 )
 
@@ -37,20 +38,26 @@ type Command interface {
 	Wait() error
 }
 
-func newContainer(c libcontainer.Container, p *Process) Container {
+func newContainer(c libcontainer.Container, p *Process, imageDesc *v1.Image) Container {
 	cp := libcontainer.Process(*p)
 	return &container{
-		Container: c,
-		process:   &cp,
+		Container:       c,
+		process:         &cp,
+		imageDescriptor: imageDesc,
 	}
 }
 
 type container struct {
 	libcontainer.Container
-	process *libcontainer.Process
+	process         *libcontainer.Process
+	imageDescriptor *v1.Image
 }
 
 func (c *container) Start() error {
+	env := make([]string, len(c.imageDescriptor.Config.Env))
+	copy(env, c.imageDescriptor.Config.Env)
+	c.process.Env = append(env, c.process.Env...)
+
 	if err := c.Container.Run(c.process); err != nil {
 		c.Container.Destroy()
 		return err

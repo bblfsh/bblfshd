@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"syscall"
 
+	"github.com/bblfsh/server/utils"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	_ "github.com/opencontainers/runc/libcontainer/nsenter"
@@ -74,12 +75,17 @@ func (r *Runtime) Container(d DriverImage, p *Process) (Container, error) {
 		return nil, err
 	}
 
+	imgConfig, err := utils.ReadImageConfig(cfg.Rootfs + ".json")
+	if err != nil {
+		return nil, err
+	}
+
 	c, err := r.f.Create(NewULID().String(), cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	return newContainer(c, p), nil
+	return newContainer(c, p, imgConfig), nil
 }
 
 // ContainerConfigFactory is the default container config factory, is returns a

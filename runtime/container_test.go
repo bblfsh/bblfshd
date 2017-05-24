@@ -139,3 +139,35 @@ func TestContainerStartFailure(t *testing.T) {
 	err = c.Start()
 	require.Error(err)
 }
+
+func TestContainerEnv(t *testing.T) {
+	require := require.New(t)
+
+	tmpDir, err := ioutil.TempDir(os.TempDir(), "bblfsh-runtime")
+	require.NoError(err)
+	defer func() { require.NoError(os.RemoveAll(tmpDir)) }()
+
+	rt := NewRuntime(tmpDir)
+	err = rt.Init()
+	require.NoError(err)
+
+	d, err := NewDriverImage("//busybox:latest")
+	require.NoError(err)
+
+	err = rt.InstallDriver(d, false)
+	require.NoError(err)
+
+	out := bytes.NewBuffer(nil)
+
+	p := &Process{
+		Args:   []string{"/bin/env"},
+		Stdout: out,
+	}
+
+	c, err := rt.Container(d, p)
+	require.NoError(err)
+
+	err = c.Run()
+	require.NoError(err)
+	require.Equal("PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\nHOME=/root\n", out.String())
+}

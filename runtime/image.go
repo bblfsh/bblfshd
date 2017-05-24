@@ -76,7 +76,16 @@ func (d *driverImage) WriteTo(path string) error {
 	}
 
 	defer img.Close()
-	return utils.UnpackImage(img, path)
+	if err := utils.UnpackImage(img, path); err != nil {
+		return err
+	}
+
+	config, err := img.OCIConfig()
+	if err != nil {
+		return err
+	}
+
+	return utils.WriteImageConfig(config, path+".json")
 }
 
 func (d *driverImage) image() (types.Image, error) {
