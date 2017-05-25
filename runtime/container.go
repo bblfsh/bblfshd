@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"io"
 	"os"
 
 	"github.com/opencontainers/image-spec/specs-go/v1"
@@ -59,7 +60,7 @@ func (c *container) Start() error {
 	c.process.Env = append(env, c.process.Env...)
 
 	if err := c.Container.Run(c.process); err != nil {
-		c.Container.Destroy()
+		_ = c.Container.Destroy()
 		return err
 	}
 
@@ -67,12 +68,28 @@ func (c *container) Start() error {
 }
 
 func (c *container) Wait() error {
+	var derr error
+	defer func() {
+		derr = c.Container.Destroy()
+		streams := []interface{}{
+			c.process.Stdin,
+			c.process.Stdout,
+			c.process.Stderr,
+		}
+		for _, s := range streams {
+			if c, ok := s.(io.Closer); ok {
+				if err := c.Close(); err != nil && derr != nil {
+					derr = err
+				}
+			}
+		}
+	}()
+
 	if _, err := c.process.Wait(); err != nil {
 		return err
 	}
 
-	c.Container.Destroy()
-	return nil
+	return derr
 }
 
 func (c *container) Run() error {
