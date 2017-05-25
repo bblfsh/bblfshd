@@ -9,6 +9,10 @@ import (
 	"github.com/containers/image/types"
 )
 
+func init() {
+	Bootstrap()
+}
+
 func IfNetworking(t *testing.T) {
 	if len(os.Getenv("TEST_NETWORKING")) != 0 {
 		return

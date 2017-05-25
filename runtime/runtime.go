@@ -88,30 +88,6 @@ func ContainerConfigFactory() *configs.Config {
 	defaultMountFlags := syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
 
 	return &configs.Config{
-		Capabilities: &configs.Capabilities{
-			Bounding: []string{
-				"CAP_AUDIT_WRITE",
-				"CAP_KILL",
-				"CAP_NET_BIND_SERVICE",
-			},
-			Permitted: []string{
-				"CAP_AUDIT_WRITE",
-				"CAP_KILL",
-				"CAP_NET_BIND_SERVICE",
-			},
-			Inheritable: []string{
-				"CAP_AUDIT_WRITE",
-				"CAP_KILL",
-				"CAP_NET_BIND_SERVICE",
-			},
-			Effective: []string{
-				"CAP_AUDIT_WRITE",
-				"CAP_KILL",
-			},
-			Ambient: []string{
-				"CAP_NET_BIND_SERVICE",
-			},
-		},
 		Namespaces: configs.Namespaces([]configs.Namespace{
 			{Type: configs.NEWNS},
 			{Type: configs.NEWUTS},
@@ -121,12 +97,12 @@ func ContainerConfigFactory() *configs.Config {
 			{Type: configs.NEWNET},
 		}),
 		Cgroups: &configs.Cgroup{
-			Name:   "test-container",
+			Name:   "bblfsh",
 			Parent: "system",
 			Resources: &configs.Resources{
 				MemorySwappiness: nil,
 				AllowAllDevices:  nil,
-				AllowedDevices:   configs.DefaultAllowedDevices,
+				AllowedDevices:   configs.DefaultSimpleDevices,
 			},
 		},
 		MaskPaths: []string{
@@ -136,8 +112,8 @@ func ContainerConfigFactory() *configs.Config {
 		ReadonlyPaths: []string{
 			"/proc/sys", "/proc/sysrq-trigger", "/proc/irq", "/proc/bus",
 		},
-		Devices:  configs.DefaultAutoCreatedDevices,
-		Hostname: "testing",
+		Devices:  configs.DefaultSimpleDevices,
+		Hostname: "bblfsh",
 		Mounts: []*configs.Mount{
 			{
 				Source:      "proc",
@@ -160,13 +136,6 @@ func ContainerConfigFactory() *configs.Config {
 				Data:        "newinstance,ptmxmode=0666,mode=0620,gid=5",
 			},
 			{
-				Device:      "tmpfs",
-				Source:      "shm",
-				Destination: "/dev/shm",
-				Data:        "mode=1777,size=65536k",
-				Flags:       defaultMountFlags,
-			},
-			{
 				Source:      "mqueue",
 				Destination: "/dev/mqueue",
 				Device:      "mqueue",
@@ -177,14 +146,6 @@ func ContainerConfigFactory() *configs.Config {
 				Destination: "/sys",
 				Device:      "sysfs",
 				Flags:       defaultMountFlags | syscall.MS_RDONLY,
-			},
-		},
-
-		Networks: []*configs.Network{
-			{
-				Type:    "loopback",
-				Address: "127.0.0.1/0",
-				Gateway: "localhost",
 			},
 		},
 		Rlimits: []configs.Rlimit{
