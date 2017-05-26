@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"bytes"
+	"io"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -103,6 +104,36 @@ func (s *ContainerSuite) TestContainerStartWaitExit1() {
 	require.Error(err)
 
 	require.Equal("", out.String())
+}
+
+func (s *ContainerSuite) TestContainerCloseStdoutOnExit() {
+	require := require.New(s.T())
+
+	outr, outw := io.Pipe()
+
+	p := &Process{
+		Args:   []string{"/bin/true"},
+		Stdout: outw,
+	}
+
+	c, err := s.Runtime.Container(s.Image, p)
+	require.NoError(err)
+
+	done := make(chan struct{})
+	go func() {
+		b := make([]byte, 1)
+		_, err := outr.Read(b)
+		require.Error(err)
+		close(done)
+	}()
+
+	err = c.Start()
+	require.NoError(err)
+
+	err = c.Wait()
+	require.NoError(err)
+
+	<-done
 }
 
 func (s *ContainerSuite) TestContainerStartFailure() {
