@@ -28,7 +28,7 @@ func TestDriverImageFromNonNormalizedName(t *testing.T) {
 func TestDriverImageDigest(t *testing.T) {
 	require := require.New(t)
 	IfNetworking(t)
-	
+
 	d, err := NewDriverImage("//smolav/busybox-test-image:latest")
 	require.NoError(err)
 
