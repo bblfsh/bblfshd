@@ -7,7 +7,6 @@ import (
 	"github.com/bblfsh/server/runtime"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/bblfsh/sdk/protocol"
 )
 
 type serverCmd struct {
@@ -32,7 +31,6 @@ func (c *serverCmd) Execute(args []string) error {
 
 	s := server.NewServer(r)
 	s.Transport = c.Transport
-	protocol.DefaultParser = s
 
 	logrus.Debug("starting server")
 	return s.Serve(lis)

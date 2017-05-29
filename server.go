@@ -44,6 +44,8 @@ func (s *Server) Serve(listener net.Listener) error {
 		protocol.NewProtocolServiceServer(),
 	)
 
+	protocol.DefaultParser = s
+
 	logrus.Info("starting gRPC server")
 	return grpcServer.Serve(listener)
 }
