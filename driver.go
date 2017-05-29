@@ -11,11 +11,15 @@ import (
 	"github.com/bblfsh/sdk/protocol/driver"
 )
 
+// Driver is a client to communicate with a driver. It provides the parser
+// interface and is closeable.
 type Driver interface {
 	protocol.Parser
 	io.Closer
 }
 
+// ExecDriver executes a new driver using the given runtime and driver image
+// and returns a Driver instance for it.
 func ExecDriver(r *runtime.Runtime, img runtime.DriverImage) (Driver, error) {
 	inr, inw := io.Pipe()
 	outr, outw := io.Pipe()
