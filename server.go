@@ -62,12 +62,14 @@ func (s *Server) AddDriver(lang string, img string) error {
 		return ErrRuntime.Wrap(err)
 	}
 
-	d, err := ExecDriver(s.rt, image)
-	if err != nil {
+	dp := NewDriverPool(func() (Driver, error) {
+		return ExecDriver(s.rt, image)
+	})
+	if err := dp.Start(); err != nil {
 		return err
 	}
 
-	s.drivers[lang] = d
+	s.drivers[lang] = dp
 	return nil
 }
 
