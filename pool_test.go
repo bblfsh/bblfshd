@@ -1,12 +1,13 @@
 package server
 
 import (
+	"fmt"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/bblfsh/sdk/protocol"
 	"github.com/stretchr/testify/require"
-	"sync"
-	"time"
 )
 
 type mockDriver struct {
@@ -46,6 +47,18 @@ func TestDriverPoolStartNoopClose(t *testing.T) {
 	require.NotNil(resp)
 	require.Equal(protocol.Fatal, resp.Status)
 	require.Equal([]string{"driver pool already closed"}, resp.Errors)
+}
+
+func TestDriverPoolStartFailingDriver(t *testing.T) {
+	require := require.New(t)
+
+	new := func() (Driver, error) {
+		return nil, fmt.Errorf("driver error")
+	}
+
+	dp, err := StartDriverPool(DefaultScalingPolicy, DefaultPoolTimeout, new)
+	require.EqualError(err, "driver error")
+	require.Nil(dp)
 }
 
 func TestDriverPoolSequential(t *testing.T) {
