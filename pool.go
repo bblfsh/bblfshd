@@ -135,13 +135,6 @@ func (dp *DriverPool) scaling() {
 // forwards the request to it. If all drivers are busy, it will return an error
 // after the timeout passes. If the DriverPool is closed, an error will be returned.
 func (dp *DriverPool) ParseUAST(req *protocol.ParseUASTRequest) *protocol.ParseUASTResponse {
-	if dp.closed {
-		return &protocol.ParseUASTResponse{
-			Status: protocol.Fatal,
-			Errors: []string{"driver pool already closed"},
-		}
-	}
-
 	dp.waiting.Add(1)
 	d, more, timedout := dp.readyQueue.TryDequeue(dp.timeout)
 	dp.waiting.Add(-1)
