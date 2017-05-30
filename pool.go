@@ -26,7 +26,10 @@ type DriverPool struct {
 	timeout       time.Duration
 	new           func() (Driver, error)
 
-	cur        int
+	cur int
+	// close channel will be used to synchronize Close() call with the
+	// scaling() goroutine. Once Close() starts, a struct{} will be sent to
+	// the close channel. And once scaling() finish it will close it.
 	close      chan struct{}
 	closed     bool
 	waiting    *atomicInt
@@ -47,7 +50,6 @@ func StartDriverPool(scaling ScalingPolicy, timeout time.Duration, new func() (D
 	}
 
 	if err := dp.start(); err != nil {
-		_ = dp.Close()
 		return nil, err
 	}
 
@@ -57,6 +59,7 @@ func StartDriverPool(scaling ScalingPolicy, timeout time.Duration, new func() (D
 func (dp *DriverPool) start() error {
 	target := dp.scalingPolicy.Scale(0, 0)
 	if err := dp.setInstanceCount(target); err != nil {
+		_ = dp.setInstanceCount(0)
 		return err
 	}
 
@@ -114,17 +117,17 @@ func (dp *DriverPool) del(n int) error {
 
 func (dp *DriverPool) scaling() {
 	for {
-		time.Sleep(time.Millisecond * 100)
-		if dp.closed {
+		select {
+		case <-dp.close:
 			close(dp.close)
 			return
+		case <-time.After(time.Millisecond * 100):
+			total := dp.cur
+			ready := dp.readyQueue.Size()
+			load := int(dp.waiting.Value())
+			s := dp.scalingPolicy.Scale(total, load-ready)
+			_ = dp.setInstanceCount(s)
 		}
-
-		total := dp.cur
-		ready := dp.readyQueue.Size()
-		load := int(dp.waiting.Value())
-		s := dp.scalingPolicy.Scale(total, load-ready)
-		_ = dp.setInstanceCount(s)
 	}
 }
 
@@ -169,8 +172,8 @@ func (dp *DriverPool) Close() error {
 	}
 
 	dp.closed = true
+	dp.close <- struct{}{}
 	<-dp.close
-
 	if err := dp.setInstanceCount(0); err != nil {
 		return err
 	}
@@ -213,7 +216,6 @@ func (q *driverQueue) Size() int {
 }
 
 func (q *driverQueue) Close() error {
-
 	close(q.c)
 	return nil
 }
