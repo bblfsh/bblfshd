@@ -54,6 +54,10 @@ func (s *Server) AddDriver(lang string, img string) error {
 	}
 
 	image, err := runtime.NewDriverImage(img)
+	if err != nil {
+		return ErrRuntime.Wrap(err)
+	}
+
 	if err := s.rt.InstallDriver(image, false); err != nil {
 		return ErrRuntime.Wrap(err)
 	}
