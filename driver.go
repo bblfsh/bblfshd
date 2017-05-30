@@ -19,7 +19,8 @@ type Driver interface {
 }
 
 // ExecDriver executes a new driver using the given runtime and driver image
-// and returns a Driver instance for it.
+// and returns a Driver instance for it. The Driver instance returned by this
+// method is not thread-safe.
 func ExecDriver(r *runtime.Runtime, img runtime.DriverImage) (Driver, error) {
 	inr, inw := io.Pipe()
 	outr, outw := io.Pipe()

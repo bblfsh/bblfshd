@@ -44,6 +44,8 @@ func (s *Server) Serve(listener net.Listener) error {
 		protocol.NewProtocolServiceServer(),
 	)
 
+	protocol.DefaultParser = s
+
 	logrus.Info("starting gRPC server")
 	return grpcServer.Serve(listener)
 }
@@ -62,12 +64,14 @@ func (s *Server) AddDriver(lang string, img string) error {
 		return ErrRuntime.Wrap(err)
 	}
 
-	d, err := ExecDriver(s.rt, image)
+	dp, err := StartDriverPool(DefaultScalingPolicy, DefaultPoolTimeout, func() (Driver, error) {
+		return ExecDriver(s.rt, image)
+	})
 	if err != nil {
 		return err
 	}
 
-	s.drivers[lang] = d
+	s.drivers[lang] = dp
 	return nil
 }
 

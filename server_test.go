@@ -1,19 +1,39 @@
 package server
 
 import (
+	"context"
+	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/bblfsh/server/runtime"
 
 	"github.com/bblfsh/sdk/protocol"
+	"github.com/bblfsh/sdk/uast"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 )
 
-func TestNewServer(t *testing.T) {
-	t.Skip("cannot fetch image yet")
+type echoDriver struct{}
 
+func (d *echoDriver) ParseUAST(req *protocol.ParseUASTRequest) *protocol.ParseUASTResponse {
+	return &protocol.ParseUASTResponse{
+		Status: protocol.Ok,
+		UAST: &uast.Node{
+			Token: req.Content,
+		},
+	}
+}
+
+func (d *echoDriver) Close() error {
+	return nil
+}
+
+func TestNewServerMockedDriverParallelClients(t *testing.T) {
 	require := require.New(t)
 
 	tmpDir, err := ioutil.TempDir(os.TempDir(), "bblfsh-runtime")
@@ -26,15 +46,48 @@ func TestNewServer(t *testing.T) {
 	require.NoError(err)
 
 	s := NewServer(r)
-	img := DefaultDriverImageReference("", "python")
-	err = s.AddDriver("python", img)
-	require.NoError(err)
-
-	resp := s.ParseUAST(&protocol.ParseUASTRequest{
-		Content: "import foo",
+	dp, err := StartDriverPool(DefaultScalingPolicy, DefaultPoolTimeout, func() (Driver, error) {
+		return &echoDriver{}, nil
 	})
 	require.NoError(err)
-	require.NotNil(resp)
+	require.NotNil(dp)
 
-	require.NoError(s.Close())
+	s.drivers["python"] = dp
+
+	lis, err := net.Listen("tcp", "localhost:0")
+	require.NoError(err)
+	go s.Serve(lis)
+
+	time.Sleep(time.Second * 1)
+
+	wg := &sync.WaitGroup{}
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		conn, err := grpc.Dial(lis.Addr().String(), grpc.WithInsecure(), grpc.WithTimeout(time.Second*2))
+		require.NoError(err)
+		go func(i int, conn *grpc.ClientConn) {
+			client := protocol.NewProtocolServiceClient(conn)
+			iwg := &sync.WaitGroup{}
+			for j := 0; j < 50; j++ {
+				iwg.Add(1)
+				go func(i, j int) {
+					content := fmt.Sprintf("# -*- python -*-\nimport foo%d_%d", i, j)
+					resp, err := client.ParseUAST(context.TODO(), &protocol.ParseUASTRequest{Content: content})
+					require.NoError(err)
+					require.Equal(protocol.Ok, resp.Status)
+					require.Equal(content, resp.UAST.Token)
+					iwg.Done()
+				}(i, j)
+			}
+			iwg.Wait()
+
+			err = conn.Close()
+			require.NoError(err)
+			wg.Done()
+		}(i, conn)
+	}
+
+	wg.Wait()
+	err = s.Close()
+	require.NoError(err)
 }
