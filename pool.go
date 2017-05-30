@@ -46,7 +46,7 @@ func StartDriverPool(scaling ScalingPolicy, timeout time.Duration, new func() (D
 		new:           new,
 		close:         make(chan struct{}),
 		waiting:       &atomicInt{},
-		readyQueue:    newDriverQueue(1000),
+		readyQueue:    newDriverQueue(),
 	}
 
 	if err := dp.start(); err != nil {
@@ -179,13 +179,13 @@ type driverQueue struct {
 	n *atomicInt
 }
 
-func newDriverQueue(size int) *driverQueue {
-	return &driverQueue{c: make(chan Driver, size), n: &atomicInt{}}
+func newDriverQueue() *driverQueue {
+	return &driverQueue{c: make(chan Driver), n: &atomicInt{}}
 }
 
 func (q *driverQueue) Enqueue(d Driver) {
 	q.n.Add(1)
-	q.c <- d
+	go func() { q.c <- d }()
 }
 
 func (q *driverQueue) Dequeue() (driver Driver, more bool) {
