@@ -51,7 +51,7 @@ $(DEPENDENCIES):
 	$(GO_GET) $@/...
 
 $(NOVENDOR_PACKAGES):
-	$(GO_GET) $@/...
+	$(GO_GET) $@
 
 $(VENDOR_PATH):
 	$(GLIDE) install

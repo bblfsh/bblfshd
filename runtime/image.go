@@ -1,12 +1,10 @@
 package runtime
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/bblfsh/server/utils"
 
-	"github.com/containers/image/docker"
 	"github.com/containers/image/image"
 	"github.com/containers/image/types"
 )
@@ -23,18 +21,15 @@ type driverImage struct {
 	ref types.ImageReference
 }
 
-// NewDriverImage returns a new DriverImage from a docker image reference.
-// The format of imageRef is defined by docker.ParseReference, the format can be
-// a non-normalized string like `bblfsh/rust-driver:lastest` or a normalized
-// referene like `//bblfsh/rust-driver:lastest`
+// NewDriverImage returns a new DriverImage from an image reference.
+// For Docker use `docker://bblfsh/rust-driver:latest`.
 func NewDriverImage(imageRef string) (DriverImage, error) {
-	imageRef = strings.TrimPrefix(imageRef, "//")
-	ref, err := docker.ParseReference(fmt.Sprintf("//%s", imageRef))
+	ir, err := ParseImageName(imageRef)
 	if err != nil {
-		return nil, fmt.Errorf("invalid source ref %s: %v", imageRef, err)
+		return nil, err
 	}
 
-	return &driverImage{ref: ref}, nil
+	return &driverImage{ref: ir}, nil
 }
 
 // Name returns the name of the driver image based on the image reference.

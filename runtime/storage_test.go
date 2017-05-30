@@ -71,7 +71,7 @@ func TestStorageStatusNotInstalled(t *testing.T) {
 	require.NoError(err)
 	defer os.RemoveAll(dir)
 
-	d, err := NewDriverImage("//busybox:latest")
+	d, err := NewDriverImage("docker://busybox:latest")
 	require.NoError(err)
 
 	s := newStorage(dir)
@@ -109,7 +109,7 @@ func TestStorageRemoveEmpty(t *testing.T) {
 	require.NoError(err)
 	defer os.RemoveAll(dir)
 
-	d, err := NewDriverImage("//busybox:latest")
+	d, err := NewDriverImage("docker://busybox:latest")
 	require.NoError(err)
 
 	s := newStorage(dir)

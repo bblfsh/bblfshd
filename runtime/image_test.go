@@ -12,15 +12,7 @@ import (
 func TestDriverImageName(t *testing.T) {
 	require := require.New(t)
 
-	d, err := NewDriverImage("//busybox:latest")
-	require.NoError(err)
-	require.Equal("busybox:latest", d.Name())
-}
-
-func TestDriverImageFromNonNormalizedName(t *testing.T) {
-	require := require.New(t)
-
-	d, err := NewDriverImage("busybox:latest")
+	d, err := NewDriverImage("docker://busybox:latest")
 	require.NoError(err)
 	require.Equal("busybox:latest", d.Name())
 }
@@ -29,7 +21,7 @@ func TestDriverImageDigest(t *testing.T) {
 	require := require.New(t)
 	IfNetworking(t)
 
-	d, err := NewDriverImage("//smolav/busybox-test-image:latest")
+	d, err := NewDriverImage("docker://smolav/busybox-test-image:latest")
 	require.NoError(err)
 
 	h, err := d.Digest()
@@ -41,7 +33,7 @@ func TestDriverImageInspect(t *testing.T) {
 	require := require.New(t)
 	IfNetworking(t)
 
-	d, err := NewDriverImage("//busybox:latest")
+	d, err := NewDriverImage("docker://busybox:latest")
 	require.NoError(err)
 
 	i, err := d.Inspect()
@@ -57,7 +49,7 @@ func TestDriverImageWriteTo(t *testing.T) {
 	require.NoError(err)
 	defer os.RemoveAll(dir)
 
-	d, err := NewDriverImage("//busybox:latest")
+	d, err := NewDriverImage("docker://busybox:latest")
 	require.NoError(err)
 
 	err = d.WriteTo(dir)
