@@ -1,71 +1,76 @@
 package server
 
 import (
-	"sync"
+	"fmt"
+	"math"
+	"sync/atomic"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/bblfsh/sdk/protocol"
 	"github.com/pkg/errors"
-	"golang.org/x/time/rate"
 )
 
-const (
-	DefaultPoolMin               = 1
-	DefaultPoolMax               = 5
-	DefaultPoolTimeBeforeNew     = time.Second * 3
-	DefaultPoolTimeBetweenSpawns = time.Second * 10
-	DefaultPoolTimeBeforeClean   = time.Minute * 1
+var (
+	// DefaultScalingPolicy is the default ScalingPolicy.
+	DefaultScalingPolicy = MovingAverage(10, MinMax(1, 10, AIMD(1, 0.5)))
+	// DefaultPoolTimeout is the time a request to the DriverPool can wait
+	// before getting a driver assigned.
+	DefaultPoolTimeout = time.Second * 5
 )
 
 // DriverPool controls a pool of drivers and balances requests among them,
-// ensuring each driver does not get concurrent requests.
+// ensuring each driver does not get concurrent requests. The number of driver
+// instances in the driver pool is controlled by a ScalingPolicy.
 type DriverPool struct {
-	// Min
-	Min               int
-	Max               int
-	TimeBeforeNew     time.Duration
-	TimeBetweenSpawns time.Duration
-	TimeBeforeClean   time.Duration
-	New               func() (Driver, error)
+	scalingPolicy ScalingPolicy
+	timeout       time.Duration
+	new           func() (Driver, error)
 
-	cur     int
-	ch      chan Driver
-	m       *sync.Mutex
-	close   chan struct{}
-	closed  bool
-	limiter *rate.Limiter
-	last    time.Time
+	cur        int
+	close      chan struct{}
+	closed     bool
+	waiting    *atomicInt
+	readyQueue *driverQueue
 }
 
-func NewDriverPool(new func() (Driver, error)) *DriverPool {
-	return &DriverPool{
-		Min:               DefaultPoolMin,
-		Max:               DefaultPoolMax,
-		TimeBeforeNew:     DefaultPoolTimeBeforeNew,
-		TimeBetweenSpawns: DefaultPoolTimeBetweenSpawns,
-		TimeBeforeClean:   DefaultPoolTimeBeforeClean,
-		New:               new,
+// StartDriverPool creates and starts a new DriverPool. It takes as parameters
+// the ScalingPolicy, the timeout for requests before getting a driver assigned,
+// and a function to create driver instances.
+func StartDriverPool(scaling ScalingPolicy, timeout time.Duration, new func() (Driver, error)) (*DriverPool, error) {
+	dp := &DriverPool{
+		scalingPolicy: scaling,
+		timeout:       timeout,
+		new:           new,
+		close:         make(chan struct{}),
+		waiting:       &atomicInt{},
+		readyQueue:    newDriverQueue(1000),
 	}
+
+	if err := dp.start(); err != nil {
+		_ = dp.Close()
+		return nil, err
+	}
+
+	return dp, nil
 }
 
-// Start starts the DriverPool and runs the minimum number of instances.
-func (dp *DriverPool) Start() error {
-	dp.ch = make(chan Driver)
-	dp.m = &sync.Mutex{}
-	dp.close = make(chan struct{})
-	dp.limiter = rate.NewLimiter(rate.Every(dp.TimeBetweenSpawns), 1)
-	dp.last = time.Now()
-	go dp.gc()
-	return dp.SetInstanceCount(dp.Min)
+func (dp *DriverPool) start() error {
+	target := dp.scalingPolicy.Scale(0, 0)
+	if err := dp.setInstanceCount(target); err != nil {
+		return err
+	}
+
+	go dp.scaling()
+	return nil
 }
 
-// SetInstanceCount changes the number of running driver instances. Instances
+// setInstanceCount changes the number of running driver instances. Instances
 // will be started or stopped as necessary to satisfy the new instance count.
 // It blocks until the all required instances are started or stopped.
-func (dp *DriverPool) SetInstanceCount(target int) error {
-	dp.m.Lock()
-	defer dp.m.Unlock()
+func (dp *DriverPool) setInstanceCount(target int) error {
+	if target < 0 {
+		return fmt.Errorf("cannot set instances to negative number")
+	}
 
 	n := target - dp.cur
 	if n > 0 {
@@ -79,12 +84,12 @@ func (dp *DriverPool) SetInstanceCount(target int) error {
 
 func (dp *DriverPool) add(n int) error {
 	for i := 0; i < n; i++ {
-		d, err := dp.New()
+		d, err := dp.new()
 		if err != nil {
 			return err
 		}
 
-		dp.enqueue(d)
+		dp.readyQueue.Enqueue(d)
 		dp.cur++
 	}
 
@@ -93,7 +98,11 @@ func (dp *DriverPool) add(n int) error {
 
 func (dp *DriverPool) del(n int) error {
 	for i := 0; i < n; i++ {
-		d := <-dp.ch
+		d, more := dp.readyQueue.Dequeue()
+		if !more {
+			return fmt.Errorf("driver queue closed")
+		}
+
 		dp.cur--
 		if err := d.Close(); err != nil {
 			return err
@@ -103,68 +112,37 @@ func (dp *DriverPool) del(n int) error {
 	return nil
 }
 
-func (dp *DriverPool) enqueue(d Driver) {
-	go func() { dp.ch <- d }()
-}
-
-func (dp *DriverPool) inc() error {
-	dp.m.Lock()
-	defer dp.m.Unlock()
-	if dp.cur >= dp.Max {
-		logrus.Debugf("cannot increment instances, already got max: %d", dp.Max)
-		return nil
-	}
-
-	if !dp.limiter.Allow() {
-		logrus.Debugf("cannot increment instances, rate limited")
-		return nil
-	}
-
-	logrus.Debugf("incrementing instances")
-	return dp.add(1)
-}
-
-func (dp *DriverPool) dec() error {
-	dp.m.Lock()
-	defer dp.m.Unlock()
-	if dp.cur <= dp.Min {
-		logrus.Debugf("cannot decrement instances, already got min: %d", dp.Min)
-		return nil
-	}
-
-	logrus.Debugf("decrement instances")
-	return dp.del(1)
-}
-
-func (dp *DriverPool) gc() {
+func (dp *DriverPool) scaling() {
 	for {
 		time.Sleep(time.Millisecond * 100)
-		ellapsed := time.Now().Sub(dp.last)
-		if ellapsed > dp.TimeBeforeClean {
-			dp.dec()
-			dp.last = time.Now()
-		}
-	}
-}
-
-func (dp *DriverPool) ParseUAST(req *protocol.ParseUASTRequest) *protocol.ParseUASTResponse {
-	for {
 		if dp.closed {
-			return dp.parseUAST(nil, false, req)
+			close(dp.close)
+			return
 		}
 
-		select {
-		case d, more := <-dp.ch:
-			return dp.parseUAST(d, more, req)
-		case <-time.After(dp.TimeBeforeNew):
-			logrus.Debug("timeout, trying to increment instances")
-			go dp.inc()
-			continue
-		}
+		total := dp.cur
+		ready := dp.readyQueue.Size()
+		load := int(dp.waiting.Value())
+		s := dp.scalingPolicy.Scale(total, load-ready)
+		_ = dp.setInstanceCount(s)
 	}
 }
 
-func (dp *DriverPool) parseUAST(d Driver, more bool, req *protocol.ParseUASTRequest) *protocol.ParseUASTResponse {
+// ParseUAST processes a ParseUASTRequest. It gets a driver from the pool and
+// forwards the request to it. If all drivers are busy, it will return an error
+// after the timeout passes. If the DriverPool is closed, an error will be returned.
+func (dp *DriverPool) ParseUAST(req *protocol.ParseUASTRequest) *protocol.ParseUASTResponse {
+	if dp.closed {
+		return &protocol.ParseUASTResponse{
+			Status: protocol.Fatal,
+			Errors: []string{"driver pool already closed"},
+		}
+	}
+
+	dp.waiting.Add(1)
+	d, more, timedout := dp.readyQueue.TryDequeue(dp.timeout)
+	dp.waiting.Add(-1)
+
 	if !more {
 		return &protocol.ParseUASTResponse{
 			Status: protocol.Fatal,
@@ -172,21 +150,187 @@ func (dp *DriverPool) parseUAST(d Driver, more bool, req *protocol.ParseUASTRequ
 		}
 	}
 
-	defer dp.enqueue(d)
-	dp.last = time.Now()
+	if timedout {
+		return &protocol.ParseUASTResponse{
+			Status: protocol.Fatal,
+			Errors: []string{"timedout: all drivers are busy"},
+		}
+	}
+
+	defer dp.readyQueue.Enqueue(d)
 	return d.ParseUAST(req)
+
 }
 
+// Close closes the driver pool, including all its underlying driver instances.
 func (dp *DriverPool) Close() error {
 	if dp.closed {
 		return errors.New("already closed")
 	}
 
-	if err := dp.SetInstanceCount(0); err != nil {
+	dp.closed = true
+	<-dp.close
+
+	if err := dp.setInstanceCount(0); err != nil {
 		return err
 	}
 
-	dp.closed = true
-	close(dp.ch)
+	return dp.readyQueue.Close()
+}
+
+type driverQueue struct {
+	c chan Driver
+	n *atomicInt
+}
+
+func newDriverQueue(size int) *driverQueue {
+	return &driverQueue{c: make(chan Driver, size), n: &atomicInt{}}
+}
+
+func (q *driverQueue) Enqueue(d Driver) {
+	q.n.Add(1)
+	q.c <- d
+}
+
+func (q *driverQueue) Dequeue() (driver Driver, more bool) {
+	d, more := <-q.c
+	q.n.Add(-1)
+	return d, more
+}
+
+func (q *driverQueue) TryDequeue(timeout time.Duration) (driver Driver, more, timedout bool) {
+	select {
+	case d, more := <-q.c:
+		q.n.Add(-1)
+		return d, more, false
+	case <-time.After(timeout):
+		return nil, true, true
+	}
+}
+
+func (q *driverQueue) Size() int {
+	return int(q.n.Value())
+}
+
+func (q *driverQueue) Close() error {
+
+	close(q.c)
 	return nil
+}
+
+type atomicInt struct {
+	val int32
+}
+
+func (c *atomicInt) Add(n int) {
+	atomic.AddInt32(&c.val, int32(n))
+}
+
+func (c *atomicInt) Value() int {
+	return int(atomic.LoadInt32(&c.val))
+}
+
+// ScalingPolicy specifies whether instances should be started or stopped to
+// cope with load.
+type ScalingPolicy interface {
+	// Scale takes the number of total instances and the load. The load is
+	// the number of request waiting or, there is none, it is a negative
+	// value indicating how many instances are ready.
+	Scale(total, load int) int
+}
+
+type movingAverage struct {
+	ScalingPolicy
+	loads  []float64
+	pos    int
+	filled bool
+}
+
+// MovingAverage computes a moving average of the load and forwards it to the
+// underlying scaling policy.
+func MovingAverage(window int, p ScalingPolicy) ScalingPolicy {
+	return &movingAverage{
+		ScalingPolicy: p,
+		loads:         make([]float64, window),
+		pos:           0,
+		filled:        false,
+	}
+}
+
+func (p *movingAverage) Scale(total, load int) int {
+	p.loads[p.pos] = float64(load)
+	p.pos++
+	if p.pos >= len(p.loads) {
+		p.filled = true
+		p.pos = 0
+	}
+
+	maxPos := len(p.loads)
+	if !p.filled {
+		maxPos = p.pos
+	}
+
+	var sum float64
+	for i := 0; i < maxPos; i++ {
+		sum += p.loads[i]
+	}
+
+	avg := sum / float64(maxPos)
+	return p.ScalingPolicy.Scale(total, int(avg))
+}
+
+type minMax struct {
+	ScalingPolicy
+	Min, Max int
+}
+
+// MinMax wraps a ScalingPolicy and applies a minimum and maximum to the number
+// of instances.
+func MinMax(min, max int, p ScalingPolicy) ScalingPolicy {
+	return &minMax{
+		Min:           min,
+		Max:           max,
+		ScalingPolicy: p,
+	}
+}
+
+func (p *minMax) Scale(total, load int) int {
+	s := p.ScalingPolicy.Scale(total, load)
+	if s > p.Max {
+		return p.Max
+	}
+
+	if s < p.Min {
+		return p.Min
+	}
+
+	return s
+}
+
+type aimd struct {
+	Add int
+	Mul float64
+}
+
+// AIMD returns a ScalingPolicy of additive increase / multiplicative decrease.
+// Increases are of min(add, load). Decreases are of (ready / mul).
+func AIMD(add int, mul float64) ScalingPolicy {
+	return &aimd{add, mul}
+}
+
+func (p *aimd) Scale(total, load int) int {
+	if load > 0 {
+		if load > p.Add {
+			return total + p.Add
+		}
+
+		return total + load
+	}
+
+	res := total - int(math.Ceil(float64(-load)*p.Mul))
+	if res < 0 {
+		return 0
+	}
+
+	return res
 }

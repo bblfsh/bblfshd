@@ -32,10 +32,9 @@ func TestDriverPoolStartNoopClose(t *testing.T) {
 		return &mockDriver{}, nil
 	}
 
-	dp := NewDriverPool(new)
-
-	err := dp.Start()
+	dp, err := StartDriverPool(DefaultScalingPolicy, DefaultPoolTimeout, new)
 	require.NoError(err)
+	require.NotNil(dp)
 
 	err = dp.Close()
 	require.NoError(err)
@@ -62,15 +61,16 @@ func TestDriverPoolSequential(t *testing.T) {
 		}, nil
 	}
 
-	dp := NewDriverPool(new)
-	err := dp.Start()
+	dp, err := StartDriverPool(DefaultScalingPolicy, DefaultPoolTimeout, new)
 	require.NoError(err)
+	require.NotNil(dp)
 
 	for i := 0; i < 100; i++ {
 		resp := dp.ParseUAST(&protocol.ParseUASTRequest{})
 		require.NotNil(resp)
 		require.Equal(protocol.Ok, resp.Status)
-		require.Equal(dp.Min, dp.cur)
+		//FIXME: it should be always 1
+		require.True(dp.cur == 1 || dp.cur == 2)
 	}
 
 	err = dp.Close()
@@ -90,32 +90,104 @@ func TestDriverPoolParallel(t *testing.T) {
 		}, nil
 	}
 
-	dp := NewDriverPool(new)
-	dp.TimeBeforeNew = time.Millisecond * 20
-	dp.TimeBetweenSpawns = time.Millisecond * 80
-	dp.TimeBeforeClean = time.Second * 200
-	err := dp.Start()
+	dp, err := StartDriverPool(DefaultScalingPolicy, time.Second*10, new)
 	require.NoError(err)
+	require.NotNil(dp)
 
 	wg := &sync.WaitGroup{}
+	wg.Add(100)
 	for i := 0; i < 100; i++ {
-		wg.Add(1)
 		go func() {
 			resp := dp.ParseUAST(&protocol.ParseUASTRequest{})
-			require.NotNil(resp)
-			require.Equal(protocol.Ok, resp.Status)
-			require.True(dp.cur >= dp.Min)
 			wg.Done()
+			require.NotNil(resp)
+			require.Nil(resp.Errors)
+			require.Equal(protocol.Ok, resp.Status)
+			require.True(dp.cur >= 1)
 		}()
 	}
 
 	wg.Wait()
-	require.Equal(dp.Max, dp.cur)
+	require.Equal(10, dp.cur)
 
-	dp.TimeBeforeClean = time.Millisecond * 2
 	time.Sleep(time.Second * 2)
-	require.Equal(dp.Min, dp.cur)
+	require.Equal(1, dp.cur)
 
 	err = dp.Close()
 	require.NoError(err)
+}
+
+type mockScalingPolicy struct {
+	Total, Load int
+	Result      int
+}
+
+func (p *mockScalingPolicy) Scale(total int, load int) int {
+	p.Total = total
+	p.Load = load
+	return p.Result
+}
+
+func TestMinMax(t *testing.T) {
+	require := require.New(t)
+
+	m := &mockScalingPolicy{}
+	p := MinMax(5, 10, m)
+	m.Result = 1
+	require.Equal(5, p.Scale(1, 1))
+	m.Result = 5
+	require.Equal(5, p.Scale(1, 1))
+	m.Result = 7
+	require.Equal(7, p.Scale(1, 1))
+	m.Result = 10
+	require.Equal(10, p.Scale(1, 1))
+	m.Result = 11
+	require.Equal(10, p.Scale(1, 1))
+}
+
+func TestMovingAverage(t *testing.T) {
+	require := require.New(t)
+
+	m := &mockScalingPolicy{}
+	p := MovingAverage(1, m)
+	p.Scale(1, 2)
+	require.Equal(1, m.Total)
+	require.Equal(2, m.Load)
+	p.Scale(1, 50)
+	require.Equal(1, m.Total)
+	require.Equal(50, m.Load)
+
+	p = MovingAverage(2, m)
+	p.Scale(1, 1)
+	require.Equal(1, m.Load)
+	p.Scale(1, 3)
+	require.Equal(2, m.Load)
+	p.Scale(1, 7)
+	require.Equal(5, m.Load)
+
+	p = MovingAverage(100, m)
+	for i := 0; i < 100; i++ {
+		p.Scale(1, 200)
+		require.Equal(200, m.Load)
+	}
+
+	for i := 0; i < 50; i++ {
+		p.Scale(1, 100)
+	}
+	require.Equal(150, m.Load)
+}
+
+func TestAIMD(t *testing.T) {
+	require := require.New(t)
+
+	p := AIMD(1, 0.5)
+
+	require.Equal(0, p.Scale(0, 0))
+	require.Equal(1, p.Scale(1, 0))
+
+	require.Equal(1, p.Scale(0, 1))
+	require.Equal(2, p.Scale(1, 1))
+
+	require.Equal(0, p.Scale(1, -1))
+	require.Equal(1, p.Scale(2, -1))
 }

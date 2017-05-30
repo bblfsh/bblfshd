@@ -64,10 +64,10 @@ func (s *Server) AddDriver(lang string, img string) error {
 		return ErrRuntime.Wrap(err)
 	}
 
-	dp := NewDriverPool(func() (Driver, error) {
+	dp, err := StartDriverPool(DefaultScalingPolicy, DefaultPoolTimeout, func() (Driver, error) {
 		return ExecDriver(s.rt, image)
 	})
-	if err := dp.Start(); err != nil {
+	if err != nil {
 		return err
 	}
 
