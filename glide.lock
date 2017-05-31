@@ -1,8 +1,8 @@
-hash: 531b17f74041be4a3de12b6511a33f6ade91cd41992af3592ca2b53c1443fe35
-updated: 2017-05-30T13:47:35.45712373+02:00
+hash: 2ec441c21b943409fd526ce520a5b5dfca7b1d890393e611c5ff423dab2ee2b2
+updated: 2017-05-31T10:22:09.845434264+02:00
 imports:
 - name: github.com/bblfsh/sdk
-  version: 02e2f47d6fe1cce45161d87f6f4a0c41562e5a05
+  version: eeee1c1d6e171616c4027c3f3d748c2872e9f082
   subpackages:
   - manifest
   - protocol
@@ -14,7 +14,7 @@ imports:
 - name: github.com/BurntSushi/toml
   version: b26d9c308763d68093482582cea63d69be07a0f0
 - name: github.com/containers/image
-  version: 11dfba3e17bbb9c1ef50ee3687e5525e56dbd151
+  version: 66efd5c31ce9470c37d8fb40c2e424c63f72c735
   subpackages:
   - directory
   - directory/explicitfilepath
@@ -112,7 +112,7 @@ imports:
   - proto
   - protoc-gen-gogo/descriptor
 - name: github.com/golang/protobuf
-  version: 7a211bcf3bce0e3f1d74f9894916e6f116ae83b4
+  version: 6e4cc92cc905d5f4a73041c1b8228ea08f4c6147
   subpackages:
   - proto
   - ptypes/any
@@ -131,7 +131,7 @@ imports:
 - name: github.com/opencontainers/go-digest
   version: aa2ec055abd10d26d539eb630a92241b781ce4bc
 - name: github.com/opencontainers/image-spec
-  version: 5faaada8762b465d5ce8a8da27b92d577a1aa576
+  version: 1a6593ab6c3ab5902072b4694a22ff19425396ae
   subpackages:
   - specs-go
   - specs-go/v1
@@ -178,7 +178,7 @@ imports:
 - name: github.com/vishvananda/netns
   version: 54f0e4339ce73702a0607f49922aaa1e749b418d
 - name: golang.org/x/net
-  version: 7dcfb8076726a3fdd9353b6b8a1f1b6be6811bd6
+  version: 3da985ce5951d99de868be4385f21ea6c2b22f24
   subpackages:
   - context
   - context/ctxhttp
@@ -195,7 +195,7 @@ imports:
   - unix
   - windows
 - name: golang.org/x/text
-  version: 19e51611da83d6be54ddafce4a4af510cb3e9ea4
+  version: 4ee4af566555f5fbe026368b75596286a312663a
   subpackages:
   - secure/bidirule
   - transform
