@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 
 	"github.com/bblfsh/server"
 	"github.com/bblfsh/server/runtime"
@@ -20,7 +21,7 @@ type clientCmd struct {
 	Standalone  []bool `long:"standalone" description:"run standalone, without server"`
 	RuntimePath string `long:"runtime-path" description:"runtime path for standalone mode" default:"/tmp/bblfsh-runtime"`
 	ImageRef    string `long:"image" value-name:"image-ref" description:"image reference to use (e.g. docker://bblfsh/python-driver:latest)"`
-	Language    string `long:"language" description:"language of the input" default:"auto"`
+	Language    string `long:"language" description:"language of the input" default:""`
 	Args        struct {
 		File string `positional-arg-name:"file" required:"true"`
 	} `positional-args:"yes"`
@@ -38,7 +39,11 @@ func (c *clientCmd) Execute(args []string) error {
 		run = c.runStandalone
 	}
 
-	req := &protocol.ParseUASTRequest{Content: string(content)}
+	req := &protocol.ParseUASTRequest{
+		Filename: filepath.Base(c.Args.File),
+		Language: c.Language,
+		Content:  string(content),
+	}
 	resp, err := run(req)
 	if err != nil {
 		return err

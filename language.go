@@ -5,10 +5,10 @@ import (
 	"strings"
 )
 
-// GetLanguage detects the language of a source code file content and returns
-// in a normalized form.
-func GetLanguage(content []byte) string {
-	lang := slinguist.GetLanguage("", content)
+// GetLanguage detects the language of a file and returns it in a normalized
+// form.
+func GetLanguage(filename string, content []byte) string {
+	lang := slinguist.GetLanguage(filename, content)
 	if lang == "" {
 		lang = slinguist.OtherLanguage
 	}
