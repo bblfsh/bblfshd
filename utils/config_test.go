@@ -25,7 +25,7 @@ func TestWriteImageConfig(t *testing.T) {
 
 	b, err := ioutil.ReadFile(path)
 	require.NoError(err)
-	require.Equal("{\"created\":\"0001-01-01T00:00:00Z\",\"author\":\"foo\",\"architecture\":\"\",\"os\":\"bar\",\"config\":{},\"rootfs\":{\"type\":\"\",\"diff_ids\":null}}\n", string(b))
+	require.Equal("{\"author\":\"foo\",\"architecture\":\"\",\"os\":\"bar\",\"config\":{},\"rootfs\":{\"type\":\"\",\"diff_ids\":null}}\n", string(b))
 }
 
 func TestReadImageConfig(t *testing.T) {
@@ -36,7 +36,7 @@ func TestReadImageConfig(t *testing.T) {
 	path := f.Name()
 	require.NoError(f.Close())
 
-	content := "{\"created\":\"0001-01-01T00:00:00Z\",\"author\":\"foo\",\"architecture\":\"\",\"os\":\"bar\",\"config\":{},\"rootfs\":{\"type\":\"\",\"diff_ids\":null}}\n"
+	content := "{\"author\":\"foo\",\"architecture\":\"\",\"os\":\"bar\",\"config\":{},\"rootfs\":{\"type\":\"\",\"diff_ids\":null}}\n"
 	err = ioutil.WriteFile(path, []byte(content), 0644)
 	require.NoError(err)
 
