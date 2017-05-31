@@ -15,5 +15,11 @@ func DefaultDriverImageReference(transport, lang string) string {
 		transport = DefaultTransport
 	}
 
-	return fmt.Sprintf("%s:bblfsh/%s-driver:latest", transport, lang)
+	ref := fmt.Sprintf("bblfsh/%s-driver:latest", lang)
+	switch transport {
+	case "docker":
+		ref = "//" + ref
+	}
+
+	return fmt.Sprintf("%s:%s", transport, ref)
 }
