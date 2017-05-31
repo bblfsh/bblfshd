@@ -10,7 +10,7 @@ import (
 )
 
 type serverCmd struct {
-	Address     string `long:"address" description:"server address to bind to" default:"localhost:9432"`
+	Address     string `long:"address" description:"server address to bind to" default:"0.0.0.0:9432"`
 	RuntimePath string `long:"runtime-path" description:"runtime path" default:"/tmp/bblfsh-runtime"`
 	Transport   string `long:"transport" description:"default transport to fetch driver images (docker, docker-daemon)" default:"docker"`
 }
