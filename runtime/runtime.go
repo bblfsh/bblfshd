@@ -42,7 +42,6 @@ func (r *Runtime) Init() error {
 	r.f, err = libcontainer.New(
 		filepath.Join(r.root, containersPath),
 		libcontainer.Cgroupfs,
-		libcontainer.InitArgs(os.Args[0], "init"),
 	)
 
 	return err
