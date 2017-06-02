@@ -126,7 +126,7 @@ docker-image-build: build
 
 clean:
 	rm -rf $(BUILD_PATH); \
-	$(GOCLEAN) .
+	$(GO_CLEAN) .
 
 push: docker-image-build
 	$(if $(pushdisabled),$(error $(pushdisabled)))
