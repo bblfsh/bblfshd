@@ -33,7 +33,7 @@ func TestDriverPoolStartNoopClose(t *testing.T) {
 		return &mockDriver{}, nil
 	}
 
-	dp, err := StartDriverPool(DefaultScalingPolicy, DefaultPoolTimeout, new)
+	dp, err := StartDriverPool(DefaultScalingPolicy(), DefaultPoolTimeout, new)
 	require.NoError(err)
 	require.NotNil(dp)
 
@@ -56,7 +56,7 @@ func TestDriverPoolStartFailingDriver(t *testing.T) {
 		return nil, fmt.Errorf("driver error")
 	}
 
-	dp, err := StartDriverPool(DefaultScalingPolicy, DefaultPoolTimeout, new)
+	dp, err := StartDriverPool(DefaultScalingPolicy(), DefaultPoolTimeout, new)
 	require.EqualError(err, "driver error")
 	require.Nil(dp)
 }
@@ -74,7 +74,7 @@ func TestDriverPoolSequential(t *testing.T) {
 		}, nil
 	}
 
-	dp, err := StartDriverPool(DefaultScalingPolicy, DefaultPoolTimeout, new)
+	dp, err := StartDriverPool(DefaultScalingPolicy(), DefaultPoolTimeout, new)
 	require.NoError(err)
 	require.NotNil(dp)
 
@@ -103,7 +103,7 @@ func TestDriverPoolParallel(t *testing.T) {
 		}, nil
 	}
 
-	dp, err := StartDriverPool(DefaultScalingPolicy, time.Second*10, new)
+	dp, err := StartDriverPool(DefaultScalingPolicy(), time.Second*10, new)
 	require.NoError(err)
 	require.NotNil(dp)
 

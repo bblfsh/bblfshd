@@ -11,8 +11,6 @@ import (
 )
 
 var (
-	// DefaultScalingPolicy is the default ScalingPolicy.
-	DefaultScalingPolicy = MovingAverage(10, MinMax(1, 10, AIMD(1, 0.5)))
 	// DefaultPoolTimeout is the time a request to the DriverPool can wait
 	// before getting a driver assigned.
 	DefaultPoolTimeout = time.Second * 5
@@ -234,6 +232,12 @@ type ScalingPolicy interface {
 	Scale(total, load int) int
 }
 
+// DefaultScalingPolicy returns a new instance of the default scaling policy.
+// Instances returned by this function should not be reused.
+func DefaultScalingPolicy() ScalingPolicy {
+	return MovingAverage(10, MinMax(1, 10, AIMD(1, 0.5)))
+}
+
 type movingAverage struct {
 	ScalingPolicy
 	loads  []float64
@@ -242,7 +246,8 @@ type movingAverage struct {
 }
 
 // MovingAverage computes a moving average of the load and forwards it to the
-// underlying scaling policy.
+// underlying scaling policy. This policy is stateful and not thread-safe, do not
+// reuse its instances for multiple pools.
 func MovingAverage(window int, p ScalingPolicy) ScalingPolicy {
 	return &movingAverage{
 		ScalingPolicy: p,
