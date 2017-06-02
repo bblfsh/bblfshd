@@ -46,7 +46,7 @@ func TestNewServerMockedDriverParallelClients(t *testing.T) {
 	require.NoError(err)
 
 	s := NewServer(r)
-	dp, err := StartDriverPool(DefaultScalingPolicy, DefaultPoolTimeout, func() (Driver, error) {
+	dp, err := StartDriverPool(DefaultScalingPolicy(), DefaultPoolTimeout, func() (Driver, error) {
 		return &echoDriver{}, nil
 	})
 	require.NoError(err)
