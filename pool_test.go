@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -121,7 +122,7 @@ func TestDriverPoolParallel(t *testing.T) {
 	}
 
 	wg.Wait()
-	require.Equal(10, dp.cur)
+	require.Equal(runtime.NumCPU(), dp.cur)
 
 	time.Sleep(time.Second * 2)
 	require.Equal(1, dp.cur)

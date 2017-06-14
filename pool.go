@@ -3,6 +3,9 @@ package server
 import (
 	"fmt"
 	"math"
+	"os"
+	"runtime"
+	"strconv"
 	"sync/atomic"
 	"time"
 
@@ -14,6 +17,11 @@ var (
 	// DefaultPoolTimeout is the time a request to the DriverPool can wait
 	// before getting a driver assigned.
 	DefaultPoolTimeout = time.Second * 5
+
+	// DefaultMaxInstancesPerDriver is the maximum number of instances of
+	// the same driver which can be launched following the default
+	// scaling policy (see DefaultScalingPolicy()).
+	DefaultMaxInstancesPerDriver = runtime.NumCPU()
 )
 
 // DriverPool controls a pool of drivers and balances requests among them,
@@ -235,7 +243,7 @@ type ScalingPolicy interface {
 // DefaultScalingPolicy returns a new instance of the default scaling policy.
 // Instances returned by this function should not be reused.
 func DefaultScalingPolicy() ScalingPolicy {
-	return MovingAverage(10, MinMax(1, 10, AIMD(1, 0.5)))
+	return MovingAverage(10, MinMax(1, DefaultMaxInstancesPerDriver, AIMD(1, 0.5)))
 }
 
 type movingAverage struct {
@@ -333,4 +341,15 @@ func (p *aimd) Scale(total, load int) int {
 	}
 
 	return res
+}
+
+func init() {
+	// Try to read DefaultMaxInstancesPerDriver from the environment variable
+	defaultMaxInstancesPerDriverEnv := os.Getenv("BBLFSH_MAX_INSTANCES_PER_DRIVER")
+	if len(defaultMaxInstancesPerDriverEnv) > 0 {
+		maxInstances, err := strconv.Atoi(defaultMaxInstancesPerDriverEnv)
+		if err == nil && maxInstances > 0 {
+			DefaultMaxInstancesPerDriver = maxInstances
+		}
+	}
 }
