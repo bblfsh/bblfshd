@@ -21,7 +21,7 @@ GO_BUILD = $(GO_CMD) build
 GO_CLEAN = $(GO_CMD) clean
 GO_GET = $(GO_CMD) get -v
 GO_TEST = $(GO_CMD) test -v
-GLIDE = glide
+GLIDE ?= $(GOPATH)/bin/glide
 
 # Coverage
 COVERAGE_REPORT = coverage.txt
