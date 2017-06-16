@@ -2,6 +2,7 @@ package server
 
 import (
 	"net"
+	"sync"
 
 	"github.com/bblfsh/server/runtime"
 
@@ -25,6 +26,7 @@ type Server struct {
 	// - docker-daemon: gets images from a local Docker daemon.
 	Transport string
 	rt        *runtime.Runtime
+	mu        sync.RWMutex
 	drivers   map[string]Driver
 }
 
@@ -51,7 +53,10 @@ func (s *Server) Serve(listener net.Listener) error {
 }
 
 func (s *Server) AddDriver(lang string, img string) error {
-	if _, ok := s.drivers[lang]; ok {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, ok := s.drivers[lang]
+	if ok {
 		return ErrAlreadyInstalled.New(lang, img)
 	}
 
@@ -76,14 +81,19 @@ func (s *Server) AddDriver(lang string, img string) error {
 }
 
 func (s *Server) Driver(lang string) (Driver, error) {
+	s.mu.RLock()
 	d, ok := s.drivers[lang]
+	s.mu.RUnlock()
 	if !ok {
 		img := DefaultDriverImageReference(s.Transport, lang)
-		if err := s.AddDriver(lang, img); err != nil {
+		err := s.AddDriver(lang, img)
+		if err != nil && !ErrAlreadyInstalled.Is(err) {
 			return nil, ErrMissingDriver.Wrap(err, lang)
 		}
 
+		s.mu.RLock()
 		d = s.drivers[lang]
+		s.mu.RUnlock()
 	}
 
 	return d, nil
