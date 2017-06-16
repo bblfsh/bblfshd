@@ -122,12 +122,14 @@ func (dp *DriverPool) del(n int) error {
 }
 
 func (dp *DriverPool) scaling() {
+	ticker := time.NewTicker(time.Millisecond * 100)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-dp.close:
 			close(dp.close)
 			return
-		case <-time.After(time.Millisecond * 100):
+		case <-ticker.C:
 			total := dp.cur
 			ready := dp.readyQueue.Size()
 			load := int(dp.waiting.Value())
