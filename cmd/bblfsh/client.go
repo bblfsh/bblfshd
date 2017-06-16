@@ -22,6 +22,7 @@ type clientCmd struct {
 	RuntimePath string `long:"runtime-path" description:"runtime path for standalone mode" default:"/tmp/bblfsh-runtime"`
 	ImageRef    string `long:"image" value-name:"image-ref" description:"image reference to use (e.g. docker://bblfsh/python-driver:latest)"`
 	Language    string `long:"language" description:"language of the input" default:""`
+	Encoding    string `long:"encoding" description:"encoding used in the source file" default:"UTF8"`
 	Args        struct {
 		File string `positional-arg-name:"file" required:"true"`
 	} `positional-args:"yes"`
@@ -39,10 +40,19 @@ func (c *clientCmd) Execute(args []string) error {
 		run = c.runStandalone
 	}
 
+	var encoding protocol.Encoding
+	switch(c.Encoding) {
+	case "Base64":
+		encoding = protocol.Base64
+	default:
+		encoding = protocol.UTF8
+	}
+
 	req := &protocol.ParseUASTRequest{
 		Filename: filepath.Base(c.Args.File),
 		Language: c.Language,
 		Content:  string(content),
+		Encoding: encoding,
 	}
 	resp, err := run(req)
 	if err != nil {
