@@ -1,14 +1,15 @@
 package server
 
 import (
-	"gopkg.in/src-d/simple-linguist.v1"
 	"strings"
+
+	enry "gopkg.in/src-d/enry.v1"
 )
 
 // GetLanguage detects the language of a file and returns it in a normalized
 // form.
 func GetLanguage(filename string, content []byte) string {
-	lang := slinguist.GetLanguage(filename, content)
+	lang := enry.GetLanguage(filename, content)
 	if lang == "" {
 		lang = slinguist.OtherLanguage
 	}
