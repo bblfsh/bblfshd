@@ -223,7 +223,7 @@ imports:
   - transport
 - name: gopkg.in/src-d/go-errors.v0
   version: 0c303ec4c027302259ec1738f19f515aad25f13f
-- name: gopkg.in/src-d/simple-linguist.v1
+- name: gopkg.in/src-d/enry.v1
   version: 708f2e40bf35cdc6760a11293cad0a8e632b31a1
 - name: gopkg.in/toqueteos/substring.v1
   version: c5f61671513240ddf5563635cc4a90e9f3ae4710
