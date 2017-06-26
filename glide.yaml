@@ -29,7 +29,7 @@ import:
   - http2
 - package: github.com/oklog/ulid
 - package: github.com/Sirupsen/logrus
-- package: gopkg.in/src-d/simple-linguist.v1
+- package: gopkg.in/src-d/enry.v1
 testImport:
 - package: github.com/stretchr/testify
   subpackages:

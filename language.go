@@ -11,7 +11,7 @@ import (
 func GetLanguage(filename string, content []byte) string {
 	lang := enry.GetLanguage(filename, content)
 	if lang == "" {
-		lang = slinguist.OtherLanguage
+		lang = enry.OtherLanguage
 	}
 
 	lang = strings.ToLower(lang)
