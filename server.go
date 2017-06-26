@@ -1,14 +1,11 @@
 package server
 
 import (
-	"net"
 	"sync"
 
 	"github.com/bblfsh/server/runtime"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/bblfsh/sdk/protocol"
-	"google.golang.org/grpc"
 	"gopkg.in/src-d/go-errors.v0"
 )
 
@@ -35,21 +32,6 @@ func NewServer(r *runtime.Runtime) *Server {
 		rt:      r,
 		drivers: make(map[string]Driver),
 	}
-}
-
-func (s *Server) Serve(listener net.Listener) error {
-	grpcServer := grpc.NewServer()
-
-	logrus.Debug("registering gRPC service")
-	protocol.RegisterProtocolServiceServer(
-		grpcServer,
-		protocol.NewProtocolServiceServer(),
-	)
-
-	protocol.DefaultParser = s
-
-	logrus.Info("starting gRPC server")
-	return grpcServer.Serve(listener)
 }
 
 func (s *Server) AddDriver(lang string, img string) error {
