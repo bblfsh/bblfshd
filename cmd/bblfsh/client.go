@@ -22,12 +22,19 @@ type clientCmd struct {
 	RuntimePath string `long:"runtime-path" description:"runtime path for standalone mode" default:"/tmp/bblfsh-runtime"`
 	ImageRef    string `long:"image" value-name:"image-ref" description:"image reference to use (e.g. docker://bblfsh/python-driver:latest)"`
 	Language    string `long:"language" description:"language of the input" default:""`
+	LogLevel    string `long:"log-level" description:"log level" default:"debug"`
 	Args        struct {
 		File string `positional-arg-name:"file" required:"true"`
 	} `positional-args:"yes"`
 }
 
 func (c *clientCmd) Execute(args []string) error {
+	level, err := logrus.ParseLevel(c.LogLevel)
+	if err != nil {
+		return err
+	}
+	logrus.SetLevel(level)
+
 	logrus.Debugf("reading file: %s", c.Args.File)
 	content, err := ioutil.ReadFile(c.Args.File)
 	if err != nil {
