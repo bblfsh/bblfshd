@@ -17,6 +17,7 @@ import (
 )
 
 type clientCmd struct {
+	commonCmd
 	Address     string `long:"address" description:"server address to connect to" default:"localhost:9432"`
 	Standalone  []bool `long:"standalone" description:"run standalone, without server"`
 	RuntimePath string `long:"runtime-path" description:"runtime path for standalone mode" default:"/tmp/bblfsh-runtime"`
@@ -28,6 +29,9 @@ type clientCmd struct {
 }
 
 func (c *clientCmd) Execute(args []string) error {
+	if err := c.exec(args); err != nil {
+		return err
+	}
 	logrus.Debugf("reading file: %s", c.Args.File)
 	content, err := ioutil.ReadFile(c.Args.File)
 	if err != nil {

@@ -10,12 +10,16 @@ import (
 )
 
 type serverCmd struct {
+	commonCmd
 	Address     string `long:"address" description:"server address to bind to" default:"0.0.0.0:9432"`
 	RuntimePath string `long:"runtime-path" description:"runtime path" default:"/tmp/bblfsh-runtime"`
 	Transport   string `long:"transport" description:"default transport to fetch driver images (docker, docker-daemon)" default:"docker"`
 }
 
 func (c *serverCmd) Execute(args []string) error {
+	if err := c.exec(args); err != nil {
+		return err
+	}
 	logrus.Debugf("binding to %s", c.Address)
 	//TODO: add support for unix://
 	lis, err := net.Listen("tcp", c.Address)
