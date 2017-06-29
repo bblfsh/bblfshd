@@ -9,6 +9,7 @@ import (
 	"github.com/bblfsh/sdk/protocol"
 	"github.com/bblfsh/server/runtime"
 	"github.com/gin-gonic/gin"
+	"github.com/rs/cors"
 )
 
 type RESTServer struct {
@@ -27,11 +28,16 @@ func (s *RESTServer) Serve(addr string) error {
 
 	protocol.DefaultParser = s.Server
 	r.POST("/parse", s.handleParse)
+	cors := cors.New(cors.Options{
+		AllowedOrigins: []string{"*"},
+		AllowedMethods: []string{"GET", "POST"},
+		AllowedHeaders: []string{"Content-Type", "Authorization"},
+	})
 
 	logrus.Info("starting REST server")
 	server := &http.Server{
 		Addr:         addr,
-		Handler:      r,
+		Handler:      cors.Handler(r),
 		ReadTimeout:  1 * time.Minute,
 		WriteTimeout: 5 * time.Minute,
 	}
