@@ -91,3 +91,25 @@ func TestNewServerMockedDriverParallelClients(t *testing.T) {
 	err = s.Close()
 	require.NoError(err)
 }
+
+func TestDefaultDriverImageReference(t *testing.T) {
+	require := require.New(t)
+	tmpDir, err := ioutil.TempDir(os.TempDir(), "bblfsh-runtime")
+	r := runtime.NewRuntime(tmpDir)
+	err = r.Init()
+	require.NoError(err)
+
+	s := NewServer(r, make(map[string]string))
+	s.Transport = "docker"
+	require.Equal("docker://bblfsh/python-driver:latest", s.defaultDriverImageReference("python"))
+	s.Transport = ""
+	require.Equal("docker://bblfsh/python-driver:latest", s.defaultDriverImageReference("python"))
+	s.Transport = "docker-daemon"
+	require.Equal("docker-daemon:bblfsh/python-driver:latest", s.defaultDriverImageReference("python"))
+
+	python_override := make(map[string]string)
+	python_override["python"] = "overriden"
+	s = NewServer(r, python_override)
+	s.Transport = "docker-daemon"
+	require.Equal("overriden", s.defaultDriverImageReference("python"))
+}
