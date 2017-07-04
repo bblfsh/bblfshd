@@ -2,11 +2,19 @@ package main
 
 import (
 	"net"
+	"os"
+	"strings"
+
+	errors "srcd.works/go-errors.v0"
 
 	"github.com/bblfsh/server"
 	"github.com/bblfsh/server/runtime"
 
 	"github.com/Sirupsen/logrus"
+)
+
+var (
+	ErrInvalidDriverFormat = errors.NewKind("invalid image driver format %s")
 )
 
 type serverCmd struct {
@@ -29,27 +37,35 @@ func (c *serverCmd) Execute(args []string) error {
 		return err
 	}
 
+	overrides := make(map[string]string)
+	for _, img := range strings.Split(os.Getenv("BBLFSH_DRIVER_IMAGES"), ";") {
+		fields := strings.Split(strings.TrimSpace(img), "=")
+		if len(fields) != 2 {
+			return ErrInvalidDriverFormat.New(img)
+		}
+		overrides[strings.TrimSpace(fields[0])] = strings.TrimSpace(fields[1])
+	}
 	if c.REST {
-		return c.serveREST(r)
+		return c.serveREST(r, overrides)
 	}
 
-	return c.serveGRPC(r)
+	return c.serveGRPC(r, overrides)
 }
 
-func (c *serverCmd) serveREST(r *runtime.Runtime) error {
-	s := server.NewRESTServer(r, c.Transport)
+func (c *serverCmd) serveREST(r *runtime.Runtime, overrides map[string]string) error {
+	s := server.NewRESTServer(r, overrides, c.Transport)
 	logrus.Debug("starting server")
 	return s.Serve(c.Address)
 }
 
-func (c *serverCmd) serveGRPC(r *runtime.Runtime) error {
+func (c *serverCmd) serveGRPC(r *runtime.Runtime, overrides map[string]string) error {
 	//TODO: add support for unix://
 	lis, err := net.Listen("tcp", c.Address)
 	if err != nil {
 		return err
 	}
 
-	s := server.NewGRPCServer(r, c.Transport)
+	s := server.NewGRPCServer(r, overrides, c.Transport)
 
 	logrus.Debug("starting server")
 	return s.Serve(lis)

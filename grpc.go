@@ -13,8 +13,8 @@ type GRPCServer struct {
 	*Server
 }
 
-func NewGRPCServer(r *runtime.Runtime, transport string) *GRPCServer {
-	server := NewServer(r)
+func NewGRPCServer(r *runtime.Runtime, overrides map[string]string, transport string) *GRPCServer {
+	server := NewServer(r, overrides)
 	server.Transport = transport
 	return &GRPCServer{server}
 }

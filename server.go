@@ -25,12 +25,14 @@ type Server struct {
 	rt        *runtime.Runtime
 	mu        sync.RWMutex
 	drivers   map[string]Driver
+	overrides map[string]string // Overrides for images per language
 }
 
-func NewServer(r *runtime.Runtime) *Server {
+func NewServer(r *runtime.Runtime, overrides map[string]string) *Server {
 	return &Server{
-		rt:      r,
-		drivers: make(map[string]Driver),
+		rt:        r,
+		drivers:   make(map[string]Driver),
+		overrides: overrides,
 	}
 }
 
@@ -67,7 +69,7 @@ func (s *Server) Driver(lang string) (Driver, error) {
 	d, ok := s.drivers[lang]
 	s.mu.RUnlock()
 	if !ok {
-		img := DefaultDriverImageReference(s.Transport, lang)
+		img := DefaultDriverImageReference(s.overrides, s.Transport, lang)
 		err := s.AddDriver(lang, img)
 		if err != nil && !ErrAlreadyInstalled.Is(err) {
 			return nil, ErrMissingDriver.Wrap(err, lang)
