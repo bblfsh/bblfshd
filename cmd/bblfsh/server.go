@@ -43,7 +43,10 @@ func (c *serverCmd) Execute(args []string) error {
 		if len(fields) != 2 {
 			return ErrInvalidDriverFormat.New(img)
 		}
-		overrides[strings.TrimSpace(fields[0])] = strings.TrimSpace(fields[1])
+		lang := strings.TrimSpace(fields[0])
+		image := strings.TrimSpace(fields[1])
+		logrus.Debugf("Overriding image for %s: %s", lang, image)
+		overrides[lang] = image
 	}
 	if c.REST {
 		return c.serveREST(r, overrides)
