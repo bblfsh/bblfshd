@@ -118,7 +118,7 @@ build-internal:
 	mkdir -p $(BUILD_PATH); \
 	for cmd in $(COMMANDS); do \
         cd $(CMD_PATH)/$${cmd}; \
-		$(GO_CMD) build --ldflags '$(LDFLAGS)' -o $(BUILD_PATH)/$${cmd} .; \
+		$(GO_CMD) build -a --ldflags '$(LDFLAGS)' -o $(BUILD_PATH)/$${cmd} .; \
 	done;
 
 docker-image-build: build
