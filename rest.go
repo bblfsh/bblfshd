@@ -16,8 +16,8 @@ type RESTServer struct {
 	*Server
 }
 
-func NewRESTServer(r *runtime.Runtime, transport string) *RESTServer {
-	server := NewServer(r)
+func NewRESTServer(r *runtime.Runtime, overrides map[string]string, transport string) *RESTServer {
+	server := NewServer(r, overrides)
 	server.Transport = transport
 	return &RESTServer{server}
 }

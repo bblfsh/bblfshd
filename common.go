@@ -10,7 +10,10 @@ const (
 
 // DefaultDriverImageReference returns the default image reference for a driver
 // given a language.
-func DefaultDriverImageReference(transport, lang string) string {
+func DefaultDriverImageReference(overrides map[string]string, transport, lang string) string {
+	if override := overrides[lang]; override != "" {
+		return override
+	}
 	if transport == "" {
 		transport = DefaultTransport
 	}

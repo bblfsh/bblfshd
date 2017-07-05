@@ -14,7 +14,12 @@ func init() {
 func TestDefaultDriverImageReference(t *testing.T) {
 	require := require.New(t)
 
-	require.Equal("docker://bblfsh/python-driver:latest", DefaultDriverImageReference("docker", "python"))
-	require.Equal("docker://bblfsh/python-driver:latest", DefaultDriverImageReference("", "python"))
-	require.Equal("docker-daemon:bblfsh/python-driver:latest", DefaultDriverImageReference("docker-daemon", "python"))
+	no_overrides := make(map[string]string)
+	python_override := make(map[string]string)
+	python_override["python"] = "overriden"
+
+	require.Equal("docker://bblfsh/python-driver:latest", DefaultDriverImageReference(no_overrides, "docker", "python"))
+	require.Equal("docker://bblfsh/python-driver:latest", DefaultDriverImageReference(no_overrides, "", "python"))
+	require.Equal("docker-daemon:bblfsh/python-driver:latest", DefaultDriverImageReference(no_overrides, "docker-daemon", "python"))
+	require.Equal("overriden", DefaultDriverImageReference(python_override, "docker-daemon", "python"))
 }

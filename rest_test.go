@@ -27,7 +27,7 @@ func TestRestServerParse(t *testing.T) {
 	err = r.Init()
 	require.NoError(err)
 
-	s := NewServer(r)
+	s := NewServer(r, make(map[string]string))
 	dp, err := StartDriverPool(DefaultScalingPolicy(), DefaultPoolTimeout, func() (Driver, error) {
 		return &echoDriver{}, nil
 	})
