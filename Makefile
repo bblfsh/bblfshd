@@ -17,7 +17,7 @@ BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 
 # Go parameters
 GO_CMD = go
-GO_BUILD = $(GO_CMD) build
+GO_BUILD = $(GO_CMD) build -a
 GO_CLEAN = $(GO_CMD) clean
 GO_GET = $(GO_CMD) get -v
 GO_TEST = $(GO_CMD) test -v
@@ -118,7 +118,7 @@ build-internal:
 	mkdir -p $(BUILD_PATH); \
 	for cmd in $(COMMANDS); do \
         cd $(CMD_PATH)/$${cmd}; \
-		$(GO_CMD) build -a --ldflags '$(LDFLAGS)' -o $(BUILD_PATH)/$${cmd} .; \
+		$(GO_BUILD) --ldflags '$(LDFLAGS)' -o $(BUILD_PATH)/$${cmd} .; \
 	done;
 
 docker-image-build: build
