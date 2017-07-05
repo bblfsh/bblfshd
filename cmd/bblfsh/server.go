@@ -39,10 +39,15 @@ func (c *serverCmd) Execute(args []string) error {
 
 	overrides := make(map[string]string)
 	for _, img := range strings.Split(os.Getenv("BBLFSH_DRIVER_IMAGES"), ";") {
-		fields := strings.Split(strings.TrimSpace(img), "=")
+		if img = strings.TrimSpace(img); img == "" {
+			continue
+		}
+
+		fields := strings.Split(img, "=")
 		if len(fields) != 2 {
 			return ErrInvalidDriverFormat.New(img)
 		}
+
 		lang := strings.TrimSpace(fields[0])
 		image := strings.TrimSpace(fields[1])
 		logrus.Debugf("Overriding image for %s: %s", lang, image)
