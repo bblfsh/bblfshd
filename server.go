@@ -1,12 +1,17 @@
 package server
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/bblfsh/server/runtime"
 
 	"github.com/bblfsh/sdk/protocol"
 	"gopkg.in/src-d/go-errors.v0"
+)
+
+const (
+	defaultTransport = "docker"
 )
 
 var (
@@ -69,7 +74,7 @@ func (s *Server) Driver(lang string) (Driver, error) {
 	d, ok := s.drivers[lang]
 	s.mu.RUnlock()
 	if !ok {
-		img := DefaultDriverImageReference(s.overrides, s.Transport, lang)
+		img := s.defaultDriverImageReference(lang)
 		err := s.AddDriver(lang, img)
 		if err != nil && !ErrAlreadyInstalled.Is(err) {
 			return nil, ErrMissingDriver.Wrap(err, lang)
@@ -109,4 +114,23 @@ func (s *Server) Close() error {
 	}
 
 	return err
+}
+
+// returns the default image reference for a driver given a language.
+func (s *Server) defaultDriverImageReference(lang string) string {
+	if override := s.overrides[lang]; override != "" {
+		return override
+	}
+	transport := s.Transport
+	if transport == "" {
+		transport = defaultTransport
+	}
+
+	ref := fmt.Sprintf("bblfsh/%s-driver:latest", lang)
+	switch transport {
+	case "docker":
+		ref = "//" + ref
+	}
+
+	return fmt.Sprintf("%s:%s", transport, ref)
 }
