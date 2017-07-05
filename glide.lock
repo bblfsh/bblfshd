@@ -1,8 +1,8 @@
 hash: 24d1b6454599797fa4580979a670ec21768026ae409fdcfb7a89d6eddcaf8919
-updated: 2017-06-28T18:01:42.546467052+02:00
+updated: 2017-07-05T16:30:42.546467052+02:00
 imports:
 - name: github.com/bblfsh/sdk
-  version: f2aa0ad34ca9190bc515704822c48e51ce05dbc9
+  version: 5fd7188f34d7ba2d82c2eac1f330c9496c452002
   subpackages:
   - manifest
   - protocol
