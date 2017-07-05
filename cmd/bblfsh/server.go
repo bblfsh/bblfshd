@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	errors "srcd.works/go-errors.v0"
+	"srcd.works/go-errors.v0"
 
 	"github.com/bblfsh/server"
 	"github.com/bblfsh/server/runtime"
@@ -48,6 +48,7 @@ func (c *serverCmd) Execute(args []string) error {
 		logrus.Debugf("Overriding image for %s: %s", lang, image)
 		overrides[lang] = image
 	}
+
 	if c.REST {
 		return c.serveREST(r, overrides)
 	}
