@@ -1,4 +1,4 @@
-FROM golang:1.8-alpine
+FROM golang:1.7-alpine
 
 RUN apk add --no-cache git make musl-dev musl-utils gcc lvm2-dev btrfs-progs-dev
 ENV GOPATH=/go
