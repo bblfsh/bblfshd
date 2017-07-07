@@ -45,7 +45,7 @@ func (c *clientCmd) Execute(args []string) error {
 	}
 
 	var encoding protocol.Encoding
-	switch(c.Encoding) {
+	switch c.Encoding {
 	case "Base64":
 		encoding = protocol.Base64
 	default:
