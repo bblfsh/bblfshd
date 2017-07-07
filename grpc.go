@@ -11,16 +11,24 @@ import (
 
 type GRPCServer struct {
 	*Server
+	opts []grpc.ServerOption
 }
 
-func NewGRPCServer(r *runtime.Runtime, overrides map[string]string, transport string) *GRPCServer {
+func NewGRPCServer(r *runtime.Runtime, overrides map[string]string, transport string, maxMessageSize int) *GRPCServer {
 	server := NewServer(r, overrides)
 	server.Transport = transport
-	return &GRPCServer{server}
+
+	opts := []grpc.ServerOption{}
+	if maxMessageSize != 0 {
+		opts = append(opts, grpc.MaxRecvMsgSize(maxMessageSize))
+		opts = append(opts, grpc.MaxSendMsgSize(maxMessageSize))
+	}
+
+	return &GRPCServer{server, opts}
 }
 
 func (s *GRPCServer) Serve(listener net.Listener) error {
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(s.opts...)
 
 	logrus.Debug("registering gRPC service")
 	protocol.RegisterProtocolServiceServer(

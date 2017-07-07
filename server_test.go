@@ -56,7 +56,7 @@ func TestNewServerMockedDriverParallelClients(t *testing.T) {
 
 	lis, err := net.Listen("tcp", "localhost:0")
 	require.NoError(err)
-	go (&GRPCServer{s}).Serve(lis)
+	go (&GRPCServer{s, []grpc.ServerOption{}}).Serve(lis)
 
 	time.Sleep(time.Second * 1)
 
