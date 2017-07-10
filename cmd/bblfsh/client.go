@@ -33,6 +33,7 @@ func (c *clientCmd) Execute(args []string) error {
 	if err := c.exec(args); err != nil {
 		return err
 	}
+
 	logrus.Debugf("reading file: %s", c.Args.File)
 	content, err := ioutil.ReadFile(c.Args.File)
 	if err != nil {
@@ -45,7 +46,7 @@ func (c *clientCmd) Execute(args []string) error {
 	}
 
 	var encoding protocol.Encoding
-	switch(c.Encoding) {
+	switch c.Encoding {
 	case "Base64":
 		encoding = protocol.Base64
 	default:
@@ -68,8 +69,19 @@ func (c *clientCmd) Execute(args []string) error {
 }
 
 func (c *clientCmd) runClient(req *protocol.ParseUASTRequest) (*protocol.ParseUASTResponse, error) {
+	maxMessageSize, err := c.parseMaxMessageSize()
+	if err != nil {
+		return nil, err
+	}
+
+	callOptions := []grpc.CallOption{}
+	if maxMessageSize != 0 {
+		callOptions = append(callOptions, grpc.MaxCallRecvMsgSize(maxMessageSize))
+		callOptions = append(callOptions, grpc.MaxCallSendMsgSize(maxMessageSize))
+	}
+
 	logrus.Debugf("dialing server at %s", c.Address)
-	conn, err := grpc.Dial(c.Address, grpc.WithInsecure())
+	conn, err := grpc.Dial(c.Address, grpc.WithInsecure(), grpc.WithDefaultCallOptions(callOptions...))
 	if err != nil {
 		return nil, err
 	}

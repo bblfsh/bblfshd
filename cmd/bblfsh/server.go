@@ -68,13 +68,18 @@ func (c *serverCmd) serveREST(r *runtime.Runtime, overrides map[string]string) e
 }
 
 func (c *serverCmd) serveGRPC(r *runtime.Runtime, overrides map[string]string) error {
+	maxMessageSize, err := c.parseMaxMessageSize()
+	if err != nil {
+		return err
+	}
+
 	//TODO: add support for unix://
 	lis, err := net.Listen("tcp", c.Address)
 	if err != nil {
 		return err
 	}
 
-	s := server.NewGRPCServer(r, overrides, c.Transport)
+	s := server.NewGRPCServer(r, overrides, c.Transport, maxMessageSize)
 
 	logrus.Debug("starting server")
 	return s.Serve(lis)
