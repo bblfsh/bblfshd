@@ -142,6 +142,6 @@ push: docker-image-build
 	$(DOCKER_PUSH) $(call unescape_docker_tag,$(DOCKER_IMAGE_VERSIONED))
 	@if [ "$$TRAVIS_TAG" != "" ]; then \
 		$(DOCKER_TAG) $(call unescape_docker_tag,$(DOCKER_IMAGE_VERSIONED)) \
-			$(call unescape_docker_tag,$(DOCKER_IMAGE)):latest
-		$(DOCKER_PUSH) $(call unescape_docker_tag,$(DOCKER_IMAGE):latest)
+			$(call unescape_docker_tag,$(DOCKER_IMAGE)):latest; \
+		$(DOCKER_PUSH) $(call unescape_docker_tag,$(DOCKER_IMAGE):latest); \
 	fi;
