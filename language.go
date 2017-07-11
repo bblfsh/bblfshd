@@ -10,8 +10,8 @@ import (
 // form.
 func GetLanguage(filename string, content []byte) string {
 	lang := enry.GetLanguage(filename, content)
-	if lang == "" {
-		lang = enry.OtherLanguage
+	if lang == enry.OtherLanguage {
+		return lang
 	}
 
 	lang = strings.ToLower(lang)
