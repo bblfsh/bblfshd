@@ -23,8 +23,8 @@ import (
 
 type echoDriver struct{}
 
-func (d *echoDriver) ParseUAST(req *protocol.ParseUASTRequest) *protocol.ParseUASTResponse {
-	return &protocol.ParseUASTResponse{
+func (d *echoDriver) Parse(req *protocol.ParseRequest) *protocol.ParseResponse {
+	return &protocol.ParseResponse{
 		Status: protocol.Ok,
 		UAST: &uast.Node{
 			Token: req.Content,
@@ -75,7 +75,7 @@ func TestNewServerMockedDriverParallelClients(t *testing.T) {
 				iwg.Add(1)
 				go func(i, j int) {
 					content := fmt.Sprintf("# -*- python -*-\nimport foo%d_%d", i, j)
-					resp, err := client.ParseUAST(context.TODO(), &protocol.ParseUASTRequest{Content: content})
+					resp, err := client.Parse(context.TODO(), &protocol.ParseRequest{Content: content})
 					require.NoError(err)
 					require.Equal(protocol.Ok, resp.Status)
 					require.Equal(content, resp.UAST.Token)
@@ -142,7 +142,7 @@ func TestMaxMessageSizeExceeded(t *testing.T) {
 	conn, err := grpc.Dial(lis.Addr().String(), grpc.WithInsecure(), grpc.WithTimeout(time.Second*2))
 	require.NoError(err)
 	client := protocol.NewProtocolServiceClient(conn)
-	_, err = client.ParseUAST(context.TODO(), &protocol.ParseUASTRequest{Content: bigContent()})
+	_, err = client.Parse(context.TODO(), &protocol.ParseRequest{Content: bigContent()})
 	require.NotNil(err)
 	status, _ := status.FromError(err)
 	require.Equal(status.Code(), codes.ResourceExhausted)
@@ -181,7 +181,7 @@ func TestMaxMessageSizeExceededInClient(t *testing.T) {
 	conn, err := grpc.Dial(lis.Addr().String(), grpc.WithInsecure(), grpc.WithTimeout(time.Second*2))
 	require.NoError(err)
 	client := protocol.NewProtocolServiceClient(conn)
-	_, err = client.ParseUAST(context.TODO(), &protocol.ParseUASTRequest{Content: bigContent()})
+	_, err = client.Parse(context.TODO(), &protocol.ParseRequest{Content: bigContent()})
 	require.NotNil(err)
 	status, _ := status.FromError(err)
 	require.Equal(status.Code(), codes.ResourceExhausted)
@@ -223,7 +223,7 @@ func TestMaxMessageSizeExceededInServer(t *testing.T) {
 		grpc.WithDefaultCallOptions(callOptions...))
 	require.NoError(err)
 	client := protocol.NewProtocolServiceClient(conn)
-	_, err = client.ParseUAST(context.TODO(), &protocol.ParseUASTRequest{Content: bigContent()})
+	_, err = client.Parse(context.TODO(), &protocol.ParseRequest{Content: bigContent()})
 	require.NotNil(err)
 	status, _ := status.FromError(err)
 	require.Equal(status.Code(), codes.ResourceExhausted)
@@ -268,7 +268,7 @@ func TestMaxMessageSizeNotExceeded(t *testing.T) {
 		grpc.WithDefaultCallOptions(callOptions...))
 	require.NoError(err)
 	client := protocol.NewProtocolServiceClient(conn)
-	_, err = client.ParseUAST(context.TODO(), &protocol.ParseUASTRequest{Content: bigContent()})
+	_, err = client.Parse(context.TODO(), &protocol.ParseRequest{Content: bigContent()})
 	require.NoError(err)
 	err = conn.Close()
 	require.NoError(err)

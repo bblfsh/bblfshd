@@ -139,30 +139,30 @@ func (dp *DriverPool) scaling() {
 	}
 }
 
-// ParseUAST processes a ParseUASTRequest. It gets a driver from the pool and
+// Parse processes a ParseRequest. It gets a driver from the pool and
 // forwards the request to it. If all drivers are busy, it will return an error
 // after the timeout passes. If the DriverPool is closed, an error will be returned.
-func (dp *DriverPool) ParseUAST(req *protocol.ParseUASTRequest) *protocol.ParseUASTResponse {
+func (dp *DriverPool) Parse(req *protocol.ParseRequest) *protocol.ParseResponse {
 	dp.waiting.Add(1)
 	d, more, timedout := dp.readyQueue.TryDequeue(dp.timeout)
 	dp.waiting.Add(-1)
 
 	if !more {
-		return &protocol.ParseUASTResponse{
+		return &protocol.ParseResponse{
 			Status: protocol.Fatal,
 			Errors: []string{"driver pool already closed"},
 		}
 	}
 
 	if timedout {
-		return &protocol.ParseUASTResponse{
+		return &protocol.ParseResponse{
 			Status: protocol.Fatal,
 			Errors: []string{"timedout: all drivers are busy"},
 		}
 	}
 
 	defer dp.readyQueue.Enqueue(d)
-	return d.ParseUAST(req)
+	return d.Parse(req)
 
 }
 

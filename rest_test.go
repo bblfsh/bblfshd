@@ -42,7 +42,7 @@ func TestRestServerParse(t *testing.T) {
 
 	<-time.After(100 * time.Millisecond)
 
-	data, err := json.Marshal(protocol.ParseUASTRequest{
+	data, err := json.Marshal(protocol.ParseRequest{
 		Filename: "foo.py",
 		Content:  "foo = 1",
 	})
@@ -52,7 +52,7 @@ func TestRestServerParse(t *testing.T) {
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(data))
 	require.NoError(err)
 
-	var result protocol.ParseUASTResponse
+	var result protocol.ParseResponse
 	require.NoError(json.NewDecoder(resp.Body).Decode(&result))
 
 	require.Equal(protocol.Ok, result.Status)

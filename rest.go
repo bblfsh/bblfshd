@@ -45,13 +45,13 @@ func (s *RESTServer) Serve(addr string) error {
 }
 
 func (s *RESTServer) handleParse(ctx *gin.Context) {
-	var req protocol.ParseUASTRequest
+	var req protocol.ParseRequest
 	if err := ctx.BindJSON(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, jsonError("unable to read request: %s", err))
 		return
 	}
 
-	resp := s.ParseUAST(&req)
+	resp := s.Parse(&req)
 	ctx.JSON(toHTTPStatus(resp.Status), resp)
 }
 
