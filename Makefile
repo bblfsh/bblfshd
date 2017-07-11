@@ -61,11 +61,15 @@ ifneq ($(TRAVIS_TAG), )
     DOCKER_VERSION := $(TRAVIS_TAG)
 endif
 
-# if we are not in tag, the push is disabled
-ifeq ($(firstword $(subst -, ,$(DOCKER_VERSION))), $(DOCKER_DEV_PREFIX))
-        pushdisabled = "push disabled for development versions"
+# if we are not in master, the push is disabled
+ifneq ($(TRAVIS_BRANCH), master)
+        pushdisabled = "push disabled for non-master branches"
 endif
 
+# if this is a pull request, the push is disabled
+ifneq ($(TRAVIS_PULL_REQUEST), false)
+        pushdisabled = "push disabled for pull-requests"
+endif
 
 DOCKER_IMAGE ?= bblfsh/server
 DOCKER_IMAGE_VERSIONED ?= $(call escape_docker_tag,$(DOCKER_IMAGE):$(DOCKER_VERSION))
@@ -135,8 +139,9 @@ push: docker-image-build
 		$(DOCKER_CMD) login -u="$$DOCKER_USERNAME" -p="$$DOCKER_PASSWORD"; \
 	fi;
 
-	$(DOCKER_TAG) $(call unescape_docker_tag,$(DOCKER_IMAGE_VERSIONED)) \
-		$(call unescape_docker_tag,$(DOCKER_IMAGE)):latest
 	$(DOCKER_PUSH) $(call unescape_docker_tag,$(DOCKER_IMAGE_VERSIONED))
-	$(DOCKER_PUSH) $(call unescape_docker_tag,$(DOCKER_IMAGE):latest)
-
+	@if [ "$$TRAVIS_TAG" != "" ]; then \
+		$(DOCKER_TAG) $(call unescape_docker_tag,$(DOCKER_IMAGE_VERSIONED)) \
+			$(call unescape_docker_tag,$(DOCKER_IMAGE)):latest
+		$(DOCKER_PUSH) $(call unescape_docker_tag,$(DOCKER_IMAGE):latest)
+	fi;
