@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime/pprof"
 
 	"github.com/bblfsh/server"
 	"github.com/bblfsh/server/runtime"
@@ -24,12 +25,45 @@ type clientCmd struct {
 	ImageRef    string `long:"image" value-name:"image-ref" description:"image reference to use (e.g. docker://bblfsh/python-driver:latest)"`
 	Language    string `long:"language" description:"language of the input" default:""`
 	Encoding    string `long:"encoding" description:"encoding used in the source file" default:"UTF8"`
+	CpuProfile  string `short:"" long:"cpuprofile" description:"path to file where Cpu Profile will be stored" default:""`
+	MemProfile  string `short:"" long:"memprofile" description:"path to file where Memory Profile will be stored" default:""`
 	Args        struct {
 		File string `positional-arg-name:"file" required:"true"`
 	} `positional-args:"yes"`
 }
 
+func (c *clientCmd) StartCpuProfilingMaybe() {
+	if c.CpuProfile != "" {
+		f, err := os.Create(c.CpuProfile)
+		if err != nil {
+			logrus.Errorf("Failed to create a CpuProfile file at %s, err:%s", c.CpuProfile, err)
+			os.Exit(1)
+		}
+		logrus.Infof("Start CPU profiling, save to %s", c.CpuProfile)
+		pprof.StartCPUProfile(f)
+	}
+}
+func (c *clientCmd) StopCpuProfilingMaybe() {
+	logrus.Info("Stop CPU profiling")
+	pprof.StopCPUProfile()
+}
+
+// If profiling enabled though CLI, it saves memory profile to file.
+func (c *clientCmd) SaveMemProfileMaybe() {
+	if c.MemProfile != "" {
+		f, err := os.Create(c.MemProfile)
+		if err != nil {
+			logrus.Errorf("Failed to save Heap profile to %s, err:%s", c.MemProfile, err)
+			os.Exit(1)
+		}
+		logrus.Infof("Save Heap profile to %s", c.MemProfile)
+		pprof.WriteHeapProfile(f)
+		f.Close()
+	}
+}
+
 func (c *clientCmd) Execute(args []string) error {
+	c.StartCpuProfilingMaybe()
 	if err := c.exec(args); err != nil {
 		return err
 	}
@@ -64,7 +98,11 @@ func (c *clientCmd) Execute(args []string) error {
 		return err
 	}
 
+	c.StopCpuProfilingMaybe()
+	c.SaveMemProfileMaybe()
 	prettyPrinter(os.Stdout, resp)
+
+	c.StopCpuProfilingMaybe()
 	return nil
 }
 
