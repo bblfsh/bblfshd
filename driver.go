@@ -74,7 +74,7 @@ type loggingDriver struct {
 	Driver
 }
 
-func (d loggingDriver) ParseUAST(req *protocol.ParseUASTRequest) *protocol.ParseUASTResponse {
-	logrus.Debugf("sending ParseUAST request: %s", req.String())
-	return d.Driver.ParseUAST(req)
+func (d loggingDriver) Parse(req *protocol.ParseRequest) *protocol.ParseResponse {
+	logrus.Debugf("sending Parse request: %s", req.String())
+	return d.Driver.Parse(req)
 }

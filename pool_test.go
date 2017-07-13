@@ -12,12 +12,12 @@ import (
 )
 
 type mockDriver struct {
-	Response    *protocol.ParseUASTResponse
+	Response    *protocol.ParseResponse
 	Time        time.Duration
 	CalledClose int
 }
 
-func (d *mockDriver) ParseUAST(req *protocol.ParseUASTRequest) *protocol.ParseUASTResponse {
+func (d *mockDriver) Parse(req *protocol.ParseRequest) *protocol.ParseResponse {
 	time.Sleep(d.Time)
 	return d.Response
 }
@@ -44,7 +44,7 @@ func TestDriverPoolStartNoopClose(t *testing.T) {
 	err = dp.Close()
 	require.EqualError(err, "already closed")
 
-	resp := dp.ParseUAST(&protocol.ParseUASTRequest{})
+	resp := dp.Parse(&protocol.ParseRequest{})
 	require.NotNil(resp)
 	require.Equal(protocol.Fatal, resp.Status)
 	require.Equal([]string{"driver pool already closed"}, resp.Errors)
@@ -66,7 +66,7 @@ func TestDriverPoolSequential(t *testing.T) {
 	require := require.New(t)
 
 	new := func() (Driver, error) {
-		resp := &protocol.ParseUASTResponse{
+		resp := &protocol.ParseResponse{
 			Status: protocol.Ok,
 		}
 		return &mockDriver{
@@ -80,7 +80,7 @@ func TestDriverPoolSequential(t *testing.T) {
 	require.NotNil(dp)
 
 	for i := 0; i < 100; i++ {
-		resp := dp.ParseUAST(&protocol.ParseUASTRequest{})
+		resp := dp.Parse(&protocol.ParseRequest{})
 		require.NotNil(resp)
 		require.Equal(protocol.Ok, resp.Status)
 		//FIXME: it should be always 1
@@ -95,7 +95,7 @@ func TestDriverPoolParallel(t *testing.T) {
 	require := require.New(t)
 
 	new := func() (Driver, error) {
-		resp := &protocol.ParseUASTResponse{
+		resp := &protocol.ParseResponse{
 			Status: protocol.Ok,
 		}
 		return &mockDriver{
@@ -112,7 +112,7 @@ func TestDriverPoolParallel(t *testing.T) {
 	wg.Add(100)
 	for i := 0; i < 100; i++ {
 		go func() {
-			resp := dp.ParseUAST(&protocol.ParseUASTRequest{})
+			resp := dp.Parse(&protocol.ParseRequest{})
 			wg.Done()
 			require.NotNil(resp)
 			require.Nil(resp.Errors)

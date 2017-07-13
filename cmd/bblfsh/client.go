@@ -53,7 +53,7 @@ func (c *clientCmd) Execute(args []string) error {
 		encoding = protocol.UTF8
 	}
 
-	req := &protocol.ParseUASTRequest{
+	req := &protocol.ParseRequest{
 		Filename: filepath.Base(c.Args.File),
 		Language: c.Language,
 		Content:  string(content),
@@ -68,7 +68,7 @@ func (c *clientCmd) Execute(args []string) error {
 	return nil
 }
 
-func (c *clientCmd) runClient(req *protocol.ParseUASTRequest) (*protocol.ParseUASTResponse, error) {
+func (c *clientCmd) runClient(req *protocol.ParseRequest) (*protocol.ParseResponse, error) {
 	maxMessageSize, err := c.parseMaxMessageSize()
 	if err != nil {
 		return nil, err
@@ -90,10 +90,10 @@ func (c *clientCmd) runClient(req *protocol.ParseUASTRequest) (*protocol.ParseUA
 	client := protocol.NewProtocolServiceClient(conn)
 
 	logrus.Debug("sending request")
-	return client.ParseUAST(context.TODO(), req)
+	return client.Parse(context.TODO(), req)
 }
 
-func (c *clientCmd) runStandalone(req *protocol.ParseUASTRequest) (*protocol.ParseUASTResponse, error) {
+func (c *clientCmd) runStandalone(req *protocol.ParseRequest) (*protocol.ParseResponse, error) {
 	r := runtime.NewRuntime(c.RuntimePath)
 	logrus.Debugf("initializing runtime at %s", c.RuntimePath)
 	if err := r.Init(); err != nil {
@@ -116,14 +116,14 @@ func (c *clientCmd) runStandalone(req *protocol.ParseUASTRequest) (*protocol.Par
 		return nil, err
 	}
 
-	logrus.Debug("sending ParseUAST request")
-	resp := drv.ParseUAST(req)
+	logrus.Debug("sending Parse request")
+	resp := drv.Parse(req)
 
 	logrus.Debug("closing driver")
 	return resp, drv.Close()
 }
 
-func prettyPrinter(w io.Writer, r *protocol.ParseUASTResponse) error {
+func prettyPrinter(w io.Writer, r *protocol.ParseResponse) error {
 	fmt.Fprintln(w, "Status: ", r.Status)
 	fmt.Fprintln(w, "Errors: ")
 	for _, err := range r.Errors {

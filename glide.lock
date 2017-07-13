@@ -1,8 +1,8 @@
-hash: 24d1b6454599797fa4580979a670ec21768026ae409fdcfb7a89d6eddcaf8919
-updated: 2017-07-05T16:30:42.546467052+02:00
+hash: 58421c72c46514d8994acbec6ee179543e9d81bdd3ae31fcd30251f3f1f2528a
+updated: 2017-07-13T15:19:27.68335931+02:00
 imports:
 - name: github.com/bblfsh/sdk
-  version: 5fd7188f34d7ba2d82c2eac1f330c9496c452002
+  version: 9db6b2ee9500857b54f8d40165dc92aba482aadf
   subpackages:
   - manifest
   - protocol
@@ -12,7 +12,7 @@ imports:
   - uast
   - uast/ann
 - name: github.com/BurntSushi/toml
-  version: b26d9c308763d68093482582cea63d69be07a0f0
+  version: a368813c5e648fee92e5f6c30e3944ff9d5e8895
 - name: github.com/containers/image
   version: 66efd5c31ce9470c37d8fb40c2e424c63f72c735
   subpackages:
@@ -33,7 +33,7 @@ imports:
   - transports
   - types
 - name: github.com/containers/storage
-  version: 5cbbc6bafb45bd7ef10486b673deb3b81bb3b787
+  version: 6ea975ef55fa81c6044e2b06f5b2d945f904b03f
   subpackages:
   - pkg/archive
   - pkg/fileutils
@@ -45,29 +45,30 @@ imports:
   - pkg/promise
   - pkg/system
 - name: github.com/coreos/go-systemd
-  version: e97b35f834b17eaa82afe3d44715c34736bfa12b
+  version: 24036eb3df68550d24a2736c5d013f4e83366866
   subpackages:
   - dbus
   - util
 - name: github.com/coreos/pkg
-  version: fa29b1d70f0beaddd4c7021607cc3c3be8ce94b8
+  version: 8dbaa491b063ed47e2474b5363de0c0db91cf9f2
   subpackages:
   - dlopen
 - name: github.com/docker/distribution
-  version: cd27f179f2c10c5d300e6d09025b538c475b0d51
+  version: f86db6b22663a27ba4d278220b7e34be528b1e79
   subpackages:
   - context
-  - digest
+  - digestset
   - reference
   - registry/api/errcode
   - registry/api/v2
   - registry/client
+  - registry/client/auth/challenge
   - registry/client/transport
   - registry/storage/cache
   - registry/storage/cache/memory
   - uuid
 - name: github.com/docker/docker
-  version: 338565805c31783c63f9bb35d5b24f4c0c5656d3
+  version: 53a75ee05072cf5e59e9fb5b9e5cc5fb91fdb5be
   subpackages:
   - api
   - api/types
@@ -81,6 +82,7 @@ imports:
   - api/types/registry
   - api/types/strslice
   - api/types/swarm
+  - api/types/swarm/runtime
   - api/types/time
   - api/types/versions
   - api/types/volume
@@ -92,7 +94,7 @@ imports:
   - pkg/system
   - pkg/tlsconfig
 - name: github.com/docker/go-connections
-  version: a2afab9802043837035592f1c24827fb70766de9
+  version: 3ede32e2033de7505e6500d6c868c2b9ed9f169d
   subpackages:
   - nat
   - sockets
@@ -102,16 +104,18 @@ imports:
 - name: github.com/docker/libtrust
   version: aabc10ec26b754e797f9028f4589c5b7bd90dc20
 - name: github.com/ghodss/yaml
-  version: 04f313413ffd65ce25f2541bfd2b2ceec5c0908c
+  version: 0ca9ea5df5451ffdf184b4428c902747c2c11cd7
+- name: github.com/gin-contrib/sse
+  version: 22d885f9ecc78bf4ee5d72b937e4bbcdc58e8cae
 - name: github.com/gin-gonic/gin
-  version: e2212d40c62a98b388a5eb48ecbdcf88534688ba
+  version: 65a6dd46a50bd435597b5bcababd1b2a811c9073
   subpackages:
   - binding
   - render
 - name: github.com/godbus/dbus
-  version: fe0e1d54eaeda11a9979659a8d32f459e88bee75
+  version: bd29ed602e2cf4207ebcabcd530259169e4289ba
 - name: github.com/gogo/protobuf
-  version: 9df9efe4c742f1a2bfdedf1c3b6902fc6e814c6b
+  version: dda3e8acadcc9affc16faf33fbb229db78399245
   subpackages:
   - gogoproto
   - proto
@@ -122,23 +126,23 @@ imports:
   - proto
   - ptypes/any
 - name: github.com/gorilla/context
-  version: 14f550f51af52180c2eefed15e5fd18d63c0a64a
+  version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
 - name: github.com/gorilla/mux
-  version: e444e69cbd2e2e3e0749a2f3c717cec491552bbf
+  version: ac112f7d75a0714af1bd86ab17749b31f7809640
 - name: github.com/jessevdk/go-flags
   version: 5695738f733662da3e9afc2283bba6f3c879002d
-- name: github.com/manucorporat/sse
-  version: ee05b128a739a0fb76c7ebd3ae4810c1de808d6d
+- name: github.com/json-iterator/go
+  version: 8b0360418449ea45a97fd198b3ee29dcbf4dca65
 - name: github.com/mattn/go-isatty
-  version: 57fdcb988a5c543893cc61bce354a6e24ab70022
+  version: fc9e8d8ef48496124e79ae0df75490096eccf6fe
 - name: github.com/Microsoft/go-winio
-  version: fff283ad5116362ca252298cfc9b95828956d85d
+  version: c4dc1301f1dc0307acd38e611aa375a64dfe0642
 - name: github.com/mrunalp/fileutils
   version: 4ee1cc9a80582a0c75febdd5cfa779ee4361cbca
 - name: github.com/oklog/ulid
   version: 66bb6560562feca7045b23db1ae85b01260f87c5
 - name: github.com/opencontainers/go-digest
-  version: aa2ec055abd10d26d539eb630a92241b781ce4bc
+  version: 279bed98673dd5bef374d3b6e4b09e2af76183bf
 - name: github.com/opencontainers/image-spec
   version: 1a6593ab6c3ab5902072b4694a22ff19425396ae
   subpackages:
@@ -165,29 +169,33 @@ imports:
   - libcontainer/user
   - libcontainer/utils
 - name: github.com/opencontainers/runtime-spec
-  version: d87ec6945fa5ff5c0553056c5510d46fe3490203
+  version: 96de01bbb42c7af89bff100e10a9f0fb62e75bfb
   subpackages:
   - specs-go
 - name: github.com/pkg/errors
-  version: bfd5150e4e41705ded2129ec33379de1cb90b513
+  version: c605e284fe17294bda444b34710735b29d1a9d90
 - name: github.com/rs/cors
   version: 8dd4211afb5d08dbb39a533b9bb9e4b486351df6
 - name: github.com/seccomp/libseccomp-golang
-  version: e3496e3a417d1dc9ecdceca5af2513271fed37a0
+  version: f6ec81daf48e41bf48b475afc7fe06a26bfb72d1
 - name: github.com/Sirupsen/logrus
-  version: 0208149b40d863d2c1a2f8fe5753096a9cf2cc8b
+  version: 51dc0fc64317a2861273909081f9c315786533eb
 - name: github.com/syndtr/gocapability
-  version: e7cb7fa329f456b3855136a2642b197bad7366ba
+  version: db04d3cc01c8b54962a58ec7e491717d06cfcc16
   subpackages:
   - capability
 - name: github.com/toqueteos/trie
   version: 56fed4a05683322f125e2d78ee269bb102280392
+- name: github.com/ugorji/go
+  version: 5efa3251c7f7d05e5d9704a69a984ec9f1386a40
+  subpackages:
+  - codec
 - name: github.com/vishvananda/netlink
-  version: fe3b5664d23a11b52ba59bece4ff29c52772a56b
+  version: 8c5a115d793b6d223efadbdba04d1de197d386e8
   subpackages:
   - nl
 - name: github.com/vishvananda/netns
-  version: 54f0e4339ce73702a0607f49922aaa1e749b418d
+  version: 86bef332bfc3b59b7624a600bd53009ce91a9829
 - name: golang.org/x/net
   version: 3da985ce5951d99de868be4385f21ea6c2b22f24
   subpackages:
@@ -201,23 +209,23 @@ imports:
   - proxy
   - trace
 - name: golang.org/x/sys
-  version: 8f0908ab3b2457e2e15403d3697c9ef5cb4b57a9
+  version: abf9c25f54453410d0c6668e519582a9e1115027
   subpackages:
   - unix
   - windows
 - name: golang.org/x/text
-  version: 4ee4af566555f5fbe026368b75596286a312663a
+  version: cfdf022e86b4ecfb646e1efbd7db175dd623a8fa
   subpackages:
   - secure/bidirule
   - transform
   - unicode/bidi
   - unicode/norm
 - name: google.golang.org/genproto
-  version: d80a6e20e776b0b17a324d0ba1ab50a39c8e8944
+  version: b0a3dcfcd1a9bd48e63634bd8802960804cf8315
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc
-  version: 79f73d62e5082ee8d6b86a2487fd6267c1495fcd
+  version: 27b2052c9524abc45ae991d6a402ddb91f06ba03
   subpackages:
   - codes
   - credentials
@@ -233,26 +241,31 @@ imports:
   - tap
   - transport
 - name: gopkg.in/go-playground/validator.v8
-  version: c193cecd124b5cc722d7ee5538e945bdb3348435
+  version: 5f57d2222ad794d0dffb07e664ea05e2ee07d60c
 - name: gopkg.in/src-d/enry.v1
-  version: 708f2e40bf35cdc6760a11293cad0a8e632b31a1
+  version: b2b40bbfc59fa9ab248d8662edca78839195a7a6
+  subpackages:
+  - data
+  - internal/tokenizer
 - name: gopkg.in/src-d/go-errors.v0
-  version: 0c303ec4c027302259ec1738f19f515aad25f13f
+  version: 6f07baca276330431b44ece8ee84ac98167bc4ea
 - name: gopkg.in/toqueteos/substring.v1
   version: c5f61671513240ddf5563635cc4a90e9f3ae4710
 - name: gopkg.in/yaml.v2
-  version: bef53efd0c76e49e6de55ead051f886bea7e9420
+  version: 1be3d31502d6eabc0dd7ce5b0daab022e14a5538
+- name: srcd.works/go-errors.v0
+  version: 6f07baca276330431b44ece8ee84ac98167bc4ea
 testImports:
 - name: github.com/davecgh/go-spew
-  version: 5215b55f46b2b919f50a1df0eaa5886afe4e3b3d
+  version: 04cdfd42973bb9c8589fd6a731800cf222fde1a9
   subpackages:
   - spew
 - name: github.com/pmezard/go-difflib
-  version: 792786c7400a136282c1664665ae0a8db921c6c2
+  version: d8ed2627bdf02c080bf22230dbb337003b7aba2d
   subpackages:
   - difflib
 - name: github.com/stretchr/testify
-  version: f390dcf405f7b83c997eac1b06768bb9f44dec18
+  version: f6abca593680b2315d2075e0f5e2a9751e3f431a
   subpackages:
   - assert
   - require

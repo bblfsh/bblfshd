@@ -88,7 +88,7 @@ func (s *Server) Driver(lang string) (Driver, error) {
 	return d, nil
 }
 
-func (s *Server) ParseUAST(req *protocol.ParseUASTRequest) *protocol.ParseUASTResponse {
+func (s *Server) Parse(req *protocol.ParseRequest) *protocol.ParseResponse {
 	lang := req.Language
 	if lang == "" {
 		lang = GetLanguage(req.Filename, []byte(req.Content))
@@ -96,13 +96,13 @@ func (s *Server) ParseUAST(req *protocol.ParseUASTRequest) *protocol.ParseUASTRe
 
 	d, err := s.Driver(lang)
 	if err != nil {
-		return &protocol.ParseUASTResponse{
+		return &protocol.ParseResponse{
 			Status: protocol.Fatal,
 			Errors: []string{"error getting driver: " + err.Error()},
 		}
 	}
 
-	return d.ParseUAST(req)
+	return d.Parse(req)
 }
 
 func (s *Server) Close() error {
