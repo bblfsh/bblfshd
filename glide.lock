@@ -1,5 +1,5 @@
-hash: 58421c72c46514d8994acbec6ee179543e9d81bdd3ae31fcd30251f3f1f2528a
-updated: 2017-07-13T15:19:27.68335931+02:00
+hash: 92a2dd8a1b6972480faa8636feb34f2b6b96ce2dc19037703b443bf1ef5655ab
+updated: 2017-07-13T16:07:23.155324327+02:00
 imports:
 - name: github.com/bblfsh/sdk
   version: 9db6b2ee9500857b54f8d40165dc92aba482aadf
@@ -108,7 +108,7 @@ imports:
 - name: github.com/gin-contrib/sse
   version: 22d885f9ecc78bf4ee5d72b937e4bbcdc58e8cae
 - name: github.com/gin-gonic/gin
-  version: 65a6dd46a50bd435597b5bcababd1b2a811c9073
+  version: d459835d2b077e44f7c9b453505ee29881d5d12d
   subpackages:
   - binding
   - render
@@ -121,7 +121,7 @@ imports:
   - proto
   - protoc-gen-gogo/descriptor
 - name: github.com/golang/protobuf
-  version: 6e4cc92cc905d5f4a73041c1b8228ea08f4c6147
+  version: 0a4f71a498b7c4812f64969510bcb4eca251e33a
   subpackages:
   - proto
   - ptypes/any
@@ -130,9 +130,7 @@ imports:
 - name: github.com/gorilla/mux
   version: ac112f7d75a0714af1bd86ab17749b31f7809640
 - name: github.com/jessevdk/go-flags
-  version: 5695738f733662da3e9afc2283bba6f3c879002d
-- name: github.com/json-iterator/go
-  version: 8b0360418449ea45a97fd198b3ee29dcbf4dca65
+  version: 48cf8722c3375517aba351d1f7577c40663a4407
 - name: github.com/mattn/go-isatty
   version: fc9e8d8ef48496124e79ae0df75490096eccf6fe
 - name: github.com/Microsoft/go-winio
@@ -140,11 +138,11 @@ imports:
 - name: github.com/mrunalp/fileutils
   version: 4ee1cc9a80582a0c75febdd5cfa779ee4361cbca
 - name: github.com/oklog/ulid
-  version: 66bb6560562feca7045b23db1ae85b01260f87c5
+  version: d311cb43c92434ec4072dfbbda3400741d0a6337
 - name: github.com/opencontainers/go-digest
   version: 279bed98673dd5bef374d3b6e4b09e2af76183bf
 - name: github.com/opencontainers/image-spec
-  version: 1a6593ab6c3ab5902072b4694a22ff19425396ae
+  version: e0536ae0cb47b8fed6afdaa9ba2589f6bd915caa
   subpackages:
   - specs-go
   - specs-go/v1
@@ -173,13 +171,13 @@ imports:
   subpackages:
   - specs-go
 - name: github.com/pkg/errors
-  version: c605e284fe17294bda444b34710735b29d1a9d90
+  version: 645ef00459ed84a119197bfb8d8205042c6df63d
 - name: github.com/rs/cors
   version: 8dd4211afb5d08dbb39a533b9bb9e4b486351df6
 - name: github.com/seccomp/libseccomp-golang
   version: f6ec81daf48e41bf48b475afc7fe06a26bfb72d1
 - name: github.com/Sirupsen/logrus
-  version: 51dc0fc64317a2861273909081f9c315786533eb
+  version: a3f95b5c423586578a4e099b11a46c2479628cac
 - name: github.com/syndtr/gocapability
   version: db04d3cc01c8b54962a58ec7e491717d06cfcc16
   subpackages:
@@ -197,7 +195,7 @@ imports:
 - name: github.com/vishvananda/netns
   version: 86bef332bfc3b59b7624a600bd53009ce91a9829
 - name: golang.org/x/net
-  version: 3da985ce5951d99de868be4385f21ea6c2b22f24
+  version: f01ecb60fe3835d80d9a0b7b2bf24b228c89260e
   subpackages:
   - context
   - context/ctxhttp
@@ -225,7 +223,7 @@ imports:
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc
-  version: 27b2052c9524abc45ae991d6a402ddb91f06ba03
+  version: b15215fb911b24a5d61d57feec4233d610530464
   subpackages:
   - codes
   - credentials
@@ -257,7 +255,7 @@ imports:
   version: 6f07baca276330431b44ece8ee84ac98167bc4ea
 testImports:
 - name: github.com/davecgh/go-spew
-  version: 04cdfd42973bb9c8589fd6a731800cf222fde1a9
+  version: 6d212800a42e8ab5c146b8ace3490ee17e5225f9
   subpackages:
   - spew
 - name: github.com/pmezard/go-difflib
@@ -265,7 +263,7 @@ testImports:
   subpackages:
   - difflib
 - name: github.com/stretchr/testify
-  version: f6abca593680b2315d2075e0f5e2a9751e3f431a
+  version: 69483b4bd14f5845b5a1e55bca19e954e827f1d0
   subpackages:
   - assert
   - require
