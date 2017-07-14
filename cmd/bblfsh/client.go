@@ -76,6 +76,7 @@ func (c *clientCmd) runClient(req *protocol.ParseRequest) (*protocol.ParseRespon
 
 	callOptions := []grpc.CallOption{}
 	if maxMessageSize != 0 {
+		logrus.Debugf("setting maximum size for sending and receiving messages to %d", maxMessageSize)
 		callOptions = append(callOptions, grpc.MaxCallRecvMsgSize(maxMessageSize))
 		callOptions = append(callOptions, grpc.MaxCallSendMsgSize(maxMessageSize))
 	}
