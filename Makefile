@@ -61,9 +61,11 @@ ifneq ($(TRAVIS_TAG), )
     DOCKER_VERSION := $(TRAVIS_TAG)
 endif
 
-# if we are not in master, the push is disabled
+# if we are not in master, and it's not a tag the push is disabled
 ifneq ($(TRAVIS_BRANCH), master)
+	ifeq ($(TRAVIS_TAG), )
         pushdisabled = "push disabled for non-master branches"
+	endif
 endif
 
 # if this is a pull request, the push is disabled
