@@ -25,45 +25,54 @@ type clientCmd struct {
 	ImageRef    string `long:"image" value-name:"image-ref" description:"image reference to use (e.g. docker://bblfsh/python-driver:latest)"`
 	Language    string `long:"language" description:"language of the input" default:""`
 	Encoding    string `long:"encoding" description:"encoding used in the source file" default:"UTF8"`
-	CpuProfile  string `short:"" long:"cpuprofile" description:"path to file where Cpu Profile will be stored" default:""`
-	MemProfile  string `short:"" long:"memprofile" description:"path to file where Memory Profile will be stored" default:""`
+	CPUProfile  string `long:"cpuprofile" description:"path to file where Cpu Profile will be stored" default:""`
+	MemProfile  string `long:"memprofile" description:"path to file where Memory Profile will be stored" default:""`
 	Args        struct {
 		File string `positional-arg-name:"file" required:"true"`
 	} `positional-args:"yes"`
+	CPUProfileFile *os.File
 }
 
-func (c *clientCmd) StartCpuProfilingMaybe() {
-	if c.CpuProfile != "" {
-		f, err := os.Create(c.CpuProfile)
+func (c *clientCmd) StartCPUProfileMaybe() error {
+	if c.CPUProfile != "" {
+		f, err := os.Create(c.CPUProfile)
 		if err != nil {
-			logrus.Errorf("Failed to create a CpuProfile file at %s, err:%s", c.CpuProfile, err)
-			os.Exit(1)
+			errFmt := "Failed to create a CpuProfile file at %s, err:%s"
+			logrus.Errorf(errFmt, c.CPUProfile, err)
+			return fmt.Errorf("Failed to create a CpuProfile file at %s, err:%s", c.CPUProfile, err)
 		}
-		logrus.Infof("Start CPU profiling, save to %s", c.CpuProfile)
+		c.CPUProfileFile = f
+		logrus.Infof("Start CPU profiling, save to %s", c.CPUProfile)
 		pprof.StartCPUProfile(f)
 	}
+	return nil
 }
-func (c *clientCmd) StopCpuProfilingMaybe() {
+func (c *clientCmd) StopCPUProfile() {
 	logrus.Info("Stop CPU profiling")
 	pprof.StopCPUProfile()
+	if c.CPUProfileFile != nil {
+		c.CPUProfileFile.Close()
+	}
 }
 
 // If profiling enabled though CLI, it saves memory profile to file.
-func (c *clientCmd) SaveMemProfileMaybe() {
+func (c *clientCmd) SaveMemProfileMaybe() error {
 	if c.MemProfile != "" {
 		f, err := os.Create(c.MemProfile)
 		if err != nil {
-			logrus.Errorf("Failed to save Heap profile to %s, err:%s", c.MemProfile, err)
-			os.Exit(1)
+			errFmt := "Failed to save Heap profile to %s, err:%s"
+			logrus.Errorf(errFmt, c.MemProfile, err)
+			return fmt.Errorf(errFmt, c.MemProfile, err)
 		}
 		logrus.Infof("Save Heap profile to %s", c.MemProfile)
 		pprof.WriteHeapProfile(f)
 		f.Close()
 	}
+	return nil
 }
 
 func (c *clientCmd) Execute(args []string) error {
-	c.StartCpuProfilingMaybe()
+	c.StartCPUProfileMaybe()
 	if err := c.exec(args); err != nil {
 		return err
 	}
@@ -98,11 +107,10 @@ func (c *clientCmd) Execute(args []string) error {
 		return err
 	}
 
-	c.StopCpuProfilingMaybe()
+	c.StopCPUProfile()
 	c.SaveMemProfileMaybe()
-	prettyPrinter(os.Stdout, resp)
 
-	c.StopCpuProfilingMaybe()
+	prettyPrinter(os.Stdout, resp)
 	return nil
 }
 

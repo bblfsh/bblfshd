@@ -24,8 +24,8 @@ type serverCmd struct {
 	RuntimePath  string `long:"runtime-path" description:"runtime path" default:"/tmp/bblfsh-runtime"`
 	Transport    string `long:"transport" description:"default transport to fetch driver images (docker, docker-daemon)" default:"docker"`
 	REST         bool   `long:"rest" description:"start a JSON REST server instead of a gRPC server"`
-	Profiler     bool   `long:"profiler" description:"start CPU & memeory profiler"`
-	ProfilerAddr string `long:"profiler-address" description:"address to bind profiler to in case of gRPC" default:"0.0.0.0:6062"`
+	Profiler     bool   `long:"profiler" description:"start CPU & memory profiler"`
+	ProfilerAddr string `long:"profiler-address" description:"address to bind profiler to, in case of gRPC" default:"0.0.0.0:6062"`
 }
 
 func (c *serverCmd) Execute(args []string) error {
