@@ -13,7 +13,7 @@ var (
 
 type commonCmd struct {
 	LogLevel       string `long:"log-level" description:"log level" default:"debug"`
-	MaxMessageSize string `long:"max-message-size" description:"maximum message size to send/receive to/from clients (in MB)" default:""`
+	MaxMessageSize string `long:"max-message-size" description:"maximum message size to send/receive to/from clients (in MB)" default:"100"`
 }
 
 func (c *commonCmd) exec(args []string) error {

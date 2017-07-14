@@ -20,6 +20,7 @@ func NewGRPCServer(r *runtime.Runtime, overrides map[string]string, transport st
 
 	opts := []grpc.ServerOption{}
 	if maxMessageSize != 0 {
+		logrus.Debugf("setting maximum size for sending and receiving messages to %d", maxMessageSize)
 		opts = append(opts, grpc.MaxRecvMsgSize(maxMessageSize))
 		opts = append(opts, grpc.MaxSendMsgSize(maxMessageSize))
 	}
