@@ -15,6 +15,12 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/bblfsh/sdk/protocol"
 	"google.golang.org/grpc"
+	"srcd.works/go-errors.v0"
+)
+
+var (
+	// ErrProfiler happens if a profiler fails
+	ErrProfiler = errors.NewKind("Failed to create a % file at %s")
 )
 
 type clientCmd struct {
@@ -37,9 +43,8 @@ func (c *clientCmd) StartCPUProfileMaybe() error {
 	if c.CPUProfile != "" {
 		f, err := os.Create(c.CPUProfile)
 		if err != nil {
-			errFmt := "Failed to create a CpuProfile file at %s, err:%s"
-			logrus.Errorf(errFmt, c.CPUProfile, err)
-			return fmt.Errorf("Failed to create a CpuProfile file at %s, err:%s", c.CPUProfile, err)
+			logrus.Errorf("Failed to create a CpuProfile file at %s, err:%s", c.CPUProfile, err)
+			return ErrProfiler.Wrap(err, "CpuProfile", c.CPUProfile)
 		}
 		c.CPUProfileFile = f
 		logrus.Infof("Start CPU profiling, save to %s", c.CPUProfile)
@@ -60,9 +65,8 @@ func (c *clientCmd) SaveMemProfileMaybe() error {
 	if c.MemProfile != "" {
 		f, err := os.Create(c.MemProfile)
 		if err != nil {
-			errFmt := "Failed to save Heap profile to %s, err:%s"
-			logrus.Errorf(errFmt, c.MemProfile, err)
-			return fmt.Errorf(errFmt, c.MemProfile, err)
+			logrus.Errorf("Failed to save Heap profile to %s, err:%s", c.MemProfile, err)
+			return ErrProfiler.Wrap(err, "MemProfile", c.MemProfile)
 		}
 		logrus.Infof("Save Heap profile to %s", c.MemProfile)
 		pprof.WriteHeapProfile(f)
