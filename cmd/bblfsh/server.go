@@ -2,15 +2,16 @@ package main
 
 import (
 	"net"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"strings"
-
-	"srcd.works/go-errors.v0"
 
 	"github.com/bblfsh/server"
 	"github.com/bblfsh/server/runtime"
 
 	"github.com/Sirupsen/logrus"
+	"srcd.works/go-errors.v0"
 )
 
 var (
@@ -19,10 +20,12 @@ var (
 
 type serverCmd struct {
 	commonCmd
-	Address     string `long:"address" description:"server address to bind to" default:"0.0.0.0:9432"`
-	RuntimePath string `long:"runtime-path" description:"runtime path" default:"/tmp/bblfsh-runtime"`
-	Transport   string `long:"transport" description:"default transport to fetch driver images (docker, docker-daemon)" default:"docker"`
-	REST        bool   `long:"rest" description:"start a JSON REST server instead of a gRPC server"`
+	Address      string `long:"address" description:"server address to bind to" default:"0.0.0.0:9432"`
+	RuntimePath  string `long:"runtime-path" description:"runtime path" default:"/tmp/bblfsh-runtime"`
+	Transport    string `long:"transport" description:"default transport to fetch driver images (docker, docker-daemon)" default:"docker"`
+	REST         bool   `long:"rest" description:"start a JSON REST server instead of a gRPC server"`
+	Profiler     bool   `long:"profiler" description:"start CPU & memory profiler"`
+	ProfilerAddr string `long:"profiler-address" description:"address to bind profiler to, in case of gRPC" default:"0.0.0.0:6062"`
 }
 
 func (c *serverCmd) Execute(args []string) error {
@@ -68,6 +71,7 @@ func (c *serverCmd) serveREST(r *runtime.Runtime, overrides map[string]string) e
 }
 
 func (c *serverCmd) serveGRPC(r *runtime.Runtime, overrides map[string]string) error {
+	c.startProfilingHTTPServerMaybe(c.ProfilerAddr)
 	maxMessageSize, err := c.parseMaxMessageSize()
 	if err != nil {
 		return err
@@ -83,4 +87,16 @@ func (c *serverCmd) serveGRPC(r *runtime.Runtime, overrides map[string]string) e
 
 	logrus.Debug("starting server")
 	return s.Serve(lis)
+}
+
+func (c *serverCmd) startProfilingHTTPServerMaybe(addr string) {
+	if c.Profiler {
+		go func() {
+			logrus.Debugf("Started CPU & Heap profiler at %s", addr)
+			err := http.ListenAndServe(addr, nil)
+			if err != nil {
+				logrus.Warnf("Profiler failed to listen and serve at %s, err: %s", addr, err)
+			}
+		}()
+	}
 }
