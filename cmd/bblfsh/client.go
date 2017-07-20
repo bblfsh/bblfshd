@@ -126,12 +126,12 @@ func (c *clientCmd) runClient(req *protocol.ParseRequest) (*protocol.ParseRespon
 
 	callOptions := []grpc.CallOption{}
 	if maxMessageSize != 0 {
-		logrus.Debugf("setting maximum size for sending and receiving messages to %d", maxMessageSize)
+		logrus.Infof("setting maximum size for sending and receiving messages to %d", maxMessageSize)
 		callOptions = append(callOptions, grpc.MaxCallRecvMsgSize(maxMessageSize))
 		callOptions = append(callOptions, grpc.MaxCallSendMsgSize(maxMessageSize))
 	}
 
-	logrus.Debugf("dialing server at %s", c.Address)
+	logrus.Infof("dialing server at %s", c.Address)
 	conn, err := grpc.Dial(c.Address, grpc.WithInsecure(), grpc.WithDefaultCallOptions(callOptions...))
 	if err != nil {
 		return nil, err
@@ -146,7 +146,7 @@ func (c *clientCmd) runClient(req *protocol.ParseRequest) (*protocol.ParseRespon
 
 func (c *clientCmd) runStandalone(req *protocol.ParseRequest) (*protocol.ParseResponse, error) {
 	r := runtime.NewRuntime(c.RuntimePath)
-	logrus.Debugf("initializing runtime at %s", c.RuntimePath)
+	logrus.Infof("initializing runtime at %s", c.RuntimePath)
 	if err := r.Init(); err != nil {
 		return nil, err
 	}
