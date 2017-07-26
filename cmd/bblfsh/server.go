@@ -32,10 +32,10 @@ func (c *serverCmd) Execute(args []string) error {
 	if err := c.exec(args); err != nil {
 		return err
 	}
-	logrus.Debugf("binding to %s", c.Address)
+	logrus.Infof("binding to %s", c.Address)
 
 	r := runtime.NewRuntime(c.RuntimePath)
-	logrus.Debugf("initializing runtime at %s", c.RuntimePath)
+	logrus.Infof("initializing runtime at %s", c.RuntimePath)
 	if err := r.Init(); err != nil {
 		return err
 	}
@@ -53,7 +53,7 @@ func (c *serverCmd) Execute(args []string) error {
 
 		lang := strings.TrimSpace(fields[0])
 		image := strings.TrimSpace(fields[1])
-		logrus.Debugf("Overriding image for %s: %s", lang, image)
+		logrus.Infof("Overriding image for %s: %s", lang, image)
 		overrides[lang] = image
 	}
 
@@ -92,7 +92,7 @@ func (c *serverCmd) serveGRPC(r *runtime.Runtime, overrides map[string]string) e
 func (c *serverCmd) startProfilingHTTPServerMaybe(addr string) {
 	if c.Profiler {
 		go func() {
-			logrus.Debugf("Started CPU & Heap profiler at %s", addr)
+			logrus.Infof("Started CPU & Heap profiler at %s", addr)
 			err := http.ListenAndServe(addr, nil)
 			if err != nil {
 				logrus.Warnf("Profiler failed to listen and serve at %s, err: %s", addr, err)

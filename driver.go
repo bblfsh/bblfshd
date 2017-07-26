@@ -56,7 +56,7 @@ func ExecDriver(r *runtime.Runtime, img runtime.DriverImage) (Driver, error) {
 		_ = errr.Close()
 		return nil, err
 	}
-	logrus.Debugf("container started %s (%s)", img.Name(), c.ID())
+	logrus.Infof("container started %s (%s)", img.Name(), c.ID())
 
 	go func() {
 		if err := c.Wait(); err != nil {
@@ -75,6 +75,7 @@ type loggingDriver struct {
 }
 
 func (d loggingDriver) Parse(req *protocol.ParseRequest) *protocol.ParseResponse {
-	logrus.Debugf("sending Parse request: %s", req.String())
+	logrus.Infof("parsing %s (%d bytes)", req.Filename, len(req.Content))
+	logrus.Debugf("parse request: %s", req.String())
 	return d.Driver.Parse(req)
 }
