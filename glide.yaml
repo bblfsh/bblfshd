@@ -30,10 +30,8 @@ import:
   version: ^1.0.0-rc7
   subpackages:
   - specs-go/v1
-# This version has a fix for the zombie problem with runc; restore this 
-# dependency to the opencontainers repos once merged
 - package: github.com/opencontainers/runc
-  repo: https://github.com/LittleLightLittleFire/runc.git
+  repo: https://github.com/bblfsh/runc.git
   version: 0d21c2183e3908caff242fe298592b6cc4bf361b
   subpackages:
   - libcontainer

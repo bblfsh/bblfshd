@@ -147,7 +147,7 @@ imports:
   - specs-go
   - specs-go/v1
 - name: github.com/opencontainers/runc
-  repo: https://github.com/LittleLightLittleFire/runc.git
+  repo: https://github.com/bblfsh/runc.git
   version: 0d21c2183e3908caff242fe298592b6cc4bf361b
   subpackages:
   - libcontainer
