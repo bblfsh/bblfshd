@@ -117,17 +117,8 @@ test-coverage-internal:
 		fi; \
 	done;
 
-build: dependencies zombies-fix docker-build
+build: dependencies docker-build
 	$(DOCKER_RUN) -v $(GOPATH):/go $(DOCKER_BUILD_IMAGE) make build-internal
-
-# Fix for https://github.com/opencontainers/runc/issues/1443; remove this kludge
-# when PR #1506 has been merged into ~master
-TMPGIT := $(shell mktemp -d)
-zombies-fix: 
-	git clone https://github.com/LittleLightLittleFire/runc.git $(TMPGIT)/repo; \
-	cd $(TMPGIT)/repo && git rebase origin/1443-runc-reap-child-process; \
-	rm -rf $(VENDOR_PATH)/github.com/opencontainers/runc/; \
-	cp -a $(TMPGIT)/repo $(VENDOR_PATH)/github.com/opencontainers/runc
 
 build-internal:
 	mkdir -p $(BUILD_PATH); \
