@@ -33,7 +33,7 @@ ifneq ($(origin TRAVIS_TAG), undefined)
 endif
 
 # Build
-LDFLAGS = -X main.version=$(BRANCH) -X main.build=$(BUILD)
+LDFLAGS = -extldflags "-static" -X main.version=$(BRANCH) -X main.build=$(BUILD)
 
 # Docker
 DOCKER_CMD = docker
