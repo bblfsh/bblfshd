@@ -9,11 +9,21 @@ See the [Getting Started](https://doc.bblf.sh/user/getting-started.html) guide.
 Ensure you have [GOPATH set up](https://golang.org/doc/code.html#GOPATH) and
 [Docker installed](https://www.docker.com/get-docker).
 
+Make sure you the repo is located properly inside `GOPATH`:
+
+```
+mkdir -p $GOPATH/src/github.com/bblfsh
+cd $GOPATH/src/github.com/bblfsh
+git clone https://github.com/bblfsh/server.git
+cd server
+```
+
 ### Building From Source
 
 Build with:
 
 ```
+$ make dependencies
 $ make build
 ```
 
