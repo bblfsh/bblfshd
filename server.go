@@ -2,11 +2,14 @@ package server
 
 import (
 	"fmt"
+	"net"
 	"sync"
 
 	"github.com/bblfsh/server/runtime"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/bblfsh/sdk/protocol"
+	"google.golang.org/grpc"
 	"gopkg.in/src-d/go-errors.v0"
 )
 
@@ -39,6 +42,28 @@ func NewServer(r *runtime.Runtime, overrides map[string]string) *Server {
 		drivers:   make(map[string]Driver),
 		overrides: overrides,
 	}
+}
+
+func (s *Server) Serve(listener net.Listener, maxMessageSize int) error {
+	opts := []grpc.ServerOption{}
+	if maxMessageSize != 0 {
+		logrus.Infof("setting maximum size for sending and receiving messages to %d", maxMessageSize)
+		opts = append(opts, grpc.MaxRecvMsgSize(maxMessageSize))
+		opts = append(opts, grpc.MaxSendMsgSize(maxMessageSize))
+	}
+
+	grpcServer := grpc.NewServer(opts...)
+
+	logrus.Debug("registering gRPC service")
+	protocol.RegisterProtocolServiceServer(
+		grpcServer,
+		protocol.NewProtocolServiceServer(),
+	)
+
+	protocol.DefaultParser = s
+
+	logrus.Info("starting gRPC server")
+	return grpcServer.Serve(listener)
 }
 
 func (s *Server) AddDriver(lang string, img string) error {
