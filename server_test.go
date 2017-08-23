@@ -59,7 +59,7 @@ func TestNewServerMockedDriverParallelClients(t *testing.T) {
 
 	lis, err := net.Listen("tcp", "localhost:0")
 	require.NoError(err)
-	go (&GRPCServer{s, []grpc.ServerOption{}}).Serve(lis)
+	go s.Serve(lis, 0)
 
 	time.Sleep(time.Second * 1)
 
@@ -135,7 +135,7 @@ func TestMaxMessageSizeExceeded(t *testing.T) {
 
 	lis, err := net.Listen("tcp", "localhost:0")
 	require.NoError(err)
-	go (&GRPCServer{s, []grpc.ServerOption{}}).Serve(lis)
+	go s.Serve(lis, 0)
 
 	time.Sleep(time.Second * 1)
 
@@ -170,11 +170,7 @@ func TestMaxMessageSizeExceededInClient(t *testing.T) {
 
 	lis, err := net.Listen("tcp", "localhost:0")
 	require.NoError(err)
-	serverOptions := []grpc.ServerOption{
-		grpc.MaxRecvMsgSize(8 * 1024 * 1024),
-		grpc.MaxSendMsgSize(8 * 1024 * 1024)}
-
-	go (&GRPCServer{s, serverOptions}).Serve(lis)
+	go s.Serve(lis, 8*1024*1024)
 
 	time.Sleep(time.Second * 1)
 
@@ -209,7 +205,7 @@ func TestMaxMessageSizeExceededInServer(t *testing.T) {
 
 	lis, err := net.Listen("tcp", "localhost:0")
 	require.NoError(err)
-	go (&GRPCServer{s, []grpc.ServerOption{}}).Serve(lis)
+	go s.Serve(lis, 0)
 
 	time.Sleep(time.Second * 1)
 
@@ -251,10 +247,7 @@ func TestMaxMessageSizeNotExceeded(t *testing.T) {
 
 	lis, err := net.Listen("tcp", "localhost:0")
 	require.NoError(err)
-	serverOptions := []grpc.ServerOption{
-		grpc.MaxRecvMsgSize(8 * 1024 * 1024),
-		grpc.MaxSendMsgSize(8 * 1024 * 1024)}
-	go (&GRPCServer{s, serverOptions}).Serve(lis)
+	go s.Serve(lis, 8*1024*1024)
 
 	time.Sleep(time.Second * 1)
 

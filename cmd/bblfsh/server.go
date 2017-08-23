@@ -23,7 +23,6 @@ type serverCmd struct {
 	Address      string `long:"address" description:"server address to bind to" default:"0.0.0.0:9432"`
 	RuntimePath  string `long:"runtime-path" description:"runtime path" default:"/tmp/bblfsh-runtime"`
 	Transport    string `long:"transport" description:"default transport to fetch driver images (docker, docker-daemon)" default:"docker"`
-	REST         bool   `long:"rest" description:"start a JSON REST server instead of a gRPC server"`
 	Profiler     bool   `long:"profiler" description:"start CPU & memory profiler"`
 	ProfilerAddr string `long:"profiler-address" description:"address to bind profiler to, in case of gRPC" default:"0.0.0.0:6062"`
 }
@@ -57,20 +56,6 @@ func (c *serverCmd) Execute(args []string) error {
 		overrides[lang] = image
 	}
 
-	if c.REST {
-		return c.serveREST(r, overrides)
-	}
-
-	return c.serveGRPC(r, overrides)
-}
-
-func (c *serverCmd) serveREST(r *runtime.Runtime, overrides map[string]string) error {
-	s := server.NewRESTServer(r, overrides, c.Transport)
-	logrus.Debug("starting server")
-	return s.Serve(c.Address)
-}
-
-func (c *serverCmd) serveGRPC(r *runtime.Runtime, overrides map[string]string) error {
 	c.startProfilingHTTPServerMaybe(c.ProfilerAddr)
 	maxMessageSize, err := c.parseMaxMessageSize()
 	if err != nil {
@@ -83,10 +68,11 @@ func (c *serverCmd) serveGRPC(r *runtime.Runtime, overrides map[string]string) e
 		return err
 	}
 
-	s := server.NewGRPCServer(r, overrides, c.Transport, maxMessageSize)
+	s := server.NewServer(r, overrides)
+	s.Transport = c.Transport
 
 	logrus.Debug("starting server")
-	return s.Serve(lis)
+	return s.Serve(lis, maxMessageSize)
 }
 
 func (c *serverCmd) startProfilingHTTPServerMaybe(addr string) {
