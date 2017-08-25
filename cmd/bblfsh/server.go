@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
@@ -68,7 +69,8 @@ func (c *serverCmd) Execute(args []string) error {
 		return err
 	}
 
-	s := server.NewServer(r, overrides)
+	v := fmt.Sprintf("%s (%s)", version, build)
+	s := server.NewServer(v, r, overrides)
 	s.Transport = c.Transport
 
 	logrus.Debug("starting server")
