@@ -119,6 +119,11 @@ func (s *Server) Parse(req *protocol.ParseRequest) *protocol.ParseResponse {
 		lang = GetLanguage(req.Filename, []byte(req.Content))
 	}
 
+	// If the code Content is empty, just return an empty reponse
+	if req.Content == "" {
+		return &protocol.ParseResponse{Status: protocol.Ok}
+	}
+
 	d, err := s.Driver(lang)
 	if err != nil {
 		return &protocol.ParseResponse{
