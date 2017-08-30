@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/bblfsh/server/runtime"
+	"github.com/bblfsh/sdk/uast"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/bblfsh/sdk/protocol"
@@ -117,6 +118,15 @@ func (s *Server) Parse(req *protocol.ParseRequest) *protocol.ParseResponse {
 	lang := req.Language
 	if lang == "" {
 		lang = GetLanguage(req.Filename, []byte(req.Content))
+	}
+
+	// If the code Content is empty, just return an empty reponse
+	if req.Content == "" {
+		logrus.Debug("Empty code received, returning empty UAST")
+		return &protocol.ParseResponse{
+			Status: protocol.Ok,
+			UAST: &uast.Node{},
+		}
 	}
 
 	d, err := s.Driver(lang)
