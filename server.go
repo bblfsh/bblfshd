@@ -26,6 +26,7 @@ var (
 
 // Server is a Babelfish server.
 type Server struct {
+	version string
 	// Transport to use to fetch driver images. Defaults to "docker".
 	// Useful transports:
 	// - docker: uses Docker registries (docker.io by default).
@@ -37,8 +38,9 @@ type Server struct {
 	overrides map[string]string // Overrides for images per language
 }
 
-func NewServer(r *runtime.Runtime, overrides map[string]string) *Server {
+func NewServer(v string, r *runtime.Runtime, overrides map[string]string) *Server {
 	return &Server{
+		version:   v,
 		rt:        r,
 		drivers:   make(map[string]Driver),
 		overrides: overrides,
@@ -62,6 +64,7 @@ func (s *Server) Serve(listener net.Listener, maxMessageSize int) error {
 	)
 
 	protocol.DefaultParser = s
+	protocol.DefaultVersioner = s
 
 	logrus.Info("starting gRPC server")
 	return grpcServer.Serve(listener)
@@ -138,6 +141,10 @@ func (s *Server) Parse(req *protocol.ParseRequest) *protocol.ParseResponse {
 	}
 
 	return d.Parse(req)
+}
+
+func (s *Server) Version(req *protocol.VersionRequest) *protocol.VersionResponse {
+	return &protocol.VersionResponse{Version: s.version}
 }
 
 func (s *Server) Close() error {

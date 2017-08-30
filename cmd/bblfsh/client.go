@@ -21,20 +21,23 @@ import (
 var (
 	// ErrProfiler happens if a profiler fails
 	ErrProfiler = errors.NewKind("Failed to create a % file at %s")
+	// ErrFileArgMissing happens if the file is not specified
+	ErrFileArgMissing = errors.NewKind("File argument is missing")
 )
 
 type clientCmd struct {
 	commonCmd
-	Address     string `long:"address" description:"server address to connect to" default:"localhost:9432"`
-	Standalone  []bool `long:"standalone" description:"run standalone, without server"`
-	RuntimePath string `long:"runtime-path" description:"runtime path for standalone mode" default:"/tmp/bblfsh-runtime"`
-	ImageRef    string `long:"image" value-name:"image-ref" description:"image reference to use (e.g. docker://bblfsh/python-driver:latest)"`
-	Language    string `long:"language" description:"language of the input" default:""`
-	Encoding    string `long:"encoding" description:"encoding used in the source file" default:"UTF8"`
-	CPUProfile  string `long:"cpuprofile" description:"path to file where Cpu Profile will be stored" default:""`
-	MemProfile  string `long:"memprofile" description:"path to file where Memory Profile will be stored" default:""`
-	Args        struct {
-		File string `positional-arg-name:"file" required:"true"`
+	Address       string `long:"address" description:"server address to connect to" default:"localhost:9432"`
+	Standalone    []bool `long:"standalone" description:"run standalone, without server"`
+	RuntimePath   string `long:"runtime-path" description:"runtime path for standalone mode" default:"/tmp/bblfsh-runtime"`
+	ImageRef      string `long:"image" value-name:"image-ref" description:"image reference to use (e.g. docker://bblfsh/python-driver:latest)"`
+	Language      string `long:"language" description:"language of the input" default:""`
+	Encoding      string `long:"encoding" description:"encoding used in the source file" default:"UTF8"`
+	CPUProfile    string `long:"cpuprofile" description:"path to file where Cpu Profile will be stored" default:""`
+	MemProfile    string `long:"memprofile" description:"path to file where Memory Profile will be stored" default:""`
+	ServerVersion bool   `long:"version" description:"server version"`
+	Args          struct {
+		File string `positional-arg-name:"file"`
 	} `positional-args:"yes"`
 	CPUProfileFile *os.File
 }
@@ -81,15 +84,32 @@ func (c *clientCmd) Execute(args []string) error {
 		return err
 	}
 
-	logrus.Debugf("reading file: %s", c.Args.File)
-	content, err := ioutil.ReadFile(c.Args.File)
-	if err != nil {
-		return err
+	if c.ServerVersion {
+		client, err := c.getClient()
+		if err != nil {
+			return nil
+		}
+		resp, err := client.Version(context.TODO(), &protocol.VersionRequest{})
+		if err != nil {
+			return err
+		}
+		println(resp.Version)
+		return nil
 	}
 
 	run := c.runClient
 	if len(c.Standalone) >= 1 {
 		run = c.runStandalone
+	}
+
+	if c.Args.File == "" {
+		logrus.Error("File argument is missing")
+		return ErrFileArgMissing.New()
+	}
+	logrus.Debugf("reading file: %s", c.Args.File)
+	content, err := ioutil.ReadFile(c.Args.File)
+	if err != nil {
+		return err
 	}
 
 	var encoding protocol.Encoding
@@ -118,7 +138,7 @@ func (c *clientCmd) Execute(args []string) error {
 	return nil
 }
 
-func (c *clientCmd) runClient(req *protocol.ParseRequest) (*protocol.ParseResponse, error) {
+func (c *clientCmd) getClient() (protocol.ProtocolServiceClient, error) {
 	maxMessageSize, err := c.parseMaxMessageSize()
 	if err != nil {
 		return nil, err
@@ -138,7 +158,14 @@ func (c *clientCmd) runClient(req *protocol.ParseRequest) (*protocol.ParseRespon
 	}
 
 	logrus.Debug("instantiating service client")
-	client := protocol.NewProtocolServiceClient(conn)
+	return protocol.NewProtocolServiceClient(conn), nil
+}
+
+func (c *clientCmd) runClient(req *protocol.ParseRequest) (*protocol.ParseResponse, error) {
+	client, err := c.getClient()
+	if err != nil {
+		return nil, err
+	}
 
 	logrus.Debug("sending request")
 	return client.Parse(context.TODO(), req)

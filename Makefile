@@ -12,8 +12,8 @@ VENDOR_PATH := $(BASE_PATH)/vendor
 BUILD_PATH := $(BASE_PATH)/build
 CMD_PATH := $(BASE_PATH)/cmd
 SHA1 := $(shell git log --format='%H' -n 1 | cut -c1-10)
-BUILD := $(shell date +"%m-%d-%Y_%H_%M_%S")
-BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
+COMMIT := $(shell git rev-parse --short HEAD)
+BUILD := $(shell date -Iseconds)
 
 # Go parameters
 GO_CMD = go
@@ -29,11 +29,11 @@ COVERAGE_PROFILE = profile.out
 COVERAGE_MODE = atomic
 
 ifneq ($(origin TRAVIS_TAG), undefined)
-	BRANCH := $(TRAVIS_TAG)
+	COMMIT := $(TRAVIS_TAG)
 endif
 
 # Build
-LDFLAGS = -extldflags "-static" -X main.version=$(BRANCH) -X main.build=$(BUILD)
+LDFLAGS = -extldflags "-static" -X main.version=$(COMMIT) -X main.build=$(BUILD)
 
 # Docker
 DOCKER_CMD = docker

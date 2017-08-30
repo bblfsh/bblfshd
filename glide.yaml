@@ -3,7 +3,7 @@ import:
 - package: github.com/Sirupsen/logrus
   version: ^1.0.2
 - package: github.com/bblfsh/sdk
-  version: 9db6b2ee9500857b54f8d40165dc92aba482aadf
+  version: 1359c9931edf588eb90360a21dc693225ca08e0e
   subpackages:
   - manifest
   - protocol

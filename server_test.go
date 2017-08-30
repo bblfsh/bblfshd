@@ -48,7 +48,7 @@ func TestNewServerMockedDriverParallelClients(t *testing.T) {
 	err = r.Init()
 	require.NoError(err)
 
-	s := NewServer(r, make(map[string]string))
+	s := NewServer("", r, make(map[string]string))
 	dp, err := StartDriverPool(DefaultScalingPolicy(), DefaultPoolTimeout, func() (Driver, error) {
 		return &echoDriver{}, nil
 	})
@@ -102,7 +102,7 @@ func TestDefaultDriverImageReference(t *testing.T) {
 	err = r.Init()
 	require.NoError(err)
 
-	s := NewServer(r, make(map[string]string))
+	s := NewServer("", r, make(map[string]string))
 	s.Transport = "docker"
 	require.Equal("docker://bblfsh/python-driver:latest", s.defaultDriverImageReference("python"))
 	s.Transport = ""
@@ -112,7 +112,7 @@ func TestDefaultDriverImageReference(t *testing.T) {
 
 	python_override := make(map[string]string)
 	python_override["python"] = "overriden"
-	s = NewServer(r, python_override)
+	s = NewServer("", r, python_override)
 	s.Transport = "docker-daemon"
 	require.Equal("overriden", s.defaultDriverImageReference("python"))
 }
@@ -124,7 +124,7 @@ func TestMaxMessageSizeExceeded(t *testing.T) {
 	err = r.Init()
 	require.NoError(err)
 
-	s := NewServer(r, make(map[string]string))
+	s := NewServer("", r, make(map[string]string))
 	dp, err := StartDriverPool(DefaultScalingPolicy(), DefaultPoolTimeout, func() (Driver, error) {
 		return &echoDriver{}, nil
 	})
@@ -159,7 +159,7 @@ func TestMaxMessageSizeExceededInClient(t *testing.T) {
 	err = r.Init()
 	require.NoError(err)
 
-	s := NewServer(r, make(map[string]string))
+	s := NewServer("", r, make(map[string]string))
 	dp, err := StartDriverPool(DefaultScalingPolicy(), DefaultPoolTimeout, func() (Driver, error) {
 		return &echoDriver{}, nil
 	})
@@ -194,7 +194,7 @@ func TestMaxMessageSizeExceededInServer(t *testing.T) {
 	err = r.Init()
 	require.NoError(err)
 
-	s := NewServer(r, make(map[string]string))
+	s := NewServer("", r, make(map[string]string))
 	dp, err := StartDriverPool(DefaultScalingPolicy(), DefaultPoolTimeout, func() (Driver, error) {
 		return &echoDriver{}, nil
 	})
@@ -236,7 +236,7 @@ func TestMaxMessageSizeNotExceeded(t *testing.T) {
 	err = r.Init()
 	require.NoError(err)
 
-	s := NewServer(r, make(map[string]string))
+	s := NewServer("", r, make(map[string]string))
 	dp, err := StartDriverPool(DefaultScalingPolicy(), DefaultPoolTimeout, func() (Driver, error) {
 		return &echoDriver{}, nil
 	})

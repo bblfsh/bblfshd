@@ -9,8 +9,10 @@ import (
 	"github.com/jessevdk/go-flags"
 )
 
-var version string
-var build string
+var (
+	version = "undefined"
+	build   = "undefined"
+)
 
 func init() {
 	logrus.SetLevel(logrus.DebugLevel)
