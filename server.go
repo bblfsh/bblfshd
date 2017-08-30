@@ -122,7 +122,7 @@ func (s *Server) Parse(req *protocol.ParseRequest) *protocol.ParseResponse {
 
 	// If the code Content is empty, just return an empty reponse
 	if req.Content == "" {
-		logrus.Info("Empty code received, returning empty UAST")
+		logrus.Debug("Empty code received, returning empty UAST")
 		return &protocol.ParseResponse{
 			Status: protocol.Ok,
 			UAST: &uast.Node{},
