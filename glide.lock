@@ -1,16 +1,6 @@
-hash: 92a2dd8a1b6972480faa8636feb34f2b6b96ce2dc19037703b443bf1ef5655ab
-updated: 2017-07-13T16:07:23.155324327+02:00
+hash: 5b260518f8e6c3e481c451c4607a3bdf6436c5ab134f01fbabb4baab6b306604
+updated: 2017-09-07T14:07:15.194403581+02:00
 imports:
-- name: github.com/bblfsh/sdk
-  version: 1359c9931edf588eb90360a21dc693225ca08e0e
-  subpackages:
-  - manifest
-  - protocol
-  - protocol/driver
-  - protocol/jsonlines
-  - protocol/native
-  - uast
-  - uast/ann
 - name: github.com/BurntSushi/toml
   version: a368813c5e648fee92e5f6c30e3944ff9d5e8895
 - name: github.com/containers/image
@@ -105,13 +95,8 @@ imports:
   version: aabc10ec26b754e797f9028f4589c5b7bd90dc20
 - name: github.com/ghodss/yaml
   version: 0ca9ea5df5451ffdf184b4428c902747c2c11cd7
-- name: github.com/gin-contrib/sse
-  version: 22d885f9ecc78bf4ee5d72b937e4bbcdc58e8cae
 - name: github.com/gin-gonic/gin
   version: d459835d2b077e44f7c9b453505ee29881d5d12d
-  subpackages:
-  - binding
-  - render
 - name: github.com/godbus/dbus
   version: bd29ed602e2cf4207ebcabcd530259169e4289ba
 - name: github.com/gogo/protobuf
@@ -124,15 +109,16 @@ imports:
   version: 0a4f71a498b7c4812f64969510bcb4eca251e33a
   subpackages:
   - proto
+  - ptypes
   - ptypes/any
+  - ptypes/duration
+  - ptypes/timestamp
 - name: github.com/gorilla/context
   version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
 - name: github.com/gorilla/mux
   version: ac112f7d75a0714af1bd86ab17749b31f7809640
 - name: github.com/jessevdk/go-flags
-  version: 48cf8722c3375517aba351d1f7577c40663a4407
-- name: github.com/mattn/go-isatty
-  version: fc9e8d8ef48496124e79ae0df75490096eccf6fe
+  version: 96dc06278ce32a0e9d957d590bb987c81ee66407
 - name: github.com/Microsoft/go-winio
   version: c4dc1301f1dc0307acd38e611aa375a64dfe0642
 - name: github.com/mrunalp/fileutils
@@ -142,7 +128,7 @@ imports:
 - name: github.com/opencontainers/go-digest
   version: 279bed98673dd5bef374d3b6e4b09e2af76183bf
 - name: github.com/opencontainers/image-spec
-  version: e0536ae0cb47b8fed6afdaa9ba2589f6bd915caa
+  version: ab7389ef9f50030c9b245bc16b981c7ddf192882
   subpackages:
   - specs-go
   - specs-go/v1
@@ -153,15 +139,14 @@ imports:
   - libcontainer/apparmor
   - libcontainer/cgroups
   - libcontainer/cgroups/fs
+  - libcontainer/cgroups/rootless
   - libcontainer/cgroups/systemd
   - libcontainer/configs
   - libcontainer/configs/validate
   - libcontainer/criurpc
   - libcontainer/keys
-  - libcontainer/label
   - libcontainer/nsenter
   - libcontainer/seccomp
-  - libcontainer/selinux
   - libcontainer/stacktrace
   - libcontainer/system
   - libcontainer/user
@@ -170,30 +155,37 @@ imports:
   version: 96de01bbb42c7af89bff100e10a9f0fb62e75bfb
   subpackages:
   - specs-go
+- name: github.com/opencontainers/selinux
+  version: 4a2974bf1ee960774ffd517717f1f45325af0206
+  subpackages:
+  - go-selinux
+  - go-selinux/label
 - name: github.com/pkg/errors
   version: 645ef00459ed84a119197bfb8d8205042c6df63d
 - name: github.com/rs/cors
-  version: 8dd4211afb5d08dbb39a533b9bb9e4b486351df6
+  version: 7af7a1e09ba336d2ea14b1ce73bf693c6837dbf6
 - name: github.com/seccomp/libseccomp-golang
   version: f6ec81daf48e41bf48b475afc7fe06a26bfb72d1
+- name: github.com/sirupsen/logrus
+  version: 89742aefa4b206dcf400792f3bd35b542998eb3b
 - name: github.com/Sirupsen/logrus
-  version: a3f95b5c423586578a4e099b11a46c2479628cac
+  version: f006c2ac4710855cf0f916dd6b77acf6b048dc6e
 - name: github.com/syndtr/gocapability
   version: db04d3cc01c8b54962a58ec7e491717d06cfcc16
   subpackages:
   - capability
 - name: github.com/toqueteos/trie
   version: 56fed4a05683322f125e2d78ee269bb102280392
-- name: github.com/ugorji/go
-  version: 5efa3251c7f7d05e5d9704a69a984ec9f1386a40
-  subpackages:
-  - codec
 - name: github.com/vishvananda/netlink
   version: 8c5a115d793b6d223efadbdba04d1de197d386e8
   subpackages:
   - nl
 - name: github.com/vishvananda/netns
   version: 86bef332bfc3b59b7624a600bd53009ce91a9829
+- name: golang.org/x/crypto
+  version: 81e90905daefcd6fd217b62423c0908922eadb30
+  subpackages:
+  - ssh/terminal
 - name: golang.org/x/net
   version: f01ecb60fe3835d80d9a0b7b2bf24b228c89260e
   subpackages:
@@ -223,11 +215,12 @@ imports:
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc
-  version: b15215fb911b24a5d61d57feec4233d610530464
+  version: f92cdcd7dcdc69e81b2d7b338479a19a8723cfa3
   subpackages:
   - codes
+  - connectivity
   - credentials
-  - grpclb/grpc_lb_v1
+  - grpclb/grpc_lb_v1/messages
   - grpclog
   - internal
   - keepalive
@@ -238,10 +231,18 @@ imports:
   - status
   - tap
   - transport
-- name: gopkg.in/go-playground/validator.v8
-  version: 5f57d2222ad794d0dffb07e664ea05e2ee07d60c
+- name: gopkg.in/bblfsh/sdk.v0
+  version: 63a5c96d2d00e2b76932f26459d089e0bcbf5835
+  subpackages:
+  - manifest
+  - protocol
+  - protocol/driver
+  - protocol/jsonlines
+  - protocol/native
+  - uast
+  - uast/ann
 - name: gopkg.in/src-d/enry.v1
-  version: b2b40bbfc59fa9ab248d8662edca78839195a7a6
+  version: 0fe0a97f67b4dd856f36e689ec886b9226701ffc
   subpackages:
   - data
   - internal/tokenizer

@@ -2,12 +2,6 @@ package: github.com/bblfsh/server
 import:
 - package: github.com/Sirupsen/logrus
   version: ^1.0.2
-- package: github.com/bblfsh/sdk
-  version: 1359c9931edf588eb90360a21dc693225ca08e0e
-  subpackages:
-  - manifest
-  - protocol
-  - protocol/driver
 - package: github.com/containers/image
   version: 66efd5c31ce9470c37d8fb40c2e424c63f72c735
   subpackages:
@@ -42,6 +36,8 @@ import:
   version: ^1.1.0
 - package: google.golang.org/grpc
   version: ^1.4.2
+- package: gopkg.in/bblfsh/sdk.v0
+  version: ^0.2.1
 - package: gopkg.in/src-d/enry.v1
   version: ^1.3.0
 - package: gopkg.in/src-d/go-errors.v0

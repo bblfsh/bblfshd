@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/bblfsh/sdk/manifest"
+	"gopkg.in/bblfsh/sdk.v0/manifest"
 )
 
 var (

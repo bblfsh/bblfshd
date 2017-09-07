@@ -9,8 +9,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/bblfsh/sdk/protocol"
 	"github.com/pkg/errors"
+	"gopkg.in/bblfsh/sdk.v0/protocol"
 )
 
 var (

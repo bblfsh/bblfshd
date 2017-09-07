@@ -13,12 +13,12 @@ import (
 
 	"github.com/bblfsh/server/runtime"
 
-	"github.com/bblfsh/sdk/protocol"
-	"github.com/bblfsh/sdk/uast"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"gopkg.in/bblfsh/sdk.v0/protocol"
+	"gopkg.in/bblfsh/sdk.v0/uast"
 )
 
 type echoDriver struct{}
@@ -136,41 +136,6 @@ func TestMaxMessageSizeExceeded(t *testing.T) {
 	lis, err := net.Listen("tcp", "localhost:0")
 	require.NoError(err)
 	go s.Serve(lis, 0)
-
-	time.Sleep(time.Second * 1)
-
-	conn, err := grpc.Dial(lis.Addr().String(), grpc.WithInsecure(), grpc.WithTimeout(time.Second*2))
-	require.NoError(err)
-	client := protocol.NewProtocolServiceClient(conn)
-	_, err = client.Parse(context.TODO(), &protocol.ParseRequest{Content: bigContent()})
-	require.NotNil(err)
-	status, _ := status.FromError(err)
-	require.Equal(status.Code(), codes.ResourceExhausted)
-	err = conn.Close()
-	require.NoError(err)
-	err = s.Close()
-	require.NoError(err)
-}
-
-func TestMaxMessageSizeExceededInClient(t *testing.T) {
-	require := require.New(t)
-	tmpDir, err := ioutil.TempDir(os.TempDir(), "bblfsh-runtime")
-	r := runtime.NewRuntime(tmpDir)
-	err = r.Init()
-	require.NoError(err)
-
-	s := NewServer("", r, make(map[string]string))
-	dp, err := StartDriverPool(DefaultScalingPolicy(), DefaultPoolTimeout, func() (Driver, error) {
-		return &echoDriver{}, nil
-	})
-	require.NoError(err)
-	require.NotNil(dp)
-
-	s.drivers["python"] = dp
-
-	lis, err := net.Listen("tcp", "localhost:0")
-	require.NoError(err)
-	go s.Serve(lis, 8*1024*1024)
 
 	time.Sleep(time.Second * 1)
 

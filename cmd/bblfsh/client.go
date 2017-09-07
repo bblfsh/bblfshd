@@ -13,8 +13,8 @@ import (
 	"github.com/bblfsh/server/runtime"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/bblfsh/sdk/protocol"
 	"google.golang.org/grpc"
+	"gopkg.in/bblfsh/sdk.v0/protocol"
 	"srcd.works/go-errors.v0"
 )
 
