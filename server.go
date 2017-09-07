@@ -6,11 +6,11 @@ import (
 	"sync"
 
 	"github.com/bblfsh/server/runtime"
-	"github.com/bblfsh/sdk/uast"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/bblfsh/sdk/protocol"
 	"google.golang.org/grpc"
+	"gopkg.in/bblfsh/sdk.v0/protocol"
+	"gopkg.in/bblfsh/sdk.v0/uast"
 	"gopkg.in/src-d/go-errors.v0"
 )
 

@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/bblfsh/sdk/manifest"
 	"github.com/containers/image/types"
+	"gopkg.in/bblfsh/sdk.v0/manifest"
 )
 
 func init() {

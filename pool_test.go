@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bblfsh/sdk/protocol"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/bblfsh/sdk.v0/protocol"
 )
 
 type mockDriver struct {
