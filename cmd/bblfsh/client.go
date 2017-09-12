@@ -15,7 +15,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"google.golang.org/grpc"
 	"gopkg.in/bblfsh/sdk.v0/protocol"
-	"srcd.works/go-errors.v0"
+	"gopkg.in/src-d/go-errors.v0"
 )
 
 var (

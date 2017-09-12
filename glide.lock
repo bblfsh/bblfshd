@@ -252,8 +252,6 @@ imports:
   version: c5f61671513240ddf5563635cc4a90e9f3ae4710
 - name: gopkg.in/yaml.v2
   version: 1be3d31502d6eabc0dd7ce5b0daab022e14a5538
-- name: srcd.works/go-errors.v0
-  version: 6f07baca276330431b44ece8ee84ac98167bc4ea
 testImports:
 - name: github.com/davecgh/go-spew
   version: 6d212800a42e8ab5c146b8ace3490ee17e5225f9
