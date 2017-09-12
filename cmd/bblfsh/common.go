@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"github.com/Sirupsen/logrus"
-	"gopkg.in/src-d/go-errors.v0"
+	"gopkg.in/src-d/go-errors.v1"
 )
 
 var (
