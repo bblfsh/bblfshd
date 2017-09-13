@@ -1,5 +1,5 @@
-hash: 5b260518f8e6c3e481c451c4607a3bdf6436c5ab134f01fbabb4baab6b306604
-updated: 2017-09-07T14:07:15.194403581+02:00
+hash: c1fadd1102d193acbc8a4e15baa718ce6e9f8bc2c3924d24f19ae74e053d9a9d
+updated: 2017-09-12T17:47:37.472766713+02:00
 imports:
 - name: github.com/BurntSushi/toml
   version: a368813c5e648fee92e5f6c30e3944ff9d5e8895
@@ -166,10 +166,10 @@ imports:
   version: 7af7a1e09ba336d2ea14b1ce73bf693c6837dbf6
 - name: github.com/seccomp/libseccomp-golang
   version: f6ec81daf48e41bf48b475afc7fe06a26bfb72d1
-- name: github.com/sirupsen/logrus
-  version: 89742aefa4b206dcf400792f3bd35b542998eb3b
 - name: github.com/Sirupsen/logrus
   version: f006c2ac4710855cf0f916dd6b77acf6b048dc6e
+- name: github.com/sirupsen/logrus
+  version: 89742aefa4b206dcf400792f3bd35b542998eb3b
 - name: github.com/syndtr/gocapability
   version: db04d3cc01c8b54962a58ec7e491717d06cfcc16
   subpackages:
@@ -248,12 +248,12 @@ imports:
   - internal/tokenizer
 - name: gopkg.in/src-d/go-errors.v0
   version: 6f07baca276330431b44ece8ee84ac98167bc4ea
+- name: gopkg.in/src-d/go-errors.v1
+  version: 8bbbeeb767dfdd053b9b45d5a16a4f4ce2c6f694
 - name: gopkg.in/toqueteos/substring.v1
   version: c5f61671513240ddf5563635cc4a90e9f3ae4710
 - name: gopkg.in/yaml.v2
   version: 1be3d31502d6eabc0dd7ce5b0daab022e14a5538
-- name: srcd.works/go-errors.v0
-  version: 6f07baca276330431b44ece8ee84ac98167bc4ea
 testImports:
 - name: github.com/davecgh/go-spew
   version: 6d212800a42e8ab5c146b8ace3490ee17e5225f9
