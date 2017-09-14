@@ -7,8 +7,8 @@ import (
 	"github.com/bblfsh/server/runtime"
 
 	"github.com/Sirupsen/logrus"
-	"gopkg.in/bblfsh/sdk.v0/protocol"
-	"gopkg.in/bblfsh/sdk.v0/protocol/driver"
+	"gopkg.in/bblfsh/sdk.v1/protocol"
+	"gopkg.in/bblfsh/sdk.v1/protocol/driver"
 )
 
 // Driver is a client to communicate with a driver. It provides the parser

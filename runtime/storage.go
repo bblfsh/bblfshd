@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"gopkg.in/bblfsh/sdk.v0/manifest"
+	"gopkg.in/bblfsh/sdk.v1/manifest"
 )
 
 var (
