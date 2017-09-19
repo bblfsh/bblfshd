@@ -1,5 +1,5 @@
-hash: c1fadd1102d193acbc8a4e15baa718ce6e9f8bc2c3924d24f19ae74e053d9a9d
-updated: 2017-09-12T17:47:37.472766713+02:00
+hash: daad342484368196eb56a4b47414780ef571e4e53884c74a941dddcdcbf1d639
+updated: 2017-09-14T18:29:14.801683374+02:00
 imports:
 - name: github.com/BurntSushi/toml
   version: a368813c5e648fee92e5f6c30e3944ff9d5e8895
@@ -231,8 +231,8 @@ imports:
   - status
   - tap
   - transport
-- name: gopkg.in/bblfsh/sdk.v0
-  version: 63a5c96d2d00e2b76932f26459d089e0bcbf5835
+- name: gopkg.in/bblfsh/sdk.v1
+  version: b04b0f398c559ab6f626aaf23a5d9606f36cc6be
   subpackages:
   - manifest
   - protocol

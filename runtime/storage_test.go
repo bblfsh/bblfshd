@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gopkg.in/bblfsh/sdk.v0/manifest"
+	"gopkg.in/bblfsh/sdk.v1/manifest"
 )
 
 func TestStorageInstall(t *testing.T) {

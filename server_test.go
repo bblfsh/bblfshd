@@ -17,8 +17,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"gopkg.in/bblfsh/sdk.v0/protocol"
-	"gopkg.in/bblfsh/sdk.v0/uast"
+	"gopkg.in/bblfsh/sdk.v1/protocol"
+	"gopkg.in/bblfsh/sdk.v1/uast"
 )
 
 type echoDriver struct{}

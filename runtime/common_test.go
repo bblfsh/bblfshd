@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/containers/image/types"
-	"gopkg.in/bblfsh/sdk.v0/manifest"
+	"gopkg.in/bblfsh/sdk.v1/manifest"
 )
 
 func init() {
