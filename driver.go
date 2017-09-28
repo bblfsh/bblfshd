@@ -49,7 +49,7 @@ func NewDriverInstance(r *runtime.Runtime, i runtime.DriverImage, o *Options) (*
 	p := &runtime.Process{
 		Args: []string{
 			DriverBinary,
-			"--verbose", o.Verbosity,
+			"--log-level", o.Verbosity,
 			"--network", "unix",
 			"--address", fmt.Sprintf(TmpPathPattern, GRPCSocket),
 		},

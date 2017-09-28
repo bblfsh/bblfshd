@@ -67,7 +67,7 @@ func TestNewServerMockedDriverParallelClients(t *testing.T) {
 	err = r.Init()
 	require.NoError(err)
 
-	s := NewServer("", r, make(map[string]string))
+	s := NewServer("", r)
 	dp, err := StartDriverPool(DefaultScalingPolicy(), DefaultPoolTimeout, func() (Driver, error) {
 		return &echoDriver{}, nil
 	})
@@ -78,7 +78,7 @@ func TestNewServerMockedDriverParallelClients(t *testing.T) {
 
 	lis, err := net.Listen("tcp", "localhost:0")
 	require.NoError(err)
-	go s.Serve(lis, 0)
+	go s.Serve(lis)
 
 	time.Sleep(time.Second * 1)
 
@@ -121,7 +121,7 @@ func TestDefaultDriverImageReference(t *testing.T) {
 	err = r.Init()
 	require.NoError(err)
 
-	s := NewServer("", r, make(map[string]string))
+	s := NewServer("", r)
 	s.Transport = "docker"
 	require.Equal("docker://bblfsh/python-driver:latest", s.defaultDriverImageReference("python"))
 	s.Transport = ""
@@ -129,9 +129,8 @@ func TestDefaultDriverImageReference(t *testing.T) {
 	s.Transport = "docker-daemon"
 	require.Equal("docker-daemon:bblfsh/python-driver:latest", s.defaultDriverImageReference("python"))
 
-	python_override := make(map[string]string)
-	python_override["python"] = "overriden"
-	s = NewServer("", r, python_override)
+	s = NewServer("", r)
+	s.Overrides["python"] = "overriden"
 	s.Transport = "docker-daemon"
 	require.Equal("overriden", s.defaultDriverImageReference("python"))
 }
@@ -143,7 +142,7 @@ func TestMaxMessageSizeExceeded(t *testing.T) {
 	err = r.Init()
 	require.NoError(err)
 
-	s := NewServer("", r, make(map[string]string))
+	s := NewServer("", r)
 	dp, err := StartDriverPool(DefaultScalingPolicy(), DefaultPoolTimeout, func() (Driver, error) {
 		return &echoDriver{}, nil
 	})
@@ -154,7 +153,7 @@ func TestMaxMessageSizeExceeded(t *testing.T) {
 
 	lis, err := net.Listen("tcp", "localhost:0")
 	require.NoError(err)
-	go s.Serve(lis, 0)
+	go s.Serve(lis)
 
 	time.Sleep(time.Second * 1)
 
@@ -178,7 +177,7 @@ func TestMaxMessageSizeExceededInServer(t *testing.T) {
 	err = r.Init()
 	require.NoError(err)
 
-	s := NewServer("", r, make(map[string]string))
+	s := NewServer("", r)
 	dp, err := StartDriverPool(DefaultScalingPolicy(), DefaultPoolTimeout, func() (Driver, error) {
 		return &echoDriver{}, nil
 	})
@@ -189,7 +188,7 @@ func TestMaxMessageSizeExceededInServer(t *testing.T) {
 
 	lis, err := net.Listen("tcp", "localhost:0")
 	require.NoError(err)
-	go s.Serve(lis, 0)
+	go s.Serve(lis)
 
 	time.Sleep(time.Second * 1)
 
@@ -207,46 +206,6 @@ func TestMaxMessageSizeExceededInServer(t *testing.T) {
 	require.NotNil(err)
 	status, _ := status.FromError(err)
 	require.Equal(status.Code(), codes.ResourceExhausted)
-	err = conn.Close()
-	require.NoError(err)
-	err = s.Stop()
-	require.NoError(err)
-}
-
-func TestMaxMessageSizeNotExceeded(t *testing.T) {
-	require := require.New(t)
-	tmpDir, err := ioutil.TempDir(os.TempDir(), "bblfsh-runtime")
-	r := runtime.NewRuntime(tmpDir)
-	err = r.Init()
-	require.NoError(err)
-
-	s := NewServer("", r, make(map[string]string))
-	dp, err := StartDriverPool(DefaultScalingPolicy(), DefaultPoolTimeout, func() (Driver, error) {
-		return &echoDriver{}, nil
-	})
-	require.NoError(err)
-	require.NotNil(dp)
-
-	s.pool["python"] = dp
-
-	lis, err := net.Listen("tcp", "localhost:0")
-	require.NoError(err)
-	go s.Serve(lis, 8*1024*1024)
-
-	time.Sleep(time.Second * 1)
-
-	callOptions := []grpc.CallOption{
-		grpc.MaxCallRecvMsgSize(8 * 1024 * 1024),
-		grpc.MaxCallSendMsgSize(8 * 1024 * 1024)}
-	conn, err := grpc.Dial(
-		lis.Addr().String(),
-		grpc.WithInsecure(),
-		grpc.WithTimeout(time.Second*2),
-		grpc.WithDefaultCallOptions(callOptions...))
-	require.NoError(err)
-	client := protocol.NewProtocolServiceClient(conn)
-	_, err = client.Parse(context.TODO(), &protocol.ParseRequest{Content: bigContent()})
-	require.NoError(err)
 	err = conn.Close()
 	require.NoError(err)
 	err = s.Stop()

@@ -3,14 +3,13 @@ package server
 import (
 	"context"
 	"fmt"
-	"net"
 	"sync"
 
 	"github.com/bblfsh/server/runtime"
 
 	"github.com/sirupsen/logrus"
-	"google.golang.org/grpc"
 	"gopkg.in/bblfsh/sdk.v1/protocol"
+	"gopkg.in/bblfsh/sdk.v1/sdk/server"
 	"gopkg.in/bblfsh/sdk.v1/uast"
 	"gopkg.in/src-d/go-errors.v1"
 )
@@ -27,47 +26,30 @@ var (
 
 // Server is a Babelfish server.
 type Server struct {
-	version string
+	server.Server
 	// Transport to use to fetch driver images. Defaults to "docker".
 	// Useful transports:
 	// - docker: uses Docker registries (docker.io by default).
 	// - docker-daemon: gets images from a local Docker daemon.
 	Transport string
-	rt        *runtime.Runtime
-	mu        sync.RWMutex
-	pool      map[string]*DriverPool
-	overrides map[string]string // Overrides for images per language
+	// Overrides for images per language
+	Overrides map[string]string
+
+	version string
+	rt      *runtime.Runtime
+	mu      sync.RWMutex
+	pool    map[string]*DriverPool
 }
 
-func NewServer(v string, r *runtime.Runtime, overrides map[string]string) *Server {
-	return &Server{
-		version:   v,
+func NewServer(version string, r *runtime.Runtime) *Server {
+	s := &Server{
 		rt:        r,
 		pool:      make(map[string]*DriverPool),
-		overrides: overrides,
+		Overrides: make(map[string]string),
 	}
-}
-
-func (s *Server) Serve(listener net.Listener, maxMessageSize int) error {
-	opts := []grpc.ServerOption{}
-	if maxMessageSize != 0 {
-		logrus.Infof("setting maximum size for sending and receiving messages to %d", maxMessageSize)
-		opts = append(opts, grpc.MaxRecvMsgSize(maxMessageSize))
-		opts = append(opts, grpc.MaxSendMsgSize(maxMessageSize))
-	}
-
-	grpcServer := grpc.NewServer(opts...)
-
-	logrus.Debug("registering gRPC service")
-	protocol.RegisterProtocolServiceServer(
-		grpcServer,
-		protocol.NewProtocolServiceServer(),
-	)
 
 	protocol.DefaultService = s
-
-	logrus.Info("starting gRPC server")
-	return grpcServer.Serve(listener)
+	return s
 }
 
 func (s *Server) AddDriver(lang string, img string) error {
@@ -175,7 +157,7 @@ func (s *Server) Stop() error {
 
 // returns the default image reference for a driver given a language.
 func (s *Server) defaultDriverImageReference(lang string) string {
-	if override := s.overrides[lang]; override != "" {
+	if override := s.Overrides[lang]; override != "" {
 		return override
 	}
 	transport := s.Transport
