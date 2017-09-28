@@ -17,10 +17,11 @@ const (
 	containersPath = "containers"
 )
 
-type Runtime struct {
-	ContainerConfigFactory func() *configs.Config
+type ConfigFactory func(containerID string) *configs.Config
 
-	root string
+type Runtime struct {
+	ContainerConfigFactory ConfigFactory
+	Root                   string
 
 	s *storage
 	f libcontainer.Factory
@@ -31,7 +32,7 @@ func NewRuntime(path string) *Runtime {
 	return &Runtime{
 		ContainerConfigFactory: ContainerConfigFactory,
 
-		root: path,
+		Root: path,
 		s:    newStorage(filepath.Join(path, storagePath)),
 	}
 }
@@ -40,7 +41,7 @@ func NewRuntime(path string) *Runtime {
 func (r *Runtime) Init() error {
 	var err error
 	r.f, err = libcontainer.New(
-		filepath.Join(r.root, containersPath),
+		filepath.Join(r.Root, containersPath),
 		libcontainer.Cgroupfs,
 	)
 
@@ -66,9 +67,15 @@ func (r *Runtime) ListDrivers() ([]*DriverImageStatus, error) {
 }
 
 // Container returns a container for the given DriverImage and Process
-func (r *Runtime) Container(d DriverImage, p *Process) (Container, error) {
+func (r *Runtime) Container(id string, d DriverImage, p *Process, f ConfigFactory) (Container, error) {
+	//id := NewULID().String()
+	if f == nil {
+		f = r.ContainerConfigFactory
+	}
+
+	cfg := f(id)
+
 	var err error
-	cfg := r.ContainerConfigFactory()
 	cfg.Rootfs, err = r.s.RootFS(d)
 	if err != nil {
 		return nil, err
@@ -79,7 +86,7 @@ func (r *Runtime) Container(d DriverImage, p *Process) (Container, error) {
 		return nil, err
 	}
 
-	c, err := r.f.Create(NewULID().String(), cfg)
+	c, err := r.f.Create(id, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +96,7 @@ func (r *Runtime) Container(d DriverImage, p *Process) (Container, error) {
 
 // ContainerConfigFactory is the default container config factory, is returns a
 // config.Config, with the default setup.
-func ContainerConfigFactory() *configs.Config {
+func ContainerConfigFactory(containerID string) *configs.Config {
 	defaultMountFlags := syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
 
 	return &configs.Config{
@@ -118,7 +125,7 @@ func ContainerConfigFactory() *configs.Config {
 			"/proc/sys", "/proc/sysrq-trigger", "/proc/irq", "/proc/bus",
 		},
 		Devices:  configs.DefaultSimpleDevices,
-		Hostname: "bblfsh",
+		Hostname: containerID,
 		Mounts: []*configs.Mount{
 			{
 				Source:      "proc",

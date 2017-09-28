@@ -19,20 +19,39 @@ import (
 	"google.golang.org/grpc/status"
 	"gopkg.in/bblfsh/sdk.v1/protocol"
 	"gopkg.in/bblfsh/sdk.v1/uast"
+
+	oldctx "golang.org/x/net/context"
 )
 
 type echoDriver struct{}
 
-func (d *echoDriver) Parse(req *protocol.ParseRequest) *protocol.ParseResponse {
+func (d *echoDriver) NativeParse(_ oldctx.Context, in *protocol.NativeParseRequest, opts ...grpc.CallOption) (*protocol.NativeParseResponse, error) {
+	return nil, nil
+}
+func (d *echoDriver) Parse(_ oldctx.Context, in *protocol.ParseRequest, opts ...grpc.CallOption) (*protocol.ParseResponse, error) {
 	return &protocol.ParseResponse{
-		Status: protocol.Ok,
-		UAST: &uast.Node{
-			Token: req.Content,
+		Response: protocol.Response{
+			Status: protocol.Ok,
 		},
-	}
+		UAST: &uast.Node{
+			Token: in.Content,
+		},
+	}, nil
 }
 
-func (d *echoDriver) Close() error {
+func (d *echoDriver) Version(_ oldctx.Context, in *protocol.VersionRequest, opts ...grpc.CallOption) (*protocol.VersionResponse, error) {
+	return &protocol.VersionResponse{}, nil
+}
+
+func (d *echoDriver) Start() error {
+	return nil
+}
+
+func (d *echoDriver) Service() protocol.ProtocolServiceClient {
+	return d
+}
+
+func (d *echoDriver) Stop() error {
 	return nil
 }
 
@@ -55,7 +74,7 @@ func TestNewServerMockedDriverParallelClients(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(dp)
 
-	s.drivers["python"] = dp
+	s.pool["python"] = dp
 
 	lis, err := net.Listen("tcp", "localhost:0")
 	require.NoError(err)
@@ -91,7 +110,7 @@ func TestNewServerMockedDriverParallelClients(t *testing.T) {
 	}
 
 	wg.Wait()
-	err = s.Close()
+	err = s.Stop()
 	require.NoError(err)
 }
 
@@ -131,7 +150,7 @@ func TestMaxMessageSizeExceeded(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(dp)
 
-	s.drivers["python"] = dp
+	s.pool["python"] = dp
 
 	lis, err := net.Listen("tcp", "localhost:0")
 	require.NoError(err)
@@ -148,7 +167,7 @@ func TestMaxMessageSizeExceeded(t *testing.T) {
 	require.Equal(status.Code(), codes.ResourceExhausted)
 	err = conn.Close()
 	require.NoError(err)
-	err = s.Close()
+	err = s.Stop()
 	require.NoError(err)
 }
 
@@ -166,7 +185,7 @@ func TestMaxMessageSizeExceededInServer(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(dp)
 
-	s.drivers["python"] = dp
+	s.pool["python"] = dp
 
 	lis, err := net.Listen("tcp", "localhost:0")
 	require.NoError(err)
@@ -190,7 +209,7 @@ func TestMaxMessageSizeExceededInServer(t *testing.T) {
 	require.Equal(status.Code(), codes.ResourceExhausted)
 	err = conn.Close()
 	require.NoError(err)
-	err = s.Close()
+	err = s.Stop()
 	require.NoError(err)
 }
 
@@ -208,7 +227,7 @@ func TestMaxMessageSizeNotExceeded(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(dp)
 
-	s.drivers["python"] = dp
+	s.pool["python"] = dp
 
 	lis, err := net.Listen("tcp", "localhost:0")
 	require.NoError(err)
@@ -230,7 +249,7 @@ func TestMaxMessageSizeNotExceeded(t *testing.T) {
 	require.NoError(err)
 	err = conn.Close()
 	require.NoError(err)
-	err = s.Close()
+	err = s.Stop()
 	require.NoError(err)
 }
 

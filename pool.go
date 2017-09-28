@@ -9,8 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/pkg/errors"
-	"gopkg.in/bblfsh/sdk.v1/protocol"
+	"gopkg.in/src-d/go-errors.v1"
 )
 
 var (
@@ -22,6 +21,9 @@ var (
 	// the same driver which can be launched following the default
 	// scaling policy (see DefaultScalingPolicy()).
 	DefaultMaxInstancesPerDriver = runtime.NumCPU()
+
+	ErrPoolClosed  = errors.NewKind("driver pool already closed")
+	ErrPoolTimeout = errors.NewKind("timeout, all drivers are busy")
 )
 
 // DriverPool controls a pool of drivers and balances requests among them,
@@ -109,11 +111,11 @@ func (dp *DriverPool) del(n int) error {
 	for i := 0; i < n; i++ {
 		d, more := dp.readyQueue.Dequeue()
 		if !more {
-			return fmt.Errorf("driver queue closed")
+			return ErrPoolClosed.New()
 		}
 
 		dp.cur--
-		if err := d.Close(); err != nil {
+		if err := d.Stop(); err != nil {
 			return err
 		}
 	}
@@ -139,37 +141,32 @@ func (dp *DriverPool) scaling() {
 	}
 }
 
+type Function func(d Driver) error
+
 // Parse processes a ParseRequest. It gets a driver from the pool and
 // forwards the request to it. If all drivers are busy, it will return an error
 // after the timeout passes. If the DriverPool is closed, an error will be returned.
-func (dp *DriverPool) Parse(req *protocol.ParseRequest) *protocol.ParseResponse {
+func (dp *DriverPool) Execute(c Function) error {
 	dp.waiting.Add(1)
-	d, more, timedout := dp.readyQueue.TryDequeue(dp.timeout)
+	d, more, timeout := dp.readyQueue.TryDequeue(dp.timeout)
 	dp.waiting.Add(-1)
 
 	if !more {
-		return &protocol.ParseResponse{
-			Status: protocol.Fatal,
-			Errors: []string{"driver pool already closed"},
-		}
+		return ErrPoolClosed.New()
 	}
 
-	if timedout {
-		return &protocol.ParseResponse{
-			Status: protocol.Fatal,
-			Errors: []string{"timedout: all drivers are busy"},
-		}
+	if timeout {
+		return ErrPoolClosed.New()
 	}
 
 	defer dp.readyQueue.Enqueue(d)
-	return d.Parse(req)
-
+	return c(d)
 }
 
-// Close closes the driver pool, including all its underlying driver instances.
-func (dp *DriverPool) Close() error {
+// Stop stop the driver pool, including all its underlying driver instances.
+func (dp *DriverPool) Stop() error {
 	if dp.closed {
-		return errors.New("already closed")
+		return ErrPoolClosed.New()
 	}
 
 	dp.closed = true

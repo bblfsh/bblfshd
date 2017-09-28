@@ -3,9 +3,11 @@ package runtime
 import (
 	"io"
 	"os"
+	"syscall"
 
 	"github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/runc/libcontainer"
+	"github.com/opencontainers/runc/libcontainer/configs"
 )
 
 // Process defines the process to be executed inside of a container.
@@ -23,7 +25,8 @@ type Container interface {
 	Processes() ([]int, error)
 	// Signal sends the provided signal code to all the process in the container.
 	Signal(sig os.Signal) error
-
+	// Returns the current config of the container.
+	Config() configs.Config
 	Command
 }
 
@@ -37,6 +40,8 @@ type Command interface {
 	Start() error
 	// Wait waits for the command to exit. It must have been started by Start.
 	Wait() error
+	// Stop kill the container and destroy it.
+	Stop() error
 }
 
 func newContainer(c libcontainer.Container, p *Process, imageDesc *v1.Image) Container {
@@ -100,6 +105,15 @@ func (c *container) Run() error {
 	return c.Wait()
 }
 
+func (c *container) Stop() error {
+	if err := c.Signal(syscall.SIGKILL); err != nil {
+		return err
+	}
+
+	return c.Destroy()
+}
+
 func (c *container) Signal(sig os.Signal) error {
 	return c.Container.Signal(sig, true)
+
 }

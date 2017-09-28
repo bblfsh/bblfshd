@@ -22,7 +22,6 @@ func init() {
 func main() {
 	parser := flags.NewNamedParser("bblfsh", flags.Default)
 	parser.AddCommand("server", "", "Run server", &serverCmd{})
-	parser.AddCommand("client", "", "Run client", &clientCmd{})
 
 	if _, err := parser.Parse(); err != nil {
 		if flagsErr, ok := err.(*flags.Error); ok {

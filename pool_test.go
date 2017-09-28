@@ -12,17 +12,18 @@ import (
 )
 
 type mockDriver struct {
-	Response    *protocol.ParseResponse
-	Time        time.Duration
 	CalledClose int
 }
 
-func (d *mockDriver) Parse(req *protocol.ParseRequest) *protocol.ParseResponse {
-	time.Sleep(d.Time)
-	return d.Response
+func (d *mockDriver) Service() protocol.ProtocolServiceClient {
+	return nil
 }
 
-func (d *mockDriver) Close() error {
+func (d *mockDriver) Start() error {
+	return nil
+}
+
+func (d *mockDriver) Stop() error {
 	d.CalledClose++
 	return nil
 }
@@ -38,16 +39,14 @@ func TestDriverPoolStartNoopClose(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(dp)
 
-	err = dp.Close()
+	err = dp.Stop()
 	require.NoError(err)
 
-	err = dp.Close()
-	require.EqualError(err, "already closed")
+	err = dp.Stop()
+	require.True(ErrPoolClosed.Is(err))
 
-	resp := dp.Parse(&protocol.ParseRequest{})
-	require.NotNil(resp)
-	require.Equal(protocol.Fatal, resp.Status)
-	require.Equal([]string{"driver pool already closed"}, resp.Errors)
+	err = dp.Execute(nil)
+	require.True(ErrPoolClosed.Is(err))
 }
 
 func TestDriverPoolStartFailingDriver(t *testing.T) {
@@ -66,13 +65,10 @@ func TestDriverPoolSequential(t *testing.T) {
 	require := require.New(t)
 
 	new := func() (Driver, error) {
-		resp := &protocol.ParseResponse{
-			Status: protocol.Ok,
-		}
-		return &mockDriver{
-			Response: resp,
-			Time:     time.Millisecond * 50,
-		}, nil
+		resp := &protocol.ParseResponse{}
+		resp.Status = protocol.Ok
+
+		return &mockDriver{}, nil
 	}
 
 	dp, err := StartDriverPool(DefaultScalingPolicy(), DefaultPoolTimeout, new)
@@ -80,14 +76,13 @@ func TestDriverPoolSequential(t *testing.T) {
 	require.NotNil(dp)
 
 	for i := 0; i < 100; i++ {
-		resp := dp.Parse(&protocol.ParseRequest{})
-		require.NotNil(resp)
-		require.Equal(protocol.Ok, resp.Status)
+		err := dp.Execute(func(Driver) error { return nil })
+		require.Nil(err)
 		//FIXME: it should be always 1
 		require.True(dp.cur == 1 || dp.cur == 2)
 	}
 
-	err = dp.Close()
+	err = dp.Stop()
 	require.NoError(err)
 }
 
@@ -95,13 +90,7 @@ func TestDriverPoolParallel(t *testing.T) {
 	require := require.New(t)
 
 	new := func() (Driver, error) {
-		resp := &protocol.ParseResponse{
-			Status: protocol.Ok,
-		}
-		return &mockDriver{
-			Response: resp,
-			Time:     time.Millisecond * 100,
-		}, nil
+		return &mockDriver{}, nil
 	}
 
 	dp, err := StartDriverPool(DefaultScalingPolicy(), time.Second*10, new)
@@ -112,11 +101,9 @@ func TestDriverPoolParallel(t *testing.T) {
 	wg.Add(100)
 	for i := 0; i < 100; i++ {
 		go func() {
-			resp := dp.Parse(&protocol.ParseRequest{})
+			err := dp.Execute(func(Driver) error { time.Sleep(50 * time.Millisecond); return nil })
 			wg.Done()
-			require.NotNil(resp)
-			require.Nil(resp.Errors)
-			require.Equal(protocol.Ok, resp.Status)
+			require.Nil(err)
 			require.True(dp.cur >= 1)
 		}()
 	}
@@ -127,7 +114,7 @@ func TestDriverPoolParallel(t *testing.T) {
 	time.Sleep(time.Second * 2)
 	require.Equal(1, dp.cur)
 
-	err = dp.Close()
+	err = dp.Stop()
 	require.NoError(err)
 }
 
