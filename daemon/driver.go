@@ -1,17 +1,19 @@
-package server
+package daemon
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/bblfsh/server/runtime"
+
 	"github.com/opencontainers/runc/libcontainer/configs"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"gopkg.in/bblfsh/sdk.v1/protocol"
 )
@@ -22,11 +24,14 @@ type Driver interface {
 	Service() protocol.ProtocolServiceClient
 }
 
+// DriverInstance represents an instance of a driver.
 type DriverInstance struct {
+	Language  string
+	Process   *runtime.Process
+	Container runtime.Container
+	Image     runtime.DriverImage
+
 	ctx  context.Context
-	p    *runtime.Process
-	c    runtime.Container
-	i    runtime.DriverImage
 	conn *grpc.ClientConn
 	srv  protocol.ProtocolServiceClient
 	tmp  string
@@ -40,16 +45,20 @@ const (
 )
 
 type Options struct {
-	Verbosity string
+	LogLevel  string
+	LogFormat string
 }
 
 // NewDriverInstance represents a running Driver in the runtime. Its holds the
 // container and the connection to the internal grpc server.
-func NewDriverInstance(r *runtime.Runtime, i runtime.DriverImage, o *Options) (*DriverInstance, error) {
+func NewDriverInstance(r *runtime.Runtime, lang string, i runtime.DriverImage, o *Options) (*DriverInstance, error) {
+	id := strings.ToLower(runtime.NewULID().String())
 	p := &runtime.Process{
 		Args: []string{
 			DriverBinary,
-			"--log-level", o.Verbosity,
+			"--log-level", o.LogLevel,
+			"--log-format", o.LogFormat,
+			"--log-fields", logFields(id, lang),
 			"--network", "unix",
 			"--address", fmt.Sprintf(TmpPathPattern, GRPCSocket),
 		},
@@ -57,7 +66,6 @@ func NewDriverInstance(r *runtime.Runtime, i runtime.DriverImage, o *Options) (*
 		Stderr: os.Stderr,
 	}
 
-	id := runtime.NewULID()
 	tmp := filepath.Join(r.Root, fmt.Sprintf(TmpPathPattern, id))
 
 	f := func(containerID string) *configs.Config {
@@ -75,29 +83,25 @@ func NewDriverInstance(r *runtime.Runtime, i runtime.DriverImage, o *Options) (*
 		return cfg
 	}
 
-	logrus.Debugf("creating container for %s", i.Name())
-	c, err := r.Container(id.String(), i, p, f)
+	c, err := r.Container(id, i, p, f)
 	if err != nil {
 		return nil, err
 	}
 
 	return &DriverInstance{
+		Language:  lang,
+		Process:   p,
+		Container: c,
+		Image:     i,
+
 		ctx: context.Background(),
 		tmp: tmp,
-		p:   p,
-		c:   c,
-		i:   i,
 	}, nil
 }
 
-func (i *DriverInstance) Stop() error {
-	return i.c.Stop()
-}
-
+// Start starts a container and connects to it.
 func (i *DriverInstance) Start() error {
-	logrus.Debugf("starting up container %s (%s)", i.i.Name(), i.c.ID())
-	if err := i.c.Start(); err != nil {
-		logrus.Errorf("error starting container %s (%s): %s", i.i.Name(), i.c.ID(), err)
+	if err := i.Container.Start(); err != nil {
 		return err
 	}
 
@@ -109,7 +113,6 @@ func (i *DriverInstance) Start() error {
 		return err
 	}
 
-	logrus.Infof("driver started %s (%s)", i.i.Name(), i.c.ID())
 	return nil
 }
 
@@ -137,6 +140,22 @@ func (i *DriverInstance) loadVersion() error {
 
 	return nil
 }
+
+// Stop stops the inner running container.
+func (i *DriverInstance) Stop() error {
+	return i.Container.Stop()
+}
+
+// Service returns the client using the grpc connection.
 func (i *DriverInstance) Service() protocol.ProtocolServiceClient {
 	return i.srv
+}
+
+func logFields(containerID, language string) string {
+	js, _ := json.Marshal(map[string]string{
+		"id":       containerID,
+		"language": language,
+	})
+
+	return string(js)
 }

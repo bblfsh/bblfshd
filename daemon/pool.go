@@ -1,4 +1,4 @@
-package server
+package daemon
 
 import (
 	"fmt"
@@ -15,7 +15,7 @@ import (
 var (
 	// DefaultPoolTimeout is the time a request to the DriverPool can wait
 	// before getting a driver assigned.
-	DefaultPoolTimeout = time.Second * 5
+	DefaultPoolTimeout = 5 * time.Second
 
 	// DefaultMaxInstancesPerDriver is the maximum number of instances of
 	// the same driver which can be launched following the default
@@ -30,9 +30,12 @@ var (
 // ensuring each driver does not get concurrent requests. The number of driver
 // instances in the driver pool is controlled by a ScalingPolicy.
 type DriverPool struct {
-	scalingPolicy ScalingPolicy
-	timeout       time.Duration
-	new           func() (Driver, error)
+	// ScalingPolicy scaling policy used to scale up the instances.
+	ScalingPolicy ScalingPolicy
+	// Timeout time for wait until a driver instance is available.
+	Timeout time.Duration
+
+	factory FactoryFunction
 
 	cur int
 	// close channel will be used to synchronize Close() call with the
@@ -44,28 +47,26 @@ type DriverPool struct {
 	readyQueue *driverQueue
 }
 
-// StartDriverPool creates and starts a new DriverPool. It takes as parameters
-// the ScalingPolicy, the timeout for requests before getting a driver assigned,
-// and a function to create driver instances.
-func StartDriverPool(scaling ScalingPolicy, timeout time.Duration, new func() (Driver, error)) (*DriverPool, error) {
-	dp := &DriverPool{
-		scalingPolicy: scaling,
-		timeout:       timeout,
-		new:           new,
-		close:         make(chan struct{}),
-		waiting:       &atomicInt{},
-		readyQueue:    newDriverQueue(),
-	}
+// FactoryFunction is a factory function that creates new DriverInstance's.
+type FactoryFunction func() (Driver, error)
 
-	if err := dp.start(); err != nil {
-		return nil, err
-	}
+// NewDriverPool creates and starts a new DriverPool. It takes as parameters
+// a FactoryFunction, used to instantiate new drivers.
+func NewDriverPool(factory FactoryFunction) *DriverPool {
+	return &DriverPool{
+		ScalingPolicy: DefaultScalingPolicy(),
+		Timeout:       DefaultPoolTimeout,
 
-	return dp, nil
+		factory:    factory,
+		close:      make(chan struct{}),
+		waiting:    &atomicInt{},
+		readyQueue: newDriverQueue(),
+	}
 }
 
-func (dp *DriverPool) start() error {
-	target := dp.scalingPolicy.Scale(0, 0)
+// Start stats the driver pool.
+func (dp *DriverPool) Start() error {
+	target := dp.ScalingPolicy.Scale(0, 0)
 	if err := dp.setInstanceCount(target); err != nil {
 		_ = dp.setInstanceCount(0)
 		return err
@@ -95,7 +96,7 @@ func (dp *DriverPool) setInstanceCount(target int) error {
 
 func (dp *DriverPool) add(n int) error {
 	for i := 0; i < n; i++ {
-		d, err := dp.new()
+		d, err := dp.factory()
 		if err != nil {
 			return err
 		}
@@ -135,20 +136,22 @@ func (dp *DriverPool) scaling() {
 			total := dp.cur
 			ready := dp.readyQueue.Size()
 			load := int(dp.waiting.Value())
-			s := dp.scalingPolicy.Scale(total, load-ready)
+			s := dp.ScalingPolicy.Scale(total, load-ready)
 			_ = dp.setInstanceCount(s)
 		}
 	}
 }
 
+// Function is a function to be executed using a given driver.
 type Function func(d Driver) error
 
-// Parse processes a ParseRequest. It gets a driver from the pool and
-// forwards the request to it. If all drivers are busy, it will return an error
-// after the timeout passes. If the DriverPool is closed, an error will be returned.
+// Execute executes the given Function in the first available driver instance.
+// It gets a driver from the pool and forwards the request to it. If all drivers
+// are busy, it will return an error after the timeout passes. If the DriverPool
+// is closed, an error will be returned.
 func (dp *DriverPool) Execute(c Function) error {
 	dp.waiting.Add(1)
-	d, more, timeout := dp.readyQueue.TryDequeue(dp.timeout)
+	d, more, timeout := dp.readyQueue.TryDequeue(dp.Timeout)
 	dp.waiting.Add(-1)
 
 	if !more {

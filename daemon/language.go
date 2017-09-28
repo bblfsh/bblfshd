@@ -1,9 +1,9 @@
-package server
+package daemon
 
 import (
 	"strings"
 
-	enry "gopkg.in/src-d/enry.v1"
+	"gopkg.in/src-d/enry.v1"
 )
 
 // GetLanguage detects the language of a file and returns it in a normalized

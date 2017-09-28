@@ -1,4 +1,4 @@
-package server
+package daemon
 
 import (
 	"io/ioutil"
@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/bblfsh/server/runtime"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -33,7 +34,10 @@ func TestNewDriver(t *testing.T) {
 
 	err = run.InstallDriver(image, false)
 	r.Nil(err)
-	i, err := NewDriverInstance(run, image, &Options{Verbosity: "debug"})
+	i, err := NewDriverInstance(run, "foo", image, &Options{
+		LogLevel:  "debug",
+		LogFormat: "text",
+	})
 	r.Nil(err)
 	err = i.Start()
 	r.NoError(err)

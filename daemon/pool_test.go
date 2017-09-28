@@ -1,4 +1,4 @@
-package server
+package daemon
 
 import (
 	"fmt"
@@ -28,16 +28,14 @@ func (d *mockDriver) Stop() error {
 	return nil
 }
 
-func TestDriverPoolStartNoopClose(t *testing.T) {
+func TestNewDriverPool_StartNoopClose(t *testing.T) {
 	require := require.New(t)
-
-	new := func() (Driver, error) {
+	dp := NewDriverPool(func() (Driver, error) {
 		return &mockDriver{}, nil
-	}
+	})
 
-	dp, err := StartDriverPool(DefaultScalingPolicy(), DefaultPoolTimeout, new)
+	err := dp.Start()
 	require.NoError(err)
-	require.NotNil(dp)
 
 	err = dp.Stop()
 	require.NoError(err)
@@ -49,60 +47,64 @@ func TestDriverPoolStartNoopClose(t *testing.T) {
 	require.True(ErrPoolClosed.Is(err))
 }
 
-func TestDriverPoolStartFailingDriver(t *testing.T) {
+func TestNewDiverPool_StartFailingDriver(t *testing.T) {
 	require := require.New(t)
 
-	new := func() (Driver, error) {
+	dp := NewDriverPool(func() (Driver, error) {
 		return nil, fmt.Errorf("driver error")
-	}
+	})
 
-	dp, err := StartDriverPool(DefaultScalingPolicy(), DefaultPoolTimeout, new)
+	err := dp.Start()
 	require.EqualError(err, "driver error")
-	require.Nil(dp)
 }
 
-func TestDriverPoolSequential(t *testing.T) {
+func TestNewDriverPool_Sequential(t *testing.T) {
 	require := require.New(t)
 
-	new := func() (Driver, error) {
+	dp := NewDriverPool(func() (Driver, error) {
 		resp := &protocol.ParseResponse{}
 		resp.Status = protocol.Ok
 
 		return &mockDriver{}, nil
-	}
+	})
 
-	dp, err := StartDriverPool(DefaultScalingPolicy(), DefaultPoolTimeout, new)
+	err := dp.Start()
 	require.NoError(err)
-	require.NotNil(dp)
 
 	for i := 0; i < 100; i++ {
-		err := dp.Execute(func(Driver) error { return nil })
+		err := dp.Execute(func(d Driver) error {
+			require.NotNil(d)
+			return nil
+		})
+
 		require.Nil(err)
-		//FIXME: it should be always 1
-		require.True(dp.cur == 1 || dp.cur == 2)
+		require.Equal(dp.cur, 1)
 	}
 
 	err = dp.Stop()
 	require.NoError(err)
 }
 
-func TestDriverPoolParallel(t *testing.T) {
+func TestNewDriverPool_Parallel(t *testing.T) {
 	require := require.New(t)
 
-	new := func() (Driver, error) {
+	dp := NewDriverPool(func() (Driver, error) {
 		return &mockDriver{}, nil
-	}
+	})
 
-	dp, err := StartDriverPool(DefaultScalingPolicy(), time.Second*10, new)
+	err := dp.Start()
 	require.NoError(err)
-	require.NotNil(dp)
 
-	wg := &sync.WaitGroup{}
+	var wg sync.WaitGroup
 	wg.Add(100)
 	for i := 0; i < 100; i++ {
 		go func() {
-			err := dp.Execute(func(Driver) error { time.Sleep(50 * time.Millisecond); return nil })
-			wg.Done()
+			err := dp.Execute(func(Driver) error {
+				defer wg.Done()
+				time.Sleep(50 * time.Millisecond)
+				return nil
+			})
+
 			require.Nil(err)
 			require.True(dp.cur >= 1)
 		}()
