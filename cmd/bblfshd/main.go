@@ -4,14 +4,16 @@ import (
 	"flag"
 	"net"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
-	"github.com/bblfsh/server"
+	"github.com/bblfsh/server/daemon"
 	"github.com/bblfsh/server/runtime"
 
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
-	sdk "gopkg.in/bblfsh/sdk.v1/sdk/server"
+	"gopkg.in/bblfsh/sdk.v1/sdk/server"
 )
 
 var (
@@ -29,7 +31,7 @@ var (
 		fields *string
 	}
 
-	logger sdk.Logger
+	logger server.Logger
 )
 
 func init() {
@@ -42,6 +44,7 @@ func init() {
 	log.level = cmd.String("log-level", "info", "log level: panic, fatal, error, warning, info, debug.")
 	log.format = cmd.String("log-format", "text", "format of the logs: text or json.")
 	log.fields = cmd.String("log-fields", "", "extra fields to add to every log line in json format.")
+	cmd.Parse(os.Args[1:])
 
 	runtime.Bootstrap()
 	logger = buildLogger()
@@ -49,10 +52,10 @@ func init() {
 
 func main() {
 	r := buildRuntime()
-	s := server.NewServer(version, r)
-	s.Logger = logger
+	s := daemon.NewDaemon(version, r)
 	s.Options = buildGRPCOptions()
 	s.Overrides = buildOverrides()
+	s.Logger = logger
 
 	l, err := net.Listen(*network, *address)
 	if err != nil {
@@ -61,16 +64,16 @@ func main() {
 	}
 
 	logger.Infof("server listening in %s (%s)", *address, *network)
+	handleGracefullyShutdown(l, s)
 
-	err = s.Serve(l)
-	if err != nil {
+	if err = s.Serve(l); err != nil {
 		logger.Errorf("error starting server: %s", err)
 		os.Exit(1)
 	}
 }
 
-func buildLogger() sdk.Logger {
-	logger, err := sdk.LoggerFactory{
+func buildLogger() server.Logger {
+	logger, err := server.LoggerFactory{
 		Level:  *log.level,
 		Format: *log.format,
 		Fields: *log.fields,
@@ -128,9 +131,26 @@ func buildOverrides() map[string]string {
 
 		lang := strings.TrimSpace(fields[0])
 		image := strings.TrimSpace(fields[1])
-		logger.Infof("Overriding image for %s: %s", lang, image)
+		logger.Warningf("image for %s overrided with: %q", lang, image)
 		overrides[lang] = image
 	}
 
 	return overrides
+}
+
+func handleGracefullyShutdown(l net.Listener, d *daemon.Daemon) {
+	var gracefulStop = make(chan os.Signal)
+	signal.Notify(gracefulStop, syscall.SIGTERM)
+	signal.Notify(gracefulStop, syscall.SIGINT)
+
+	go func() {
+		sig := <-gracefulStop
+		logger.Warningf("signal is received %+v", sig)
+		logger.Warningf("stopping server")
+		if err := d.Stop(); err != nil {
+			logger.Errorf("error stopping server: %s", err)
+		}
+
+		os.Exit(0)
+	}()
 }
