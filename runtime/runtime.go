@@ -159,6 +159,12 @@ func ContainerConfigFactory(containerID string) *configs.Config {
 				Device:      "sysfs",
 				Flags:       defaultMountFlags | syscall.MS_RDONLY,
 			},
+			{
+				Source:      "/etc/localtime",
+				Destination: "/etc/localtime",
+				Device:      "bind",
+				Flags:       syscall.MS_BIND | syscall.MS_RDONLY,
+			},
 		},
 		Rlimits: []configs.Rlimit{
 			{
