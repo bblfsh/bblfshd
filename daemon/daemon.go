@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/bblfsh/server/runtime"
 	"github.com/sirupsen/logrus"
 
 	"gopkg.in/bblfsh/sdk.v1/protocol"
 	"gopkg.in/bblfsh/sdk.v1/sdk/server"
-	"gopkg.in/bblfsh/sdk.v1/uast"
 	"gopkg.in/src-d/go-errors.v1"
 )
 
@@ -19,6 +19,7 @@ const (
 )
 
 var (
+	ErrUnexpected       = errors.NewKind("unexpected error")
 	ErrMissingDriver    = errors.NewKind("missing driver for language %s")
 	ErrRuntime          = errors.NewKind("runtime failure")
 	ErrAlreadyInstalled = errors.NewKind("driver already installed: %s (image reference: %s)")
@@ -43,22 +44,22 @@ type Daemon struct {
 
 // NewDaemon creates a new server based on the runtime with the given version.
 func NewDaemon(version string, r *runtime.Runtime) *Daemon {
-	s := &Daemon{
+	d := &Daemon{
 		version:   version,
 		runtime:   r,
 		pool:      make(map[string]*DriverPool),
 		Overrides: make(map[string]string),
 	}
 
-	protocol.DefaultService = s
-	return s
+	protocol.DefaultService = d
+	return d
 }
 
-func (s *Daemon) AddDriver(language string, img string) error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+func (d *Daemon) AddDriver(language string, img string) error {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 
-	if _, ok := s.pool[language]; ok {
+	if _, ok := d.pool[language]; ok {
 		return ErrAlreadyInstalled.New(language, img)
 	}
 
@@ -67,101 +68,140 @@ func (s *Daemon) AddDriver(language string, img string) error {
 		return ErrRuntime.Wrap(err)
 	}
 
-	if err := s.runtime.InstallDriver(image, false); err != nil {
+	if err := d.runtime.InstallDriver(image, false); err != nil {
 		return ErrRuntime.Wrap(err)
 	}
 
-	s.Logger.Infof("new driver installed: %q", image.Name())
+	d.Logger.Infof("new driver installed: %q", image.Name())
 	dp := NewDriverPool(func() (Driver, error) {
-		s.Logger.Debugf("spawning driver instance %q ...", image.Name())
-		d, err := NewDriverInstance(s.runtime, language, image, getDriverInstanceOptions(s.Logger))
+		d.Logger.Debugf("spawning driver instance %q ...", image.Name())
+
+		opts := getDriverInstanceOptions(d.Logger)
+		driver, err := NewDriverInstance(d.runtime, language, image, opts)
 		if err != nil {
 			return nil, err
 		}
 
-		if err := d.Start(); err != nil {
+		if err := driver.Start(); err != nil {
 			return nil, err
 		}
 
-		s.Logger.Infof("driver started %s (%s)", image.Name(), d.Container.ID())
-		return d, nil
+		d.Logger.Infof("driver started %s (%s)", image.Name(), driver.Container.ID())
+		return driver, nil
 	})
 
-	s.pool[language] = dp
+	d.pool[language] = dp
 	return dp.Start()
 }
 
-func (s *Daemon) DriverPool(language string) (*DriverPool, error) {
-	s.mutex.RLock()
-	d, ok := s.pool[language]
-	s.mutex.RUnlock()
+func (d *Daemon) DriverPool(language string) (*DriverPool, error) {
+	d.mutex.RLock()
+	dp, ok := d.pool[language]
+	d.mutex.RUnlock()
 
 	if ok {
-		return d, nil
+		return dp, nil
 	}
 
-	i := s.defaultDriverImageReference(language)
-	err := s.AddDriver(language, i)
+	i := d.defaultDriverImageReference(language)
+	err := d.AddDriver(language, i)
 	if err != nil && !ErrAlreadyInstalled.Is(err) {
 		return nil, ErrMissingDriver.Wrap(err, language)
 	}
 
-	s.mutex.RLock()
-	d = s.pool[language]
-	s.mutex.RUnlock()
+	d.mutex.RLock()
+	dp = d.pool[language]
+	d.mutex.RUnlock()
 
-	return d, nil
+	return dp, nil
 }
 
-func (s *Daemon) Parse(req *protocol.ParseRequest) *protocol.ParseResponse {
+func (d *Daemon) Parse(req *protocol.ParseRequest) *protocol.ParseResponse {
 	resp := &protocol.ParseResponse{}
-	if req.Language == "" {
-		req.Language = GetLanguage(req.Filename, []byte(req.Content))
-		s.Logger.Debugf("detect language %q", req.Language)
-	}
+	start := time.Now()
+	defer func() { resp.Elapsed = time.Since(start) }()
 
-	// If the code Content is empty, just return an empty response
 	if req.Content == "" {
-		s.Logger.Debugf("empty code received, returning empty UAST")
-		resp.Status = protocol.Ok
-		resp.UAST = &uast.Node{}
+		d.Logger.Debugf("empty request received, returning empty UAST")
 		return resp
 	}
 
-	d, err := s.DriverPool(req.Language)
+	language, dp, err := d.selectPool(req.Language, req.Content, req.Filename)
 	if err != nil {
-		resp.Status = protocol.Fatal
-		resp.Errors = append(resp.Errors, "error getting driver: "+err.Error())
+		d.Logger.Errorf("error selecting pool: %s", err)
+		resp.Response = newResponseFromError(err)
 		return resp
 	}
 
-	err = d.Execute(func(d Driver) error {
-		var err error
-		resp, err = d.Service().Parse(context.Background(), req)
+	req.Language = language
+
+	err = dp.Execute(func(driver Driver) error {
+		resp, err = driver.Service().Parse(context.Background(), req)
 		return err
 	})
 
 	if err != nil {
-		resp := &protocol.ParseResponse{}
-		resp.Status = protocol.Fatal
-		resp.Errors = append(resp.Errors, "error getting driver: "+err.Error())
+		d.Logger.Errorf("error proccessing request for language %q: %s", language, err)
+		resp.Response = newResponseFromError(err)
 	}
 
 	return resp
 }
 
-func (s *Daemon) NativeParse(req *protocol.NativeParseRequest) *protocol.NativeParseResponse {
-	return nil
+func (d *Daemon) NativeParse(req *protocol.NativeParseRequest) *protocol.NativeParseResponse {
+	resp := &protocol.NativeParseResponse{}
+	start := time.Now()
+	defer func() { resp.Elapsed = time.Since(start) }()
+
+	if req.Content == "" {
+		d.Logger.Debugf("empty request received, returning empty AST")
+		return resp
+	}
+
+	language, dp, err := d.selectPool(req.Language, req.Content, req.Filename)
+	if err != nil {
+		d.Logger.Errorf("error selecting pool: %s", err)
+		resp.Response = newResponseFromError(err)
+		return resp
+	}
+
+	req.Language = language
+
+	err = dp.Execute(func(driver Driver) error {
+		resp, err = driver.Service().NativeParse(context.Background(), req)
+		return err
+	})
+
+	if err != nil {
+		d.Logger.Errorf("error proccessing request for language %q: %s", language, err)
+		resp.Response = newResponseFromError(err)
+	}
+
+	return resp
 }
 
-func (s *Daemon) Version(req *protocol.VersionRequest) *protocol.VersionResponse {
-	return &protocol.VersionResponse{Version: s.version}
+func (d *Daemon) selectPool(language, content, filename string) (string, *DriverPool, error) {
+	if language == "" {
+		language = GetLanguage(filename, []byte(content))
+		d.Logger.Debugf("detected language %q", language)
+	}
+
+	dp, err := d.DriverPool(language)
+	if err != nil {
+		return language, nil, ErrUnexpected.Wrap(err)
+	}
+
+	return language, dp, nil
 }
 
-func (s *Daemon) Stop() error {
+func (d *Daemon) Version(req *protocol.VersionRequest) *protocol.VersionResponse {
+	return &protocol.VersionResponse{Version: d.version}
+}
+
+func (d *Daemon) Stop() error {
 	var err error
-	for _, d := range s.pool {
-		if cerr := d.Stop(); cerr != nil && err != nil {
+	for _, dp := range d.pool {
+		if cerr := dp.Stop(); cerr != nil && err != nil {
 			err = cerr
 		}
 	}
@@ -210,4 +250,11 @@ func getDriverInstanceOptions(logger server.Logger) *Options {
 	}
 
 	return opts
+}
+
+func newResponseFromError(err error) protocol.Response {
+	return protocol.Response{
+		Status: protocol.Fatal,
+		Errors: []string{err.Error()},
+	}
 }

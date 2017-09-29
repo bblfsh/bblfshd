@@ -20,19 +20,42 @@ import (
 	"gopkg.in/bblfsh/sdk.v1/uast"
 )
 
-func TestNewServer_MockedDriverParallelClients(t *testing.T) {
+func TestNewServer_Parse(t *testing.T) {
 	require := require.New(t)
 
-	tmpDir, err := ioutil.TempDir(os.TempDir(), "bblfsh-runtime")
-	require.NoError(err)
-	defer os.RemoveAll(tmpDir)
+	s, tmp := buildMockedDaemon(t)
+	defer os.RemoveAll(tmp)
 
-	r := runtime.NewRuntime(tmpDir)
+	resp := s.Parse(&protocol.ParseRequest{Filename: "foo.py", Content: "foo"})
+	require.Len(resp.Errors, 0)
+	require.Equal(resp.UAST.Token, "foo")
+	require.True(resp.Elapsed.Nanoseconds() > 0)
+}
+
+func TestNewServer_NativeParse(t *testing.T) {
+	require := require.New(t)
+
+	s, tmp := buildMockedDaemon(t)
+	defer os.RemoveAll(tmp)
+
+	resp := s.NativeParse(&protocol.NativeParseRequest{Filename: "foo.py", Content: "foo"})
+	require.Len(resp.Errors, 0)
+	require.Equal(resp.AST, "foo")
+	require.True(resp.Elapsed.Nanoseconds() > 0)
+}
+
+func buildMockedDaemon(t *testing.T) (*Daemon, string) {
+	require := require.New(t)
+
+	dir, err := ioutil.TempDir(os.TempDir(), "bblfsh-runtime")
+	require.NoError(err)
+
+	r := runtime.NewRuntime(dir)
 	err = r.Init()
 	require.NoError(err)
 
-	s := NewDaemon("foo", r)
-	s.Logger = logrus.New()
+	d := NewDaemon("foo", r)
+	d.Logger = logrus.New()
 
 	dp := NewDriverPool(func() (Driver, error) {
 		return &echoDriver{}, nil
@@ -41,11 +64,23 @@ func TestNewServer_MockedDriverParallelClients(t *testing.T) {
 	err = dp.Start()
 	require.NoError(err)
 
-	s.pool["python"] = dp
+	d.pool["python"] = dp
+
+	return d, dir
+}
+func TestNewServer_MockedDriverParallelClients(t *testing.T) {
+	require := require.New(t)
+
+	d, tmp := buildMockedDaemon(t)
+	defer os.RemoveAll(tmp)
 
 	lis, err := net.Listen("tcp", "localhost:0")
 	require.NoError(err)
-	go s.Serve(lis)
+	go d.Serve(lis)
+	defer func() {
+		err = d.Stop()
+		require.NoError(err)
+	}()
 
 	var wg sync.WaitGroup
 	for i := 0; i < 20; i++ {
@@ -80,8 +115,7 @@ func TestNewServer_MockedDriverParallelClients(t *testing.T) {
 	}
 
 	wg.Wait()
-	err = s.Stop()
-	require.NoError(err)
+
 }
 
 func TestDefaultDriverImageReference(t *testing.T) {
@@ -107,21 +141,24 @@ func TestDefaultDriverImageReference(t *testing.T) {
 
 type echoDriver struct{}
 
-func (d *echoDriver) NativeParse(_ oldctx.Context, in *protocol.NativeParseRequest, opts ...grpc.CallOption) (*protocol.NativeParseResponse, error) {
-	return nil, nil
+func (d *echoDriver) NativeParse(
+	_ oldctx.Context, in *protocol.NativeParseRequest, opts ...grpc.CallOption) (*protocol.NativeParseResponse, error) {
+	return &protocol.NativeParseResponse{
+		AST: in.Content,
+	}, nil
 }
-func (d *echoDriver) Parse(_ oldctx.Context, in *protocol.ParseRequest, opts ...grpc.CallOption) (*protocol.ParseResponse, error) {
+
+func (d *echoDriver) Parse(
+	_ oldctx.Context, in *protocol.ParseRequest, opts ...grpc.CallOption) (*protocol.ParseResponse, error) {
 	return &protocol.ParseResponse{
-		Response: protocol.Response{
-			Status: protocol.Ok,
-		},
 		UAST: &uast.Node{
 			Token: in.Content,
 		},
 	}, nil
 }
 
-func (d *echoDriver) Version(_ oldctx.Context, in *protocol.VersionRequest, opts ...grpc.CallOption) (*protocol.VersionResponse, error) {
+func (d *echoDriver) Version(
+	_ oldctx.Context, in *protocol.VersionRequest, opts ...grpc.CallOption) (*protocol.VersionResponse, error) {
 	return &protocol.VersionResponse{}, nil
 }
 
