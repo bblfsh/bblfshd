@@ -68,7 +68,6 @@ func (r *Runtime) ListDrivers() ([]*DriverImageStatus, error) {
 
 // Container returns a container for the given DriverImage and Process
 func (r *Runtime) Container(id string, d DriverImage, p *Process, f ConfigFactory) (Container, error) {
-	//id := NewULID().String()
 	if f == nil {
 		f = r.ContainerConfigFactory
 	}
