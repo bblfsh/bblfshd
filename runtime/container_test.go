@@ -52,10 +52,11 @@ func (s *ContainerSuite) TestContainerRun() {
 	require := require.New(s.T())
 
 	p := &Process{
-		Args: []string{"/bin/ls"},
+		Args:   []string{"/bin/ls"},
+		Stdout: os.Stdout,
 	}
 
-	c, err := s.Runtime.Container(s.Image, p)
+	c, err := s.Runtime.Container("run", s.Image, p, nil)
 	require.NoError(err)
 
 	err = c.Run()
@@ -72,7 +73,7 @@ func (s *ContainerSuite) TestContainerStartWait() {
 		Stdout: out,
 	}
 
-	c, err := s.Runtime.Container(s.Image, p)
+	c, err := s.Runtime.Container("wait", s.Image, p, nil)
 	require.NoError(err)
 
 	err = c.Start()
@@ -94,7 +95,7 @@ func (s *ContainerSuite) TestContainerStartWaitExit1() {
 		Stdout: out,
 	}
 
-	c, err := s.Runtime.Container(s.Image, p)
+	c, err := s.Runtime.Container("wait-exit", s.Image, p, nil)
 	require.NoError(err)
 
 	err = c.Start()
@@ -116,7 +117,7 @@ func (s *ContainerSuite) TestContainerCloseStdoutOnExit() {
 		Stdout: outw,
 	}
 
-	c, err := s.Runtime.Container(s.Image, p)
+	c, err := s.Runtime.Container("close", s.Image, p, nil)
 	require.NoError(err)
 
 	done := make(chan struct{})
@@ -146,7 +147,7 @@ func (s *ContainerSuite) TestContainerStartFailure() {
 		Stdout: out,
 	}
 
-	c, err := s.Runtime.Container(s.Image, p)
+	c, err := s.Runtime.Container("start-failure", s.Image, p, nil)
 	require.NoError(err)
 
 	err = c.Start()
@@ -163,7 +164,7 @@ func (s *ContainerSuite) TestContainerEnv() {
 		Stdout: out,
 	}
 
-	c, err := s.Runtime.Container(s.Image, p)
+	c, err := s.Runtime.Container("env", s.Image, p, nil)
 	require.NoError(err)
 
 	err = c.Run()
@@ -195,7 +196,7 @@ func TestContainerStartWait(t *testing.T) {
 		Stdout: out,
 	}
 
-	c, err := rt.Container(d, p)
+	c, err := rt.Container("start-wait", d, p, nil)
 	require.NoError(err)
 
 	err = c.Start()
@@ -231,7 +232,7 @@ func TestContainerStartWaitExit1(t *testing.T) {
 		Stdout: out,
 	}
 
-	c, err := rt.Container(d, p)
+	c, err := rt.Container("start-wait-exit1", d, p, nil)
 	require.NoError(err)
 
 	err = c.Start()
@@ -267,7 +268,7 @@ func TestContainerStartFailure(t *testing.T) {
 		Stdout: out,
 	}
 
-	c, err := rt.Container(d, p)
+	c, err := rt.Container("start-failure",d, p, nil)
 	require.NoError(err)
 
 	err = c.Start()
