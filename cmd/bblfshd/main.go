@@ -51,6 +51,8 @@ func init() {
 }
 
 func main() {
+	logger.Infof("bblfshd version: %s (build: %s)", version, build)
+
 	r := buildRuntime()
 	s := daemon.NewDaemon(version, r)
 	s.Options = buildGRPCOptions()

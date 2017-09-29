@@ -243,7 +243,7 @@ imports:
   - transport
 - name: gopkg.in/bblfsh/sdk.v1
   version: 83b3b64de663069fd7e0a12d08db4c00da3c17ce
-  repo: git@github.com:bblfsh/sdk.git
+  repo: https://github.com/bblfsh/sdk.git
   subpackages:
   - manifest
   - protocol

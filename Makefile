@@ -1,6 +1,6 @@
 # Package configuration
 PROJECT = server
-COMMANDS = bblfsh
+COMMANDS = bblfshd
 DEPENDENCIES = \
 	golang.org/x/tools/cmd/cover \
 	github.com/Masterminds/glide
@@ -11,9 +11,14 @@ BASE_PATH := $(shell pwd)
 VENDOR_PATH := $(BASE_PATH)/vendor
 BUILD_PATH := $(BASE_PATH)/build
 CMD_PATH := $(BASE_PATH)/cmd
-SHA1 := $(shell git log --format='%H' -n 1 | cut -c1-10)
-COMMIT := $(shell git rev-parse --short HEAD)
+
+# Build information
 BUILD := $(shell date -Iseconds)
+GIT_COMMIT=$(shell git rev-parse HEAD | cut -c1-7)
+GIT_DIRTY=$(shell test -n "`git status --porcelain`" && echo "-dirty" || true)
+DEV_PREFIX := dev
+VERSION ?= $(DEV_PREFIX)-$(GIT_COMMIT)$(GIT_DIRTY)
+
 
 # Go parameters
 GO_CMD = go
@@ -33,7 +38,7 @@ ifneq ($(origin TRAVIS_TAG), undefined)
 endif
 
 # Build
-LDFLAGS = -extldflags "-static" -X main.version=$(COMMIT) -X main.build=$(BUILD)
+LDFLAGS = -extldflags "-static" -X main.version=$(VERSION) -X main.build=$(BUILD)
 
 # Docker
 DOCKER_CMD = docker
@@ -53,12 +58,9 @@ define unescape_docker_tag
 $(subst --,:,$(1))
 endef
 
-DOCKER_DEV_PREFIX := dev
-DOCKER_VERSION ?= $(DOCKER_DEV_PREFIX)-$(shell git rev-parse HEAD | cut -c1-7)
-
 # if TRAVIS_TAG defined DOCKER_VERSION is overrided
 ifneq ($(TRAVIS_TAG), )
-    DOCKER_VERSION := $(TRAVIS_TAG)
+    VERSION := $(TRAVIS_TAG)
 endif
 
 # if we are not in master, and it's not a tag the push is disabled
@@ -74,7 +76,7 @@ ifneq ($(TRAVIS_PULL_REQUEST), false)
 endif
 
 DOCKER_IMAGE ?= bblfsh/server
-DOCKER_IMAGE_VERSIONED ?= $(call escape_docker_tag,$(DOCKER_IMAGE):$(DOCKER_VERSION))
+DOCKER_IMAGE_VERSIONED ?= $(call escape_docker_tag,$(DOCKER_IMAGE):$(VERSION))
 
 # Rules
 all: clean build
@@ -88,7 +90,8 @@ $(NOVENDOR_PACKAGES):
 	$(GO_GET) $@
 
 $(VENDOR_PATH):
-	$(GLIDE) install
+	$(GLIDE) install; \
+	rm -rf vendor/github.com/Sirupsen/;
 
 docker-build:
 	$(DOCKER_BUILD) -f Dockerfile.build -t $(DOCKER_BUILD_IMAGE) .
