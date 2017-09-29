@@ -84,7 +84,7 @@ func (d *driverImage) WriteTo(path string) error {
 }
 
 func (d *driverImage) image() (types.Image, error) {
-	raw, err := d.ref.NewImageSource(nil, nil)
+	raw, err := d.ref.NewImageSource(nil)
 	if err != nil {
 		return nil, err
 	}

@@ -21,7 +21,7 @@ func UnpackImage(src types.Image, target string) error {
 		return err
 	}
 
-	raw, err := ref.NewImageSource(nil, nil)
+	raw, err := ref.NewImageSource(nil)
 	if err != nil {
 		return err
 	}
