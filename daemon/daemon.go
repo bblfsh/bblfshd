@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/bblfsh/server/runtime"
-	"github.com/sirupsen/logrus"
 
+	"github.com/sirupsen/logrus"
 	"gopkg.in/bblfsh/sdk.v1/protocol"
 	"gopkg.in/bblfsh/sdk.v1/sdk/server"
 	"gopkg.in/src-d/go-errors.v1"
@@ -76,7 +76,7 @@ func (d *Daemon) AddDriver(language string, img string) error {
 	dp := NewDriverPool(func() (Driver, error) {
 		d.Logger.Debugf("spawning driver instance %q ...", image.Name())
 
-		opts := getDriverInstanceOptions(d.Logger)
+		opts := getDriverInstanceOptions()
 		driver, err := NewDriverInstance(d.runtime, language, image, opts)
 		if err != nil {
 			return nil, err
@@ -88,6 +88,10 @@ func (d *Daemon) AddDriver(language string, img string) error {
 
 		d.Logger.Infof("driver started %s (%s)", image.Name(), driver.Container.ID())
 		return driver, nil
+	})
+
+	dp.Logger = logrus.WithFields(logrus.Fields{
+		"language": language,
 	})
 
 	d.pool[language] = dp
@@ -142,6 +146,7 @@ func (d *Daemon) Parse(req *protocol.ParseRequest) *protocol.ParseResponse {
 
 	if err != nil {
 		d.Logger.Errorf("error proccessing request for language %q: %s", language, err)
+		resp = &protocol.ParseResponse{}
 		resp.Response = newResponseFromError(err)
 	}
 
@@ -174,6 +179,7 @@ func (d *Daemon) NativeParse(req *protocol.NativeParseRequest) *protocol.NativeP
 
 	if err != nil {
 		d.Logger.Errorf("error proccessing request for language %q: %s", language, err)
+		resp = &protocol.NativeParseResponse{}
 		resp.Response = newResponseFromError(err)
 	}
 
@@ -229,19 +235,10 @@ func (s *Daemon) defaultDriverImageReference(lang string) string {
 	return fmt.Sprintf("%s:%s", transport, ref)
 }
 
-func getDriverInstanceOptions(logger server.Logger) *Options {
+func getDriverInstanceOptions() *Options {
+	l := logrus.StandardLogger()
+
 	opts := &Options{}
-
-	var l *logrus.Logger
-	switch i := logger.(type) {
-	case *logrus.Logger:
-		l = i
-	case *logrus.Entry:
-		l = i.Logger
-	default:
-		return opts
-	}
-
 	opts.LogLevel = l.Level.String()
 	opts.LogFormat = "text"
 

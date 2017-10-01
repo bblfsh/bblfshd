@@ -1,14 +1,15 @@
 package daemon
 
 import (
-	"fmt"
 	"math"
-	"os"
 	"runtime"
-	"strconv"
 	"sync/atomic"
 	"time"
 
+	"github.com/Sirupsen/logrus"
+	"github.com/opencontainers/runc/libcontainer"
+
+	"gopkg.in/bblfsh/sdk.v1/sdk/server"
 	"gopkg.in/src-d/go-errors.v1"
 )
 
@@ -22,8 +23,9 @@ var (
 	// scaling policy (see DefaultScalingPolicy()).
 	DefaultMaxInstancesPerDriver = runtime.NumCPU()
 
-	ErrPoolClosed  = errors.NewKind("driver pool already closed")
-	ErrPoolTimeout = errors.NewKind("timeout, all drivers are busy")
+	ErrPoolClosed        = errors.NewKind("driver pool already closed")
+	ErrPoolTimeout       = errors.NewKind("timeout, all drivers are busy")
+	ErrNegativeInstances = errors.NewKind("cannot set instances to negative number")
 )
 
 // DriverPool controls a pool of drivers and balances requests among them,
@@ -34,17 +36,19 @@ type DriverPool struct {
 	ScalingPolicy ScalingPolicy
 	// Timeout time for wait until a driver instance is available.
 	Timeout time.Duration
+	// Logger used during the live of the driver pool.
+	Logger server.Logger
 
-	factory FactoryFunction
-
-	cur int
+	factory   FactoryFunction
+	instances atomicInt
+	waiting   atomicInt
+	stopped   atomicInt
+	queue     *driverQueue
 	// close channel will be used to synchronize Close() call with the
 	// scaling() goroutine. Once Close() starts, a struct{} will be sent to
 	// the close channel. And once scaling() finish it will close it.
-	close      chan struct{}
-	closed     bool
-	waiting    *atomicInt
-	readyQueue *driverQueue
+	close  chan struct{}
+	closed bool
 }
 
 // FactoryFunction is a factory function that creates new DriverInstance's.
@@ -56,19 +60,19 @@ func NewDriverPool(factory FactoryFunction) *DriverPool {
 	return &DriverPool{
 		ScalingPolicy: DefaultScalingPolicy(),
 		Timeout:       DefaultPoolTimeout,
+		Logger:        logrus.New(),
 
-		factory:    factory,
-		close:      make(chan struct{}),
-		waiting:    &atomicInt{},
-		readyQueue: newDriverQueue(),
+		factory: factory,
+		close:   make(chan struct{}),
+		queue:   newDriverQueue(),
 	}
 }
 
 // Start stats the driver pool.
 func (dp *DriverPool) Start() error {
 	target := dp.ScalingPolicy.Scale(0, 0)
-	if err := dp.setInstanceCount(target); err != nil {
-		_ = dp.setInstanceCount(0)
+	if err := dp.setInstances(target); err != nil {
+		_ = dp.setInstances(0)
 		return err
 	}
 
@@ -76,15 +80,15 @@ func (dp *DriverPool) Start() error {
 	return nil
 }
 
-// setInstanceCount changes the number of running driver instances. Instances
+// setInstances changes the number of running driver instances. Instances
 // will be started or stopped as necessary to satisfy the new instance count.
 // It blocks until the all required instances are started or stopped.
-func (dp *DriverPool) setInstanceCount(target int) error {
+func (dp *DriverPool) setInstances(target int) error {
 	if target < 0 {
-		return fmt.Errorf("cannot set instances to negative number")
+		return ErrNegativeInstances.New()
 	}
 
-	n := target - dp.cur
+	n := target - dp.instances.Value()
 	if n > 0 {
 		return dp.add(n)
 	} else if n < 0 {
@@ -101,8 +105,8 @@ func (dp *DriverPool) add(n int) error {
 			return err
 		}
 
-		dp.readyQueue.Enqueue(d)
-		dp.cur++
+		dp.queue.Put(d)
+		dp.instances.Add(1)
 	}
 
 	return nil
@@ -110,15 +114,23 @@ func (dp *DriverPool) add(n int) error {
 
 func (dp *DriverPool) del(n int) error {
 	for i := 0; i < n; i++ {
-		d, more := dp.readyQueue.Dequeue()
+		d, more := dp.queue.Get()
 		if !more {
 			return ErrPoolClosed.New()
 		}
 
-		dp.cur--
-		if err := d.Stop(); err != nil {
+		if err := dp.remove(d); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (dp *DriverPool) remove(d Driver) error {
+	dp.instances.Add(-1)
+	if err := d.Stop(); err != nil {
+		return err
 	}
 
 	return nil
@@ -133,12 +145,24 @@ func (dp *DriverPool) scaling() {
 			close(dp.close)
 			return
 		case <-ticker.C:
-			total := dp.cur
-			ready := dp.readyQueue.Size()
-			load := int(dp.waiting.Value())
-			s := dp.ScalingPolicy.Scale(total, load-ready)
-			_ = dp.setInstanceCount(s)
+			dp.doScaling()
 		}
+	}
+}
+
+func (dp *DriverPool) doScaling() {
+	total := dp.instances.Value()
+	ready := dp.queue.Size()
+	load := dp.waiting.Value()
+
+	s := dp.ScalingPolicy.Scale(total, load-ready)
+	if s == total {
+		return
+	}
+
+	dp.Logger.Debugf("scaling driver pool from %d instance(s) to %d instance(s)", total, s)
+	if err := dp.setInstances(s); err != nil {
+		dp.Logger.Errorf("error re-scaling pool: %s", err)
 	}
 }
 
@@ -151,18 +175,34 @@ type Function func(d Driver) error
 // is closed, an error will be returned.
 func (dp *DriverPool) Execute(c Function) error {
 	dp.waiting.Add(1)
-	d, more, timeout := dp.readyQueue.TryDequeue(dp.Timeout)
+	d, more, err := dp.queue.GetWithTimeout(dp.Timeout)
 	dp.waiting.Add(-1)
+	if err != nil {
+		return err
+	}
 
 	if !more {
 		return ErrPoolClosed.New()
 	}
 
-	if timeout {
-		return ErrPoolClosed.New()
+	status, err := d.Status()
+	if err != nil {
+		return err
 	}
 
-	defer dp.readyQueue.Enqueue(d)
+	if status != libcontainer.Running {
+		defer func() {
+			dp.stopped.Add(1)
+			dp.Logger.Debugf("removing stopped driver")
+			if err := dp.remove(d); err != nil {
+				dp.Logger.Errorf("error removing stopped driver: %s", err)
+			}
+		}()
+
+		return dp.Execute(c)
+	}
+
+	defer dp.queue.Put(d)
 	return c(d)
 }
 
@@ -175,11 +215,11 @@ func (dp *DriverPool) Stop() error {
 	dp.closed = true
 	dp.close <- struct{}{}
 	<-dp.close
-	if err := dp.setInstanceCount(0); err != nil {
+	if err := dp.setInstances(0); err != nil {
 		return err
 	}
 
-	return dp.readyQueue.Close()
+	return dp.queue.Close()
 }
 
 type driverQueue struct {
@@ -191,24 +231,25 @@ func newDriverQueue() *driverQueue {
 	return &driverQueue{c: make(chan Driver), n: &atomicInt{}}
 }
 
-func (q *driverQueue) Enqueue(d Driver) {
+func (q *driverQueue) Put(d Driver) {
 	q.n.Add(1)
 	go func() { q.c <- d }()
 }
 
-func (q *driverQueue) Dequeue() (driver Driver, more bool) {
+func (q *driverQueue) Get() (driver Driver, more bool) {
+	defer q.n.Add(-1)
+
 	d, more := <-q.c
-	q.n.Add(-1)
 	return d, more
 }
 
-func (q *driverQueue) TryDequeue(timeout time.Duration) (driver Driver, more, timedout bool) {
+func (q *driverQueue) GetWithTimeout(timeout time.Duration) (driver Driver, more bool, err error) {
 	select {
 	case d, more := <-q.c:
 		q.n.Add(-1)
-		return d, more, false
+		return d, more, nil
 	case <-time.After(timeout):
-		return nil, true, true
+		return nil, true, ErrPoolTimeout.New()
 	}
 }
 
@@ -343,15 +384,4 @@ func (p *aimd) Scale(total, load int) int {
 	}
 
 	return res
-}
-
-func init() {
-	// Try to read DefaultMaxInstancesPerDriver from the environment variable
-	defaultMaxInstancesPerDriverEnv := os.Getenv("BBLFSH_MAX_INSTANCES_PER_DRIVER")
-	if len(defaultMaxInstancesPerDriverEnv) > 0 {
-		maxInstances, err := strconv.Atoi(defaultMaxInstancesPerDriverEnv)
-		if err == nil && maxInstances > 0 {
-			DefaultMaxInstancesPerDriver = maxInstances
-		}
-	}
 }
