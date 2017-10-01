@@ -1,7 +1,6 @@
 package runtime
 
 import (
-	"io"
 	"os"
 	"syscall"
 
@@ -23,7 +22,7 @@ type Container interface {
 	State() (*libcontainer.State, error)
 	// Returns the PIDs inside this container. The PIDs are in the namespace of the calling process.
 	Processes() ([]int, error)
-	// Signal sends the provided signal code to all the process in the container.
+	// Signal sends the provided signal code to the running process in the container.
 	Signal(sig os.Signal) error
 	// Returns the current config of the container.
 	Config() configs.Config
@@ -40,7 +39,7 @@ type Command interface {
 	Start() error
 	// Wait waits for the command to exit. It must have been started by Start.
 	Wait() error
-	// Stop kill the container and destroy it.
+	// Stop kills the container.
 	Stop() error
 }
 
@@ -73,28 +72,8 @@ func (c *container) Start() error {
 }
 
 func (c *container) Wait() error {
-	var derr error
-	defer func() {
-		derr = c.Container.Destroy()
-		streams := []interface{}{
-			c.process.Stdin,
-			c.process.Stdout,
-			c.process.Stderr,
-		}
-		for _, s := range streams {
-			if c, ok := s.(io.Closer); ok {
-				if err := c.Close(); err != nil && derr != nil {
-					derr = err
-				}
-			}
-		}
-	}()
-
-	if _, err := c.process.Wait(); err != nil {
-		return err
-	}
-
-	return derr
+	_, err := c.process.Wait()
+	return err
 }
 
 func (c *container) Run() error {
@@ -106,14 +85,14 @@ func (c *container) Run() error {
 }
 
 func (c *container) Stop() error {
-	if err := c.Signal(syscall.SIGKILL); err != nil {
+	if err := c.process.Signal(syscall.SIGTERM); err != nil {
 		return err
 	}
 
-	return c.Destroy()
+	return c.Container.Signal(syscall.SIGTERM, false)
 }
 
 func (c *container) Signal(sig os.Signal) error {
-	return c.Container.Signal(sig, true)
+	return c.Container.Signal(sig, false)
 
 }
