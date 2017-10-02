@@ -7,12 +7,20 @@ import (
 	"testing"
 	"time"
 
+	"github.com/opencontainers/runc/libcontainer"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/bblfsh/sdk.v1/protocol"
 )
 
 type mockDriver struct {
 	CalledClose int
+	MockStatus  libcontainer.Status
+}
+
+func newMockDriver() (Driver, error) {
+	return &mockDriver{
+		MockStatus: libcontainer.Running,
+	}, nil
 }
 
 func (d *mockDriver) Service() protocol.ProtocolServiceClient {
@@ -23,6 +31,10 @@ func (d *mockDriver) Start() error {
 	return nil
 }
 
+func (d *mockDriver) Status() (libcontainer.Status, error) {
+	return d.MockStatus, nil
+}
+
 func (d *mockDriver) Stop() error {
 	d.CalledClose++
 	return nil
@@ -30,9 +42,7 @@ func (d *mockDriver) Stop() error {
 
 func TestNewDriverPool_StartNoopClose(t *testing.T) {
 	require := require.New(t)
-	dp := NewDriverPool(func() (Driver, error) {
-		return &mockDriver{}, nil
-	})
+	dp := NewDriverPool(newMockDriver)
 
 	err := dp.Start()
 	require.NoError(err)
@@ -58,15 +68,43 @@ func TestNewDiverPool_StartFailingDriver(t *testing.T) {
 	require.EqualError(err, "driver error")
 }
 
+func TestNewDriverPool_Recovery(t *testing.T) {
+	require := require.New(t)
+
+	var called int
+	dp := NewDriverPool(func() (Driver, error) {
+		called++
+		return newMockDriver()
+	})
+
+	err := dp.Start()
+	require.NoError(err)
+
+	for i := 0; i < 100; i++ {
+		err := dp.Execute(func(d Driver) error {
+			require.NotNil(d)
+
+			if i%10 == 0 {
+				d.(*mockDriver).MockStatus = libcontainer.Stopped
+			}
+
+			return nil
+		})
+
+		require.Nil(err)
+		require.Equal(dp.instances.Value(), 1)
+	}
+
+	err = dp.Stop()
+	require.NoError(err)
+
+	require.Equal(called, 11)
+}
+
 func TestNewDriverPool_Sequential(t *testing.T) {
 	require := require.New(t)
 
-	dp := NewDriverPool(func() (Driver, error) {
-		resp := &protocol.ParseResponse{}
-		resp.Status = protocol.Ok
-
-		return &mockDriver{}, nil
-	})
+	dp := NewDriverPool(newMockDriver)
 
 	err := dp.Start()
 	require.NoError(err)
@@ -78,7 +116,7 @@ func TestNewDriverPool_Sequential(t *testing.T) {
 		})
 
 		require.Nil(err)
-		require.Equal(dp.cur, 1)
+		require.Equal(dp.instances.Value(), 1)
 	}
 
 	err = dp.Stop()
@@ -88,9 +126,7 @@ func TestNewDriverPool_Sequential(t *testing.T) {
 func TestNewDriverPool_Parallel(t *testing.T) {
 	require := require.New(t)
 
-	dp := NewDriverPool(func() (Driver, error) {
-		return &mockDriver{}, nil
-	})
+	dp := NewDriverPool(newMockDriver)
 
 	err := dp.Start()
 	require.NoError(err)
@@ -106,15 +142,15 @@ func TestNewDriverPool_Parallel(t *testing.T) {
 			})
 
 			require.Nil(err)
-			require.True(dp.cur >= 1)
+			require.True(dp.instances.Value() >= 1)
 		}()
 	}
 
 	wg.Wait()
-	require.Equal(runtime.NumCPU(), dp.cur)
+	require.Equal(runtime.NumCPU(), dp.instances.Value())
 
-	time.Sleep(time.Second * 2)
-	require.Equal(1, dp.cur)
+	time.Sleep(time.Second)
+	require.Equal(1, dp.instances.Value())
 
 	err = dp.Stop()
 	require.NoError(err)

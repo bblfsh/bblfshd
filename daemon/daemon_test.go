@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/bblfsh/server/runtime"
+	"github.com/opencontainers/runc/libcontainer"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
@@ -164,6 +165,10 @@ func (d *echoDriver) Version(
 
 func (d *echoDriver) Start() error {
 	return nil
+}
+
+func (d *echoDriver) Status() (libcontainer.Status, error) {
+	return libcontainer.Running, nil
 }
 
 func (d *echoDriver) Service() protocol.ProtocolServiceClient {

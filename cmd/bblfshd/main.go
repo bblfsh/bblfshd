@@ -86,6 +86,9 @@ func buildLogger() server.Logger {
 		os.Exit(1)
 	}
 
+	logrus.SetLevel(logger.(*logrus.Logger).Level)
+	logrus.SetFormatter(logger.(*logrus.Logger).Formatter)
+
 	return logger
 }
 

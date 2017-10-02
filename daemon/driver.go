@@ -13,6 +13,7 @@ import (
 
 	"github.com/bblfsh/server/runtime"
 
+	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"google.golang.org/grpc"
 	"gopkg.in/bblfsh/sdk.v1/protocol"
@@ -21,6 +22,7 @@ import (
 type Driver interface {
 	Start() error
 	Stop() error
+	Status() (libcontainer.Status, error)
 	Service() protocol.ProtocolServiceClient
 }
 
@@ -139,6 +141,10 @@ func (i *DriverInstance) loadVersion() error {
 	}
 
 	return nil
+}
+
+func (i *DriverInstance) Status() (libcontainer.Status, error) {
+	return i.Container.Status()
 }
 
 // Stop stops the inner running container.

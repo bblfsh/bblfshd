@@ -2,10 +2,10 @@ package runtime
 
 import (
 	"bytes"
-	"io"
 	"io/ioutil"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -48,7 +48,7 @@ func (s *ContainerSuite) TearDownSuite() {
 	require.NoError(os.RemoveAll(s.RuntimePath))
 }
 
-func (s *ContainerSuite) TestContainerRun() {
+func (s *ContainerSuite) TestContainer_Run() {
 	require := require.New(s.T())
 
 	p := &Process{
@@ -63,7 +63,40 @@ func (s *ContainerSuite) TestContainerRun() {
 	require.NoError(err)
 }
 
-func (s *ContainerSuite) TestContainerStartWait() {
+func (s *ContainerSuite) TestContainer_StartStopStart() {
+	require := require.New(s.T())
+	p := &Process{
+		Args:   []string{"/bin/sleep", "5m"},
+		Stdout: os.Stdout,
+	}
+
+	c, err := s.Runtime.Container("1", s.Image, p, nil)
+	require.NoError(err)
+
+	err = c.Start()
+	require.NoError(err)
+
+	time.Sleep(100 * time.Millisecond)
+	err = c.Stop()
+	require.NoError(err)
+
+	p = &Process{
+		Args:   []string{"/bin/sleep", "5m"},
+		Stdout: os.Stdout,
+	}
+
+	c, err = s.Runtime.Container("2", s.Image, p, nil)
+	require.NoError(err)
+
+	err = c.Start()
+	require.NoError(err)
+	time.Sleep(100 * time.Millisecond)
+
+	err = c.Stop()
+	require.NoError(err)
+}
+
+func (s *ContainerSuite) TestContainer_StartWait() {
 	require := require.New(s.T())
 
 	out := bytes.NewBuffer(nil)
@@ -85,7 +118,7 @@ func (s *ContainerSuite) TestContainerStartWait() {
 	require.Equal("bin\ndev\netc\nhome\nproc\nroot\nsys\ntmp\nusr\nvar\n", out.String())
 }
 
-func (s *ContainerSuite) TestContainerStartWaitExit1() {
+func (s *ContainerSuite) TestContainer_StartWaitExit1() {
 	require := require.New(s.T())
 
 	out := bytes.NewBuffer(nil)
@@ -107,37 +140,7 @@ func (s *ContainerSuite) TestContainerStartWaitExit1() {
 	require.Equal("", out.String())
 }
 
-func (s *ContainerSuite) TestContainerCloseStdoutOnExit() {
-	require := require.New(s.T())
-
-	outr, outw := io.Pipe()
-
-	p := &Process{
-		Args:   []string{"/bin/true"},
-		Stdout: outw,
-	}
-
-	c, err := s.Runtime.Container("close", s.Image, p, nil)
-	require.NoError(err)
-
-	done := make(chan struct{})
-	go func() {
-		b := make([]byte, 1)
-		_, err := outr.Read(b)
-		require.Error(err)
-		close(done)
-	}()
-
-	err = c.Start()
-	require.NoError(err)
-
-	err = c.Wait()
-	require.NoError(err)
-
-	<-done
-}
-
-func (s *ContainerSuite) TestContainerStartFailure() {
+func (s *ContainerSuite) TestContainer_StartFailure() {
 	require := require.New(s.T())
 
 	out := bytes.NewBuffer(nil)
@@ -154,7 +157,7 @@ func (s *ContainerSuite) TestContainerStartFailure() {
 	require.Error(err)
 }
 
-func (s *ContainerSuite) TestContainerEnv() {
+func (s *ContainerSuite) TestContainer_Env() {
 	require := require.New(s.T())
 
 	out := bytes.NewBuffer(nil)
@@ -170,107 +173,4 @@ func (s *ContainerSuite) TestContainerEnv() {
 	err = c.Run()
 	require.NoError(err)
 	require.Equal("PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\nHOME=/root\n", out.String())
-}
-
-func TestContainerStartWait(t *testing.T) {
-	require := require.New(t)
-
-	tmpDir, err := ioutil.TempDir(os.TempDir(), "bblfsh-runtime")
-	require.NoError(err)
-	defer func() { require.NoError(os.RemoveAll(tmpDir)) }()
-
-	rt := NewRuntime(tmpDir)
-	err = rt.Init()
-	require.NoError(err)
-
-	d, err := NewDriverImage("docker://busybox:latest")
-	require.NoError(err)
-
-	err = rt.InstallDriver(d, false)
-	require.NoError(err)
-
-	out := bytes.NewBuffer(nil)
-
-	p := &Process{
-		Args:   []string{"/bin/ls"},
-		Stdout: out,
-	}
-
-	c, err := rt.Container("start-wait", d, p, nil)
-	require.NoError(err)
-
-	err = c.Start()
-	require.NoError(err)
-
-	err = c.Wait()
-	require.NoError(err)
-
-	require.Equal("bin\ndev\netc\nhome\nproc\nroot\nsys\ntmp\nusr\nvar\n", out.String())
-}
-
-func TestContainerStartWaitExit1(t *testing.T) {
-	require := require.New(t)
-
-	tmpDir, err := ioutil.TempDir(os.TempDir(), "bblfsh-runtime")
-	require.NoError(err)
-	defer func() { require.NoError(os.RemoveAll(tmpDir)) }()
-
-	rt := NewRuntime(tmpDir)
-	err = rt.Init()
-	require.NoError(err)
-
-	d, err := NewDriverImage("docker://busybox:latest")
-	require.NoError(err)
-
-	err = rt.InstallDriver(d, false)
-	require.NoError(err)
-
-	out := bytes.NewBuffer(nil)
-
-	p := &Process{
-		Args:   []string{"/bin/false"},
-		Stdout: out,
-	}
-
-	c, err := rt.Container("start-wait-exit1", d, p, nil)
-	require.NoError(err)
-
-	err = c.Start()
-	require.NoError(err)
-
-	err = c.Wait()
-	require.Error(err)
-
-	require.Equal("", out.String())
-}
-
-func TestContainerStartFailure(t *testing.T) {
-	require := require.New(t)
-
-	tmpDir, err := ioutil.TempDir(os.TempDir(), "bblfsh-runtime")
-	require.NoError(err)
-	defer func() { require.NoError(os.RemoveAll(tmpDir)) }()
-
-	rt := NewRuntime(tmpDir)
-	err = rt.Init()
-	require.NoError(err)
-
-	d, err := NewDriverImage("docker://busybox:latest")
-	require.NoError(err)
-
-	err = rt.InstallDriver(d, false)
-	require.NoError(err)
-
-	out := bytes.NewBuffer(nil)
-
-	p := &Process{
-		Args:   []string{"/bin/non-existent"},
-		Stdout: out,
-	}
-
-	c, err := rt.Container("start-failure",d, p, nil)
-	require.NoError(err)
-
-	err = c.Start()
-	require.Error(err)
 }
