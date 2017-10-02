@@ -13,7 +13,6 @@ import (
 	"github.com/bblfsh/server/runtime"
 	"github.com/opencontainers/runc/libcontainer"
 
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	oldctx "golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -56,7 +55,6 @@ func buildMockedDaemon(t *testing.T) (*Daemon, string) {
 	require.NoError(err)
 
 	d := NewDaemon("foo", r)
-	d.Logger = logrus.New()
 
 	dp := NewDriverPool(func() (Driver, error) {
 		return &echoDriver{}, nil

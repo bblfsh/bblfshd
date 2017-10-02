@@ -30,8 +30,6 @@ var (
 		format *string
 		fields *string
 	}
-
-	logger server.Logger
 )
 
 func init() {
@@ -46,58 +44,52 @@ func init() {
 	log.fields = cmd.String("log-fields", "", "extra fields to add to every log line in json format.")
 	cmd.Parse(os.Args[1:])
 
+	buildLogger()
 	runtime.Bootstrap()
-	logger = buildLogger()
 }
 
 func main() {
-	logger.Infof("bblfshd version: %s (build: %s)", version, build)
+	logrus.Infof("bblfshd version: %s (build: %s)", version, build)
 
 	r := buildRuntime()
 	s := daemon.NewDaemon(version, r)
 	s.Options = buildGRPCOptions()
 	s.Overrides = buildOverrides()
-	s.Logger = logger
 
 	l, err := net.Listen(*network, *address)
 	if err != nil {
-		logger.Errorf("error creating listener: %s", err)
+		logrus.Errorf("error creating listener: %s", err)
 		os.Exit(1)
 	}
 
-	logger.Infof("server listening in %s (%s)", *address, *network)
+	logrus.Infof("server listening in %s (%s)", *address, *network)
 	handleGracefullyShutdown(l, s)
 
 	if err = s.Serve(l); err != nil {
-		logger.Errorf("error starting server: %s", err)
+		logrus.Errorf("error starting server: %s", err)
 		os.Exit(1)
 	}
 }
 
-func buildLogger() server.Logger {
-	logger, err := server.LoggerFactory{
+func buildLogger() {
+	err := server.LoggerFactory{
 		Level:  *log.level,
 		Format: *log.format,
 		Fields: *log.fields,
-	}.New()
+	}.Apply()
 
 	if err != nil {
 		logrus.Errorf("invalid logger configuration: %s", err)
 		os.Exit(1)
 	}
-
-	logrus.SetLevel(logger.(*logrus.Logger).Level)
-	logrus.SetFormatter(logger.(*logrus.Logger).Formatter)
-
-	return logger
 }
 
 func buildRuntime() *runtime.Runtime {
-	logger.Infof("initializing runtime at %s", *storage)
+	logrus.Infof("initializing runtime at %s", *storage)
 
 	r := runtime.NewRuntime(*storage)
 	if err := r.Init(); err != nil {
-		logger.Errorf("error initializing runtime: %s", err)
+		logrus.Errorf("error initializing runtime: %s", err)
 		os.Exit(1)
 	}
 
@@ -109,7 +101,7 @@ func buildGRPCOptions() []grpc.ServerOption {
 	if size >= 2048 {
 		// Setting the hard limit of message size to less than 2GB since
 		// it may overflow an int value, and it should be big enough
-		logger.Errorf("max-message-size too big (limit is 2047MB): %d", size)
+		logrus.Errorf("max-message-size too big (limit is 2047MB): %d", size)
 		os.Exit(1)
 	}
 
@@ -130,13 +122,13 @@ func buildOverrides() map[string]string {
 
 		fields := strings.Split(img, "=")
 		if len(fields) != 2 {
-			logger.Errorf("invalid image driver format %s", img)
+			logrus.Errorf("invalid image driver format %s", img)
 			os.Exit(1)
 		}
 
 		lang := strings.TrimSpace(fields[0])
 		image := strings.TrimSpace(fields[1])
-		logger.Warningf("image for %s overrided with: %q", lang, image)
+		logrus.Warningf("image for %s overrided with: %q", lang, image)
 		overrides[lang] = image
 	}
 
@@ -150,10 +142,10 @@ func handleGracefullyShutdown(l net.Listener, d *daemon.Daemon) {
 
 	go func() {
 		sig := <-gracefulStop
-		logger.Warningf("signal is received %+v", sig)
-		logger.Warningf("stopping server")
+		logrus.Warningf("signal received %+v", sig)
+		logrus.Warningf("stopping server")
 		if err := d.Stop(); err != nil {
-			logger.Errorf("error stopping server: %s", err)
+			logrus.Errorf("error stopping server: %s", err)
 		}
 
 		os.Exit(0)

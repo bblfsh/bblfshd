@@ -6,9 +6,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/opencontainers/runc/libcontainer"
-
+	"github.com/sirupsen/logrus"
 	"gopkg.in/bblfsh/sdk.v1/sdk/server"
 	"gopkg.in/src-d/go-errors.v1"
 )
@@ -178,6 +177,7 @@ func (dp *DriverPool) Execute(c Function) error {
 	d, more, err := dp.queue.GetWithTimeout(dp.Timeout)
 	dp.waiting.Add(-1)
 	if err != nil {
+		dp.Logger.Warningf("unable to allocate a driver instance: %s", err)
 		return err
 	}
 

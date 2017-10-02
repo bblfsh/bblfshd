@@ -246,7 +246,7 @@ imports:
   - tap
   - transport
 - name: gopkg.in/bblfsh/sdk.v1
-  version: 83b3b64de663069fd7e0a12d08db4c00da3c17ce
+  version: 0f9f2d71d143114a4285cd180fcb015278025624
   repo: https://github.com/bblfsh/sdk.git
   subpackages:
   - manifest
