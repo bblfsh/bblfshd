@@ -1,13 +1,7 @@
 language: go
 
 go:
-  - 1.8
-  - tip
-
-matrix:
-  fast_finish: true
-  allow_failures:
-    - go: tip
+  - 1.9
 
 sudo: required
 
@@ -15,6 +9,17 @@ services:
   - docker
 
 before_install:
+  - sudo apt-get -qq update
+  - sudo apt-get -qq install btrfs-tools libdevmapper-dev libgpgme11-dev libapparmor-dev libseccomp-dev
+  - sudo apt-get -qq install autoconf automake bison e2fslibs-dev libfuse-dev libtool liblzma-dev gettext
+  - OSTREE_VERSION=v2017.9
+  - git clone https://github.com/ostreedev/ostree ${TRAVIS_BUILD_DIR}/ostree
+  - pushd ${TRAVIS_BUILD_DIR}/ostree
+  -   git checkout $OSTREE_VERSION
+  -   ./autogen.sh --prefix=/usr/local
+  -   make all
+  -   sudo make install
+  - popd
   - make dependencies
 
 script:
@@ -28,7 +33,7 @@ deploy:
   provider: releases
   api_key:
     secure: $GITHUB_TOKEN
-  file: ./build/bblfsh
+  file: ./build/bblfshd
   skip_cleanup: true
   on:
     tags: true

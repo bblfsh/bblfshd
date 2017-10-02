@@ -1,10 +1,10 @@
-hash: fce7bb7cf205063d21c579424d8f09042ad120af2f194c480efb80f142c65835
-updated: 2017-09-28T18:28:29.971599143+02:00
+hash: 0eed5eb68e642fe023da8375208980a56e86458d736adef8391eb54b341b8e1e
+updated: 2017-09-29T17:07:45.839646465+02:00
 imports:
 - name: github.com/BurntSushi/toml
   version: a368813c5e648fee92e5f6c30e3944ff9d5e8895
 - name: github.com/containers/image
-  version: 66efd5c31ce9470c37d8fb40c2e424c63f72c735
+  version: 33dad2514b7d6673f489f81fe12e54d12c6dea96
   subpackages:
   - directory
   - directory/explicitfilepath
@@ -83,6 +83,11 @@ imports:
   - pkg/symlink
   - pkg/system
   - pkg/tlsconfig
+- name: github.com/docker/docker-credential-helpers
+  version: d68f9aeca33f5fd3f08eeae5e9d175edf4e731d1
+  subpackages:
+  - client
+  - credentials
 - name: github.com/docker/go-connections
   version: 3ede32e2033de7505e6500d6c868c2b9ed9f169d
   subpackages:
@@ -95,8 +100,6 @@ imports:
   version: aabc10ec26b754e797f9028f4589c5b7bd90dc20
 - name: github.com/ghodss/yaml
   version: 0ca9ea5df5451ffdf184b4428c902747c2c11cd7
-- name: github.com/gin-gonic/gin
-  version: d459835d2b077e44f7c9b453505ee29881d5d12d
 - name: github.com/godbus/dbus
   version: bd29ed602e2cf4207ebcabcd530259169e4289ba
 - name: github.com/gogo/protobuf
@@ -119,8 +122,6 @@ imports:
   version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
 - name: github.com/gorilla/mux
   version: ac112f7d75a0714af1bd86ab17749b31f7809640
-- name: github.com/jessevdk/go-flags
-  version: 96dc06278ce32a0e9d957d590bb987c81ee66407
 - name: github.com/mattn/go-colorable
   version: ad5389df28cdac544c99bd7b9161a0b5b6ca9d1b
 - name: github.com/mattn/go-isatty
@@ -141,7 +142,7 @@ imports:
   - specs-go
   - specs-go/v1
 - name: github.com/opencontainers/runc
-  version: 7d66aab77abfdd8e2893eb70647fd941f26091b1
+  version: 2e7cfe036e2c6dc51ccca6eb7fa3ee6b63976dcd
   subpackages:
   - libcontainer
   - libcontainer/apparmor
@@ -168,14 +169,17 @@ imports:
   subpackages:
   - go-selinux
   - go-selinux/label
+- name: github.com/ostreedev/ostree-go
+  version: 80ab7dbb89864135bbc6536fc1d468d8a3529b53
+  subpackages:
+  - pkg/glibobject
+  - pkg/otbuiltin
 - name: github.com/pkg/errors
   version: 645ef00459ed84a119197bfb8d8205042c6df63d
-- name: github.com/rs/cors
-  version: 7af7a1e09ba336d2ea14b1ce73bf693c6837dbf6
 - name: github.com/seccomp/libseccomp-golang
   version: f6ec81daf48e41bf48b475afc7fe06a26bfb72d1
 - name: github.com/sirupsen/logrus
-  version: 89742aefa4b206dcf400792f3bd35b542998eb3b
+  version: f006c2ac4710855cf0f916dd6b77acf6b048dc6e
 - name: github.com/Sirupsen/logrus
   version: f006c2ac4710855cf0f916dd6b77acf6b048dc6e
 - name: github.com/syndtr/gocapability
@@ -250,7 +254,7 @@ imports:
   - sdk/server
   - uast
 - name: gopkg.in/src-d/enry.v1
-  version: 557cc51f559f54cfaf1271b9f80250ac39d2739a
+  version: ded6d367fe9cc87f6c34dd4fb2bfb75d1dcc1950
   subpackages:
   - data
   - internal/tokenizer

@@ -1,5 +1,11 @@
-FROM golang:1.7-alpine
+FROM golang:1.9
 
-RUN apk add --no-cache git make musl-dev musl-utils gcc lvm2-dev btrfs-progs-dev
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        libostree-dev \
+        libglib2.0-dev \
+        btrfs-tools \
+    && apt-get clean
+
 ENV GOPATH=/go
 WORKDIR /go/src/github.com/bblfsh/server
