@@ -72,9 +72,9 @@ func (d *Daemon) AddDriver(language string, img string) error {
 		return ErrRuntime.Wrap(err)
 	}
 
-	d.Logger.Infof("new driver installed: %q", image.Name())
+	logrus.Infof("new driver installed: %q", image.Name())
 	dp := NewDriverPool(func() (Driver, error) {
-		d.Logger.Debugf("spawning driver instance %q ...", image.Name())
+		logrus.Debugf("spawning driver instance %q ...", image.Name())
 
 		opts := getDriverInstanceOptions()
 		driver, err := NewDriverInstance(d.runtime, language, image, opts)
@@ -86,7 +86,7 @@ func (d *Daemon) AddDriver(language string, img string) error {
 			return nil, err
 		}
 
-		d.Logger.Infof("driver started %s (%s)", image.Name(), driver.Container.ID())
+		logrus.Infof("new driver instance started %s (%s)", image.Name(), driver.Container.ID())
 		return driver, nil
 	})
 
@@ -123,16 +123,18 @@ func (d *Daemon) DriverPool(language string) (*DriverPool, error) {
 func (d *Daemon) Parse(req *protocol.ParseRequest) *protocol.ParseResponse {
 	resp := &protocol.ParseResponse{}
 	start := time.Now()
-	defer func() { resp.Elapsed = time.Since(start) }()
+	defer func() {
+		resp.Elapsed = time.Since(start)
+		d.logResponse(resp.Status, req.Language, len(req.Content), resp.Elapsed)
+	}()
 
 	if req.Content == "" {
-		d.Logger.Debugf("empty request received, returning empty UAST")
 		return resp
 	}
 
 	language, dp, err := d.selectPool(req.Language, req.Content, req.Filename)
 	if err != nil {
-		d.Logger.Errorf("error selecting pool: %s", err)
+		logrus.Errorf("error selecting pool: %s", err)
 		resp.Response = newResponseFromError(err)
 		return resp
 	}
@@ -145,7 +147,6 @@ func (d *Daemon) Parse(req *protocol.ParseRequest) *protocol.ParseResponse {
 	})
 
 	if err != nil {
-		d.Logger.Errorf("error proccessing request for language %q: %s", language, err)
 		resp = &protocol.ParseResponse{}
 		resp.Response = newResponseFromError(err)
 	}
@@ -153,19 +154,40 @@ func (d *Daemon) Parse(req *protocol.ParseRequest) *protocol.ParseResponse {
 	return resp
 }
 
+func (d *Daemon) logResponse(s protocol.Status, language string, size int, elapsed time.Duration) {
+	l := logrus.WithFields(logrus.Fields{
+		"language": language,
+		"elapsed":  elapsed,
+	})
+
+	text := fmt.Sprintf("request processed content %d bytes, status %s", size, s)
+
+	switch s {
+	case protocol.Ok:
+		l.Debug(text)
+	case protocol.Error:
+		l.Warning(text)
+	case protocol.Fatal:
+		l.Error(text)
+	}
+}
+
 func (d *Daemon) NativeParse(req *protocol.NativeParseRequest) *protocol.NativeParseResponse {
 	resp := &protocol.NativeParseResponse{}
 	start := time.Now()
-	defer func() { resp.Elapsed = time.Since(start) }()
+	defer func() {
+		resp.Elapsed = time.Since(start)
+		d.logResponse(resp.Status, req.Language, len(req.Content), resp.Elapsed)
+	}()
 
 	if req.Content == "" {
-		d.Logger.Debugf("empty request received, returning empty AST")
+		logrus.Debugf("empty request received, returning empty AST")
 		return resp
 	}
 
 	language, dp, err := d.selectPool(req.Language, req.Content, req.Filename)
 	if err != nil {
-		d.Logger.Errorf("error selecting pool: %s", err)
+		logrus.Errorf("error selecting pool: %s", err)
 		resp.Response = newResponseFromError(err)
 		return resp
 	}
@@ -178,7 +200,6 @@ func (d *Daemon) NativeParse(req *protocol.NativeParseRequest) *protocol.NativeP
 	})
 
 	if err != nil {
-		d.Logger.Errorf("error proccessing request for language %q: %s", language, err)
 		resp = &protocol.NativeParseResponse{}
 		resp.Response = newResponseFromError(err)
 	}
@@ -189,7 +210,7 @@ func (d *Daemon) NativeParse(req *protocol.NativeParseRequest) *protocol.NativeP
 func (d *Daemon) selectPool(language, content, filename string) (string, *DriverPool, error) {
 	if language == "" {
 		language = GetLanguage(filename, []byte(content))
-		d.Logger.Debugf("detected language %q", language)
+		logrus.Debugf("detected language %q, filename %q", language, filename)
 	}
 
 	dp, err := d.DriverPool(language)

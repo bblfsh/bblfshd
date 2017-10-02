@@ -31,7 +31,7 @@ import:
 - package: google.golang.org/grpc
   version: ^1.6.0
 - package: gopkg.in/bblfsh/sdk.v1
-  version: 83b3b64de663069fd7e0a12d08db4c00da3c17ce
+  version: 0f9f2d71d143114a4285cd180fcb015278025624
   repo: https://github.com/bblfsh/sdk.git
 - package: gopkg.in/src-d/enry.v1
   version: ^1.4.2
