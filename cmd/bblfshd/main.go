@@ -35,7 +35,7 @@ var (
 func init() {
 	cmd := flag.NewFlagSet("server", flag.ExitOnError)
 	network = cmd.String("network", "tcp", "network type: tcp, tcp4, tcp6, unix or unixpacket.")
-	address = cmd.String("address", "localhost:9432", "address to listen.")
+	address = cmd.String("address", "0.0.0.0:9432", "address to listen.")
 	storage = cmd.String("storage", "/var/lib/bblfshd", "path where all the runtime information is stored.")
 	transport = cmd.String("transport", "docker", "default transport to fetch driver images: docker or docker-daemon)")
 	maxMessageSize = cmd.Int("grpc-max-message-size", 100, "max. message size to send/receive to/from clients (in MB)")
