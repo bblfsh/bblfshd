@@ -1,5 +1,5 @@
-hash: 0eed5eb68e642fe023da8375208980a56e86458d736adef8391eb54b341b8e1e
-updated: 2017-09-29T17:07:45.839646465+02:00
+hash: fe547f671b0b4b6c14104bd3d0a967fc0ead4580874845c075e964b02fe79eb1
+updated: 2017-10-03T12:21:40.031149962+02:00
 imports:
 - name: github.com/BurntSushi/toml
   version: a368813c5e648fee92e5f6c30e3944ff9d5e8895
@@ -246,15 +246,14 @@ imports:
   - tap
   - transport
 - name: gopkg.in/bblfsh/sdk.v1
-  version: 0f9f2d71d143114a4285cd180fcb015278025624
-  repo: https://github.com/bblfsh/sdk.git
+  version: 421904bf0bfbebd6b56c63a144f9c81ae87348ed
   subpackages:
   - manifest
   - protocol
   - sdk/server
   - uast
 - name: gopkg.in/src-d/enry.v1
-  version: ded6d367fe9cc87f6c34dd4fb2bfb75d1dcc1950
+  version: 95ef0a6cf3f84c2eefafbef2bb9f9cde6144ea5d
   subpackages:
   - data
   - internal/tokenizer

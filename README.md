@@ -18,6 +18,22 @@ git clone https://github.com/bblfsh/server.git
 cd server
 ```
 
+### Dependencies
+
+Ensure you have [OSTree](https://github.com/ostreedev/ostree) installed.
+
+For Debian/Ubuntu:
+
+```
+$ apt-get install libostree-dev
+```
+
+For ArchLinux:
+
+```
+$ pacman -S ostree
+```
+
 ### Building From Source
 
 Build with:
