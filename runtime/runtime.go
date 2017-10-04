@@ -106,7 +106,7 @@ func ContainerConfigFactory(containerID string) *configs.Config {
 			{Type: configs.NEWPID},
 		}),
 		Cgroups: &configs.Cgroup{
-			Name:   "bblfsh",
+			Name:   containerID,
 			Parent: "system",
 			Resources: &configs.Resources{
 				MemorySwappiness: nil,
