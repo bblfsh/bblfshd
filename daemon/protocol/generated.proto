@@ -1,0 +1,76 @@
+syntax = "proto3";
+package github.com.bblfsh.server.daemon.protocol;
+
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+
+option (gogoproto.protosizer_all) = true;
+option (gogoproto.sizer_all) = false;
+option go_package = "protocol";
+
+message DriverInstanceState {
+	option (gogoproto.goproto_getters) = false;
+	option (gogoproto.typedecl) = false;
+	string id = 1 [(gogoproto.customname) = "ID"];
+	string image = 2;
+	github.com.bblfsh.server.daemon.protocol.Status status = 3;
+	google.protobuf.Timestamp created = 4 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
+	repeated int64 processes = 5 [(gogoproto.casttype) = "int"];
+}
+
+message DriverInstanceStatesResponse {
+	option (gogoproto.goproto_getters) = false;
+	option (gogoproto.typedecl) = false;
+	repeated string errors = 1;
+	google.protobuf.Duration elapsed = 2 [(gogoproto.nullable) = false, (gogoproto.stdduration) = true];
+	repeated github.com.bblfsh.server.daemon.protocol.DriverInstanceState state = 3;
+}
+
+message DriverPoolState {
+	option (gogoproto.goproto_getters) = false;
+	option (gogoproto.typedecl) = false;
+	int64 wanted = 1 [(gogoproto.casttype) = "int"];
+	int64 running = 2 [(gogoproto.casttype) = "int"];
+	int64 waiting = 3 [(gogoproto.casttype) = "int"];
+	int64 success = 4 [(gogoproto.casttype) = "int"];
+	int64 errors = 5 [(gogoproto.casttype) = "int"];
+	int64 exited = 6 [(gogoproto.casttype) = "int"];
+}
+
+message DriverPoolStatesResponse {
+	option (gogoproto.goproto_getters) = false;
+	option (gogoproto.typedecl) = false;
+	repeated string errors = 1;
+	google.protobuf.Duration elapsed = 2 [(gogoproto.nullable) = false, (gogoproto.stdduration) = true];
+	map<string, github.com.bblfsh.server.daemon.protocol.DriverPoolState> state = 3;
+}
+
+message DriverInstanceStatesRequest {
+}
+
+message DriverPoolStatesRequest {
+}
+
+// Status is the status of a driver instance.
+enum Status {
+	option (gogoproto.enumdecl) = false;
+	option (gogoproto.goproto_enum_prefix) = false;
+	option (gogoproto.goproto_enum_stringer) = false;
+	// Created the container exists but has not been run yet.
+	CREATED = 0 [(gogoproto.enumvalue_customname) = "Created"];
+	// Running the container exists and is running.
+	RUNNING = 1 [(gogoproto.enumvalue_customname) = "Running"];
+	// Pausing the container exists, it is in the process of being paused.
+	PAUSING = 2 [(gogoproto.enumvalue_customname) = "Pausing"];
+	// Paused the container exists, but all its processes are paused.
+	PAUSED = 3 [(gogoproto.enumvalue_customname) = "Paused"];
+	// Stopped the container does not have a created or running process.
+	STOPPED = 4 [(gogoproto.enumvalue_customname) = "Stopped"];
+}
+
+service ProtocolService {
+	rpc DriverInstanceStates (github.com.bblfsh.server.daemon.protocol.DriverInstanceStatesRequest) returns (github.com.bblfsh.server.daemon.protocol.DriverInstanceStatesResponse);
+	rpc DriverPoolStates (github.com.bblfsh.server.daemon.protocol.DriverPoolStatesRequest) returns (github.com.bblfsh.server.daemon.protocol.DriverPoolStatesResponse);
+}
+
