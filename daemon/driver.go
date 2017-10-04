@@ -11,19 +11,21 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/bblfsh/server/daemon/protocol"
 	"github.com/bblfsh/server/runtime"
 
-	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"google.golang.org/grpc"
-	"gopkg.in/bblfsh/sdk.v1/protocol"
+	sdk "gopkg.in/bblfsh/sdk.v1/protocol"
 )
 
 type Driver interface {
+	ID() string
 	Start() error
 	Stop() error
-	Status() (libcontainer.Status, error)
-	Service() protocol.ProtocolServiceClient
+	Status() (protocol.Status, error)
+	State() (*protocol.DriverInstanceState, error)
+	Service() sdk.ProtocolServiceClient
 }
 
 // DriverInstance represents an instance of a driver.
@@ -35,7 +37,7 @@ type DriverInstance struct {
 
 	ctx  context.Context
 	conn *grpc.ClientConn
-	srv  protocol.ProtocolServiceClient
+	srv  sdk.ProtocolServiceClient
 	tmp  string
 }
 
@@ -101,6 +103,11 @@ func NewDriverInstance(r *runtime.Runtime, lang string, i runtime.DriverImage, o
 	}, nil
 }
 
+// ID returns the container id.
+func (i *DriverInstance) ID() string {
+	return i.Container.ID()
+}
+
 // Start starts a container and connects to it.
 func (i *DriverInstance) Start() error {
 	if err := i.Container.Start(); err != nil {
@@ -130,12 +137,12 @@ func (i *DriverInstance) dial() error {
 	)
 
 	i.conn = conn
-	i.srv = protocol.NewProtocolServiceClient(conn)
+	i.srv = sdk.NewProtocolServiceClient(conn)
 	return err
 }
 
 func (i *DriverInstance) loadVersion() error {
-	_, err := i.srv.Version(context.Background(), &protocol.VersionRequest{})
+	_, err := i.srv.Version(context.Background(), &sdk.VersionRequest{})
 	if err != nil {
 		return err
 	}
@@ -143,8 +150,36 @@ func (i *DriverInstance) loadVersion() error {
 	return nil
 }
 
-func (i *DriverInstance) Status() (libcontainer.Status, error) {
-	return i.Container.Status()
+// Status returns the current status of the container.
+func (i *DriverInstance) Status() (protocol.Status, error) {
+	s, err := i.Container.Status()
+	return protocol.Status(s), err
+}
+
+// State returns the current state of the driver instance.
+func (i *DriverInstance) State() (*protocol.DriverInstanceState, error) {
+	status, err := i.Status()
+	if err != nil {
+		return nil, err
+	}
+
+	pid, err := i.Container.Processes()
+	if err != nil {
+		return nil, err
+	}
+
+	state, err := i.Container.State()
+	if err != nil {
+		return nil, err
+	}
+
+	return &protocol.DriverInstanceState{
+		ID:        i.ID(),
+		Image:     i.Image.Name(),
+		Status:    status,
+		Processes: pid,
+		Created:   state.Created,
+	}, nil
 }
 
 // Stop stops the inner running container.
@@ -153,7 +188,7 @@ func (i *DriverInstance) Stop() error {
 }
 
 // Service returns the client using the grpc connection.
-func (i *DriverInstance) Service() protocol.ProtocolServiceClient {
+func (i *DriverInstance) Service() sdk.ProtocolServiceClient {
 	return i.srv
 }
 
