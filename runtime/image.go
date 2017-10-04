@@ -3,8 +3,6 @@ package runtime
 import (
 	"strings"
 
-	"github.com/bblfsh/server/utils"
-
 	"github.com/containers/image/image"
 	"github.com/containers/image/types"
 )
@@ -18,18 +16,22 @@ type DriverImage interface {
 }
 
 type driverImage struct {
-	ref types.ImageReference
+	imageRef string
+	ref      types.ImageReference
 }
 
 // NewDriverImage returns a new DriverImage from an image reference.
 // For Docker use `docker://bblfsh/rust-driver:latest`.
 func NewDriverImage(imageRef string) (DriverImage, error) {
-	ir, err := ParseImageName(imageRef)
+	ref, err := ParseImageName(imageRef)
 	if err != nil {
 		return nil, err
 	}
 
-	return &driverImage{ref: ir}, nil
+	return &driverImage{
+		imageRef: imageRef,
+		ref:      ref,
+	}, nil
 }
 
 // Name returns the name of the driver image based on the image reference.
@@ -71,7 +73,7 @@ func (d *driverImage) WriteTo(path string) error {
 	}
 
 	defer img.Close()
-	if err := utils.UnpackImage(img, path); err != nil {
+	if err := UnpackImage(img, path); err != nil {
 		return err
 	}
 
@@ -80,7 +82,10 @@ func (d *driverImage) WriteTo(path string) error {
 		return err
 	}
 
-	return utils.WriteImageConfig(config, path+".json")
+	return WriteImageConfig(&ImageConfig{
+		Image:    *config,
+		ImageRef: d.imageRef,
+	}, path+".json")
 }
 
 func (d *driverImage) image() (types.Image, error) {

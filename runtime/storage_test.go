@@ -41,10 +41,10 @@ func TestStorageStatus(t *testing.T) {
 	require.NoError(err)
 	require.False(status.Digest.IsZero())
 	require.Equal("Go", status.Manifest.Language)
-	require.Equal("foo", status.Reference)
+	require.Equal("//foo", status.Reference)
 }
 
-func TestStorageStatusAndDirty(t *testing.T) {
+func TestStorageStatus_Dirty(t *testing.T) {
 	require := require.New(t)
 
 	dir, err := ioutil.TempDir("", "runtime-storage-status")
@@ -57,14 +57,14 @@ func TestStorageStatusAndDirty(t *testing.T) {
 	err = s.Install(d, false)
 	require.NoError(err)
 
-	err = os.MkdirAll(filepath.Join(dir, "foo", ComputeDigest("bar").String()), 0777)
+	err = os.MkdirAll(filepath.Join(dir, ComputeDigest("//foo").String(), ComputeDigest("bar").String()), 0777)
 	require.NoError(err)
 	di, err := s.Status(d)
 	require.Equal(ErrDirtyDriverStorage, err)
 	require.Nil(di)
 }
 
-func TestStorageStatusNotInstalled(t *testing.T) {
+func TestStorageStatus_NotInstalled(t *testing.T) {
 	require := require.New(t)
 
 	dir, err := ioutil.TempDir("", "runtime-storage-status-empty")
@@ -102,7 +102,7 @@ func TestStorageRemove(t *testing.T) {
 	require.Nil(status)
 }
 
-func TestStorageRemoveEmpty(t *testing.T) {
+func TestStorageRemove_Empty(t *testing.T) {
 	require := require.New(t)
 
 	dir, err := ioutil.TempDir("", "runtime-storage-remove-empty")
@@ -128,7 +128,7 @@ func TestStorageList(t *testing.T) {
 
 	err = s.Install(&FixtureDriverImage{"//foo", nil}, false)
 	require.NoError(err)
-	err = s.Install(&FixtureDriverImage{"//bar", nil}, false)
+	err = s.Install(&FixtureDriverImage{"//bar/bar", nil}, false)
 	require.NoError(err)
 
 	list, err := s.List()

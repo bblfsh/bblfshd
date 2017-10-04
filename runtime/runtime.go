@@ -6,7 +6,6 @@ import (
 	"runtime"
 	"syscall"
 
-	"github.com/bblfsh/server/utils"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	_ "github.com/opencontainers/runc/libcontainer/nsenter"
@@ -80,7 +79,7 @@ func (r *Runtime) Container(id string, d DriverImage, p *Process, f ConfigFactor
 		return nil, err
 	}
 
-	imgConfig, err := utils.ReadImageConfig(cfg.Rootfs + ".json")
+	imgConfig, err := ReadImageConfig(cfg.Rootfs + ".json")
 	if err != nil {
 		return nil, err
 	}

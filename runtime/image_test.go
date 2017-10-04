@@ -13,6 +13,7 @@ func TestDriverImageName(t *testing.T) {
 	require := require.New(t)
 
 	d, err := NewDriverImage("docker://busybox:latest")
+
 	require.NoError(err)
 	require.Equal("busybox:latest", d.Name())
 }
