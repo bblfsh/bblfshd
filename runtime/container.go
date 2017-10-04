@@ -89,10 +89,15 @@ func (c *container) Stop() error {
 		return err
 	}
 
-	return c.Container.Signal(syscall.SIGTERM, false)
+	// kills all the remaining processes
+	if err := c.Signal(syscall.SIGKILL); err != nil {
+		return err
+	}
+
+	return c.Destroy()
 }
 
 func (c *container) Signal(sig os.Signal) error {
-	return c.Container.Signal(sig, false)
+	return c.Container.Signal(sig, true)
 
 }
