@@ -1,6 +1,6 @@
 # Package configuration
 PROJECT = server
-COMMANDS = bblfshd
+COMMANDS = bblfshd bblfshctl
 DEPENDENCIES = \
 	golang.org/x/tools/cmd/cover \
 	github.com/Masterminds/glide
@@ -10,7 +10,7 @@ NOVENDOR_PACKAGES := $(shell go list ./... | grep -v '/vendor/')
 BASE_PATH := $(shell pwd)
 VENDOR_PATH := $(BASE_PATH)/vendor
 BUILD_PATH := $(BASE_PATH)/build
-CMD_PATH := $(BASE_PATH)/cmd
+CMD_PATH := $(BASE_PATH)/cli
 
 # Build information
 BUILD := $(shell date -Iseconds)
@@ -81,13 +81,10 @@ DOCKER_IMAGE_VERSIONED ?= $(call escape_docker_tag,$(DOCKER_IMAGE):$(VERSION))
 # Rules
 all: clean build
 
-dependencies: $(DEPENDENCIES) $(VENDOR_PATH) $(NOVENDOR_PACKAGES)
+dependencies: $(DEPENDENCIES) $(VENDOR_PATH)
 
 $(DEPENDENCIES):
 	$(GO_GET) $@/...
-
-$(NOVENDOR_PACKAGES):
-	$(GO_GET) $@
 
 $(VENDOR_PATH):
 	$(GLIDE) install; \

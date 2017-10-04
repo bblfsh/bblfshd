@@ -3,10 +3,12 @@ package daemon
 import (
 	"math"
 	"runtime"
+	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/opencontainers/runc/libcontainer"
+	"github.com/bblfsh/server/daemon/protocol"
+
 	"github.com/sirupsen/logrus"
 	"gopkg.in/bblfsh/sdk.v1/sdk/server"
 	"gopkg.in/src-d/go-errors.v1"
@@ -38,16 +40,25 @@ type DriverPool struct {
 	// Logger used during the live of the driver pool.
 	Logger server.Logger
 
-	factory   FactoryFunction
-	instances atomicInt
-	waiting   atomicInt
-	stopped   atomicInt
-	queue     *driverQueue
+	// factory function used to spawn new driver instances.
+	factory FactoryFunction
+	// queue holds all the driver instances.
+	queue *driverQueue
+	// index holds a pointer to the current driver instances by id.
+	index sync.Map
 	// close channel will be used to synchronize Close() call with the
 	// scaling() goroutine. Once Close() starts, a struct{} will be sent to
 	// the close channel. And once scaling() finish it will close it.
 	close  chan struct{}
 	closed bool
+	// stats hold different metrics about the state of the pool.
+	stats struct {
+		instances atomicInt // instances wanted
+		waiting   atomicInt // requests waiting for a driver
+		success   atomicInt // requests executed successfully
+		errors    atomicInt // requests errored
+		exited    atomicInt // drivers exited unexpectedly
+	}
 }
 
 // FactoryFunction is a factory function that creates new DriverInstance's.
@@ -87,7 +98,7 @@ func (dp *DriverPool) setInstances(target int) error {
 		return ErrNegativeInstances.New()
 	}
 
-	n := target - dp.instances.Value()
+	n := target - dp.stats.instances.Value()
 	if n > 0 {
 		return dp.add(n)
 	} else if n < 0 {
@@ -104,8 +115,9 @@ func (dp *DriverPool) add(n int) error {
 			return err
 		}
 
+		dp.index.Store(d.ID(), d)
 		dp.queue.Put(d)
-		dp.instances.Add(1)
+		dp.stats.instances.Add(1)
 	}
 
 	return nil
@@ -127,11 +139,12 @@ func (dp *DriverPool) del(n int) error {
 }
 
 func (dp *DriverPool) remove(d Driver) error {
-	dp.instances.Add(-1)
+	dp.stats.instances.Add(-1)
 	if err := d.Stop(); err != nil {
 		return err
 	}
 
+	dp.index.Delete(d.ID())
 	return nil
 }
 
@@ -150,9 +163,9 @@ func (dp *DriverPool) scaling() {
 }
 
 func (dp *DriverPool) doScaling() {
-	total := dp.instances.Value()
+	total := dp.stats.instances.Value()
 	ready := dp.queue.Size()
-	load := dp.waiting.Value()
+	load := dp.stats.waiting.Value()
 
 	s := dp.ScalingPolicy.Scale(total, load-ready)
 	if s == total {
@@ -173,10 +186,11 @@ type Function func(d Driver) error
 // are busy, it will return an error after the timeout passes. If the DriverPool
 // is closed, an error will be returned.
 func (dp *DriverPool) Execute(c Function) error {
-	dp.waiting.Add(1)
+	dp.stats.waiting.Add(1)
 	d, more, err := dp.queue.GetWithTimeout(dp.Timeout)
-	dp.waiting.Add(-1)
+	dp.stats.waiting.Add(-1)
 	if err != nil {
+		dp.stats.errors.Add(1)
 		dp.Logger.Warningf("unable to allocate a driver instance: %s", err)
 		return err
 	}
@@ -190,9 +204,9 @@ func (dp *DriverPool) Execute(c Function) error {
 		return err
 	}
 
-	if status != libcontainer.Running {
+	if status != protocol.Running {
 		defer func() {
-			dp.stopped.Add(1)
+			dp.stats.exited.Add(1)
 			dp.Logger.Debugf("removing stopped driver")
 			if err := dp.remove(d); err != nil {
 				dp.Logger.Errorf("error removing stopped driver: %s", err)
@@ -203,7 +217,37 @@ func (dp *DriverPool) Execute(c Function) error {
 	}
 
 	defer dp.queue.Put(d)
-	return c(d)
+	if err := c(d); err != nil {
+		dp.stats.errors.Add(1)
+		return err
+	}
+
+	dp.stats.success.Add(1)
+	return nil
+}
+
+// Current returns a list of the current instances from the pool, it includes
+// the running ones and those being stopped.
+func (dp *DriverPool) Current() []Driver {
+	var list []Driver
+	dp.index.Range(func(_, d interface{}) bool {
+		list = append(list, d.(Driver))
+		return true
+	})
+
+	return list
+}
+
+// State current state of driver pool.
+func (dp *DriverPool) State() *protocol.DriverPoolState {
+	return &protocol.DriverPoolState{
+		Wanted:  dp.stats.instances.Value(),
+		Running: len(dp.Current()),
+		Waiting: dp.stats.waiting.Value(),
+		Success: dp.stats.success.Value(),
+		Errors:  dp.stats.errors.Value(),
+		Exited:  dp.stats.exited.Value(),
+	}
 }
 
 // Stop stop the driver pool, including all its underlying driver instances.

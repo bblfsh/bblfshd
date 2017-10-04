@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bblfsh/server/daemon/protocol"
 	"github.com/bblfsh/server/runtime"
 
 	"github.com/stretchr/testify/require"
@@ -15,44 +16,91 @@ func init() {
 	runtime.Bootstrap()
 }
 
+func TestNewDriver(t *testing.T) {
+	require := require.New(t)
+
+	run, image, path := NewRuntime(t)
+	defer os.RemoveAll(path)
+
+	err := run.InstallDriver(image, false)
+	require.NoError(err)
+
+	i, err := NewDriverInstance(run, "foo", image, &Options{
+		LogLevel:  "debug",
+		LogFormat: "text",
+	})
+
+	require.NoError(err)
+
+	err = i.Start()
+	require.NoError(err)
+
+	time.Sleep(50 * time.Millisecond)
+
+	err = i.Stop()
+	require.NoError(err)
+}
+
+func TestDriverInstance_State(t *testing.T) {
+	require := require.New(t)
+
+	run, image, path := NewRuntime(t)
+	defer os.RemoveAll(path)
+
+	i, err := NewDriverInstance(run, "foo", image, &Options{
+		LogLevel:  "debug",
+		LogFormat: "text",
+	})
+
+	require.NoError(err)
+
+	state, err := i.State()
+	require.NoError(err)
+	require.Equal(protocol.Stopped, state.Status)
+	require.Len(state.Processes, 0)
+	require.True(state.Created.IsZero())
+
+	err = i.Start()
+	require.NoError(err)
+	defer func() {
+		err = i.Stop()
+		require.NoError(err)
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+
+	state, err = i.State()
+	require.NoError(err)
+	require.Equal(protocol.Running, state.Status)
+	require.Len(state.Processes, 2)
+	require.False(state.Created.IsZero())
+}
+
+func NewRuntime(t *testing.T) (*runtime.Runtime, runtime.DriverImage, string) {
+	IfNetworking(t)
+
+	require := require.New(t)
+
+	dir, err := ioutil.TempDir(os.TempDir(), "bblfsh-runtime")
+	require.NoError(err)
+
+	run := runtime.NewRuntime(dir)
+	err = run.Init()
+	require.NoError(err)
+
+	image, err := runtime.NewDriverImage("docker://bblfsh/python-driver:experimental")
+	require.NoError(err)
+
+	err = run.InstallDriver(image, false)
+	require.NoError(err)
+
+	return run, image, dir
+}
+
 func IfNetworking(t *testing.T) {
 	if len(os.Getenv("TEST_NETWORKING")) != 0 {
 		return
 	}
 
 	t.Skip("skipping network test use TEST_NETWORKING to run this test")
-}
-func TestNewDriver(t *testing.T) {
-	IfNetworking(t)
-
-	r := require.New(t)
-
-	dir, err := ioutil.TempDir(os.TempDir(), "bblfsh-runtime")
-	r.Nil(err)
-	defer func() {
-		err := os.RemoveAll(dir)
-		r.Nil(err)
-	}()
-
-	run := runtime.NewRuntime(dir)
-	err = run.Init()
-	r.Nil(err)
-
-	image, err := runtime.NewDriverImage("docker://bblfsh/python-driver:experimental")
-	r.Nil(err)
-
-	err = run.InstallDriver(image, false)
-	r.Nil(err)
-	i, err := NewDriverInstance(run, "foo", image, &Options{
-		LogLevel:  "debug",
-		LogFormat: "text",
-	})
-	r.Nil(err)
-	err = i.Start()
-	r.NoError(err)
-
-	time.Sleep(5 * time.Second)
-
-	err = i.Stop()
-	r.Nil(err)
 }

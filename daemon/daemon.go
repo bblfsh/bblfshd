@@ -1,15 +1,15 @@
 package daemon
 
 import (
-	"context"
 	"fmt"
 	"sync"
-	"time"
 
+	"github.com/bblfsh/server/daemon/protocol"
 	"github.com/bblfsh/server/runtime"
 
 	"github.com/sirupsen/logrus"
-	"gopkg.in/bblfsh/sdk.v1/protocol"
+	"google.golang.org/grpc"
+	sdk "gopkg.in/bblfsh/sdk.v1/protocol"
 	"gopkg.in/bblfsh/sdk.v1/sdk/server"
 	"gopkg.in/src-d/go-errors.v1"
 )
@@ -28,6 +28,8 @@ var (
 // Daemon is a Babelfish server.
 type Daemon struct {
 	server.Server
+	ControlServer *grpc.Server
+
 	// Transport to use to fetch driver images. Defaults to "docker".
 	// Useful transports:
 	// - docker: uses Docker registries (docker.io by default).
@@ -45,14 +47,25 @@ type Daemon struct {
 // NewDaemon creates a new server based on the runtime with the given version.
 func NewDaemon(version string, r *runtime.Runtime) *Daemon {
 	d := &Daemon{
-		version:   version,
-		runtime:   r,
-		pool:      make(map[string]*DriverPool),
-		Overrides: make(map[string]string),
+		version:       version,
+		runtime:       r,
+		pool:          make(map[string]*DriverPool),
+		Overrides:     make(map[string]string),
+		ControlServer: grpc.NewServer(),
 	}
 
-	protocol.DefaultService = d
+	registerGRPC(d)
 	return d
+}
+
+func registerGRPC(d *Daemon) {
+	sdk.DefaultService = NewService(d)
+
+	protocol.DefaultService = NewControlService(d)
+	protocol.RegisterProtocolServiceServer(
+		d.ControlServer,
+		protocol.NewProtocolServiceServer(),
+	)
 }
 
 func (d *Daemon) AddDriver(language string, img string) error {
@@ -120,111 +133,20 @@ func (d *Daemon) DriverPool(language string) (*DriverPool, error) {
 	return dp, nil
 }
 
-func (d *Daemon) Parse(req *protocol.ParseRequest) *protocol.ParseResponse {
-	resp := &protocol.ParseResponse{}
-	start := time.Now()
-	defer func() {
-		resp.Elapsed = time.Since(start)
-		d.logResponse(resp.Status, req.Language, len(req.Content), resp.Elapsed)
-	}()
+// Current returns the current list of driver pools.
+func (d *Daemon) Current() map[string]*DriverPool {
+	d.mutex.RLock()
+	defer d.mutex.RUnlock()
 
-	if req.Content == "" {
-		return resp
+	out := make(map[string]*DriverPool, len(d.pool))
+	for k, pool := range d.pool {
+		out[k] = pool
 	}
 
-	language, dp, err := d.selectPool(req.Language, req.Content, req.Filename)
-	if err != nil {
-		logrus.Errorf("error selecting pool: %s", err)
-		resp.Response = newResponseFromError(err)
-		return resp
-	}
-
-	req.Language = language
-
-	err = dp.Execute(func(driver Driver) error {
-		resp, err = driver.Service().Parse(context.Background(), req)
-		return err
-	})
-
-	if err != nil {
-		resp = &protocol.ParseResponse{}
-		resp.Response = newResponseFromError(err)
-	}
-
-	return resp
+	return out
 }
 
-func (d *Daemon) logResponse(s protocol.Status, language string, size int, elapsed time.Duration) {
-	l := logrus.WithFields(logrus.Fields{
-		"language": language,
-		"elapsed":  elapsed,
-	})
-
-	text := fmt.Sprintf("request processed content %d bytes, status %s", size, s)
-
-	switch s {
-	case protocol.Ok:
-		l.Debug(text)
-	case protocol.Error:
-		l.Warning(text)
-	case protocol.Fatal:
-		l.Error(text)
-	}
-}
-
-func (d *Daemon) NativeParse(req *protocol.NativeParseRequest) *protocol.NativeParseResponse {
-	resp := &protocol.NativeParseResponse{}
-	start := time.Now()
-	defer func() {
-		resp.Elapsed = time.Since(start)
-		d.logResponse(resp.Status, req.Language, len(req.Content), resp.Elapsed)
-	}()
-
-	if req.Content == "" {
-		logrus.Debugf("empty request received, returning empty AST")
-		return resp
-	}
-
-	language, dp, err := d.selectPool(req.Language, req.Content, req.Filename)
-	if err != nil {
-		logrus.Errorf("error selecting pool: %s", err)
-		resp.Response = newResponseFromError(err)
-		return resp
-	}
-
-	req.Language = language
-
-	err = dp.Execute(func(driver Driver) error {
-		resp, err = driver.Service().NativeParse(context.Background(), req)
-		return err
-	})
-
-	if err != nil {
-		resp = &protocol.NativeParseResponse{}
-		resp.Response = newResponseFromError(err)
-	}
-
-	return resp
-}
-
-func (d *Daemon) selectPool(language, content, filename string) (string, *DriverPool, error) {
-	if language == "" {
-		language = GetLanguage(filename, []byte(content))
-		logrus.Debugf("detected language %q, filename %q", language, filename)
-	}
-
-	dp, err := d.DriverPool(language)
-	if err != nil {
-		return language, nil, ErrUnexpected.Wrap(err)
-	}
-
-	return language, dp, nil
-}
-
-func (d *Daemon) Version(req *protocol.VersionRequest) *protocol.VersionResponse {
-	return &protocol.VersionResponse{Version: d.version}
-}
-
+// Stop stops all the pools and containers.
 func (d *Daemon) Stop() error {
 	var err error
 	for _, dp := range d.pool {
@@ -237,12 +159,12 @@ func (d *Daemon) Stop() error {
 }
 
 // returns the default image reference for a driver given a language.
-func (s *Daemon) defaultDriverImageReference(lang string) string {
-	if override := s.Overrides[lang]; override != "" {
+func (d *Daemon) defaultDriverImageReference(lang string) string {
+	if override := d.Overrides[lang]; override != "" {
 		return override
 	}
 
-	transport := s.Transport
+	transport := d.Transport
 	if transport == "" {
 		transport = defaultTransport
 	}
@@ -270,9 +192,9 @@ func getDriverInstanceOptions() *Options {
 	return opts
 }
 
-func newResponseFromError(err error) protocol.Response {
-	return protocol.Response{
-		Status: protocol.Fatal,
+func newResponseFromError(err error) sdk.Response {
+	return sdk.Response{
+		Status: sdk.Fatal,
 		Errors: []string{err.Error()},
 	}
 }
