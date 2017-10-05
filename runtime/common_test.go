@@ -7,6 +7,7 @@ import (
 
 	"github.com/containers/image/types"
 	"gopkg.in/bblfsh/sdk.v1/manifest"
+	"gopkg.in/bblfsh/sdk.v1/sdk/driver"
 )
 
 func init() {
@@ -43,7 +44,17 @@ func (d *FixtureDriverImage) WriteTo(path string) error {
 		return err
 	}
 
-	w, err := os.Create(filepath.Join(path, manifest.Filename))
+	if err := WriteImageConfig(&ImageConfig{ImageRef: d.N}, path+".json"); err != nil {
+		return err
+	}
+
+	m := filepath.Join(path, driver.ManifestLocation)
+	err := os.MkdirAll(filepath.Dir(m), 0777)
+	if err != nil {
+		return err
+	}
+
+	w, err := os.Create(m)
 	if err != nil {
 		return err
 	}

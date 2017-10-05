@@ -4,7 +4,6 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/configs"
 )
@@ -43,24 +42,24 @@ type Command interface {
 	Stop() error
 }
 
-func newContainer(c libcontainer.Container, p *Process, imageDesc *v1.Image) Container {
+func newContainer(c libcontainer.Container, p *Process, config *ImageConfig) Container {
 	cp := libcontainer.Process(*p)
 	return &container{
-		Container:       c,
-		process:         &cp,
-		imageDescriptor: imageDesc,
+		Container: c,
+		process:   &cp,
+		config:    config,
 	}
 }
 
 type container struct {
 	libcontainer.Container
-	process         *libcontainer.Process
-	imageDescriptor *v1.Image
+	process *libcontainer.Process
+	config  *ImageConfig
 }
 
 func (c *container) Start() error {
-	env := make([]string, len(c.imageDescriptor.Config.Env))
-	copy(env, c.imageDescriptor.Config.Env)
+	env := make([]string, len(c.config.Config.Env))
+	copy(env, c.config.Config.Env)
 	c.process.Env = append(env, c.process.Env...)
 
 	if err := c.Container.Run(c.process); err != nil {

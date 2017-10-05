@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"gopkg.in/bblfsh/sdk.v1/manifest"
+	"gopkg.in/bblfsh/sdk.v1/sdk/driver"
 )
 
 var (
@@ -126,7 +127,7 @@ func (s *storage) rootFSPath(d DriverImage, di Digest) string {
 }
 
 func (s *storage) basePath(d DriverImage) string {
-	return filepath.Join(s.path, d.Name())
+	return filepath.Join(s.path, ComputeDigest(d.Name()).String())
 }
 
 func (s *storage) basePathExists(d DriverImage) (bool, error) {
@@ -166,16 +167,19 @@ func getDirs(path string) ([]string, error) {
 }
 
 func newDriverImageStatus(path string) (*DriverImageStatus, error) {
-	manifest, err := manifest.Load(filepath.Join(path, manifest.Filename))
+	manifest, err := manifest.Load(filepath.Join(path, driver.ManifestLocation))
 	if err != nil {
 		return nil, err
 	}
 
-	base, digest := filepath.Split(path)
-	name := filepath.Base(base)
+	config, err := ReadImageConfig(path + ".json")
+	if err != nil {
+		return nil, err
+	}
 
+	_, digest := filepath.Split(path)
 	return &DriverImageStatus{
-		Reference: name,
+		Reference: config.ImageRef,
 		Digest:    NewDigest(digest),
 		Manifest:  manifest,
 	}, nil
