@@ -11,14 +11,14 @@ import (
 	"github.com/olekukonko/tablewriter"
 )
 
-const StatusCommandDescription = "prints the status for each pool of driver instances running on the daemon."
+const StatusCommandDescription = "List all the pools of driver instances running"
 
 type StatusCommand struct {
-	GRPCCommand
+	ControlCommand
 }
 
 func (c *StatusCommand) Execute(args []string) error {
-	if err := c.GRPCCommand.Execute(nil); err != nil {
+	if err := c.ControlCommand.Execute(nil); err != nil {
 		return err
 	}
 

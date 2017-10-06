@@ -12,6 +12,7 @@ var DefaultService Service
 type Service interface {
 	DriverPoolStates() map[string]*DriverPoolState
 	DriverInstanceStates() ([]*DriverInstanceState, error)
+	DriverStates() ([]*DriverImageState, error)
 }
 
 //proteus:generate
@@ -50,6 +51,30 @@ func DriverInstanceStates() *DriverInstanceStatesResponse {
 
 	var err error
 	resp.State, err = DefaultService.DriverInstanceStates()
+	if err != nil {
+		resp.Errors = append(resp.Errors, err.Error())
+	}
+
+	return resp
+}
+
+//proteus:generate
+type DriverStatesResponse struct {
+	protocol.Response
+	// State represent the state of each driver in the storage.
+	State []*DriverImageState
+}
+
+//proteus:generate
+func DriverStates() *DriverStatesResponse {
+	resp := &DriverStatesResponse{}
+	start := time.Now()
+	defer func() {
+		resp.Elapsed = time.Since(start)
+	}()
+
+	var err error
+	resp.State, err = DefaultService.DriverStates()
 	if err != nil {
 		resp.Errors = append(resp.Errors, err.Error())
 	}

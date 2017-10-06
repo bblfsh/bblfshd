@@ -9,6 +9,19 @@ option (gogoproto.protosizer_all) = true;
 option (gogoproto.sizer_all) = false;
 option go_package = "protocol";
 
+message DriverImageState {
+	option (gogoproto.goproto_getters) = false;
+	option (gogoproto.typedecl) = false;
+	string reference = 1;
+	string language = 2;
+	string version = 3;
+	google.protobuf.Timestamp build = 4 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
+	string status = 5;
+	string os = 6 [(gogoproto.customname) = "OS"];
+	repeated string native_version = 7;
+	string go_version = 8;
+}
+
 message DriverInstanceState {
 	option (gogoproto.goproto_getters) = false;
 	option (gogoproto.typedecl) = false;
@@ -46,10 +59,21 @@ message DriverPoolStatesResponse {
 	map<string, github.com.bblfsh.server.daemon.protocol.DriverPoolState> state = 3;
 }
 
+message DriverStatesResponse {
+	option (gogoproto.goproto_getters) = false;
+	option (gogoproto.typedecl) = false;
+	repeated string errors = 1;
+	google.protobuf.Duration elapsed = 2 [(gogoproto.nullable) = false, (gogoproto.stdduration) = true];
+	repeated github.com.bblfsh.server.daemon.protocol.DriverImageState state = 3;
+}
+
 message DriverInstanceStatesRequest {
 }
 
 message DriverPoolStatesRequest {
+}
+
+message DriverStatesRequest {
 }
 
 // Status is the status of a driver instance.
@@ -72,5 +96,6 @@ enum Status {
 service ProtocolService {
 	rpc DriverInstanceStates (github.com.bblfsh.server.daemon.protocol.DriverInstanceStatesRequest) returns (github.com.bblfsh.server.daemon.protocol.DriverInstanceStatesResponse);
 	rpc DriverPoolStates (github.com.bblfsh.server.daemon.protocol.DriverPoolStatesRequest) returns (github.com.bblfsh.server.daemon.protocol.DriverPoolStatesResponse);
+	rpc DriverStates (github.com.bblfsh.server.daemon.protocol.DriverStatesRequest) returns (github.com.bblfsh.server.daemon.protocol.DriverStatesResponse);
 }
 

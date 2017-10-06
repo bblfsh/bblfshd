@@ -1,5 +1,5 @@
-hash: 34a205c48df7ea42f44862c8d3b28abec00190e33a33d4693e8ade9fc846aac0
-updated: 2017-10-04T11:45:22.777618795+02:00
+hash: eff2d0184d200185de80d76f13a0c5a42ac427166d32b411accd8456c9a5ca7c
+updated: 2017-10-05T19:59:34.545795603+02:00
 imports:
 - name: github.com/BurntSushi/toml
   version: a368813c5e648fee92e5f6c30e3944ff9d5e8895
@@ -98,6 +98,8 @@ imports:
   version: 0dadbb0345b35ec7ef35e228dabb8de89a65bf52
 - name: github.com/docker/libtrust
   version: aabc10ec26b754e797f9028f4589c5b7bd90dc20
+- name: github.com/fatih/color
+  version: 5df930a27be2502f99b292b7cc09ebad4d0891f4
 - name: github.com/ghodss/yaml
   version: 0ca9ea5df5451ffdf184b4428c902747c2c11cd7
 - name: github.com/godbus/dbus
@@ -122,12 +124,16 @@ imports:
   version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
 - name: github.com/gorilla/mux
   version: ac112f7d75a0714af1bd86ab17749b31f7809640
+- name: github.com/hokaccha/go-prettyjson
+  version: e6b9231a2b1cc5798b336fdbf99c16cd8ad1e0c9
 - name: github.com/jessevdk/go-flags
   version: 96dc06278ce32a0e9d957d590bb987c81ee66407
 - name: github.com/mattn/go-colorable
-  version: ad5389df28cdac544c99bd7b9161a0b5b6ca9d1b
+  version: 5411d3eea5978e6cdc258b30de592b60df6aba96
+  repo: https://github.com/mattn/go-colorable
 - name: github.com/mattn/go-isatty
-  version: fc9e8d8ef48496124e79ae0df75490096eccf6fe
+  version: 57fdcb988a5c543893cc61bce354a6e24ab70022
+  repo: https://github.com/mattn/go-isatty
 - name: github.com/mattn/go-runewidth
   version: 97311d9f7767e3d6f422ea06661bc2c7a19e8a5d
 - name: github.com/mgutz/ansi
@@ -184,9 +190,9 @@ imports:
   version: 645ef00459ed84a119197bfb8d8205042c6df63d
 - name: github.com/seccomp/libseccomp-golang
   version: f6ec81daf48e41bf48b475afc7fe06a26bfb72d1
-- name: github.com/Sirupsen/logrus
-  version: f006c2ac4710855cf0f916dd6b77acf6b048dc6e
 - name: github.com/sirupsen/logrus
+  version: f006c2ac4710855cf0f916dd6b77acf6b048dc6e
+- name: github.com/Sirupsen/logrus
   version: f006c2ac4710855cf0f916dd6b77acf6b048dc6e
 - name: github.com/syndtr/gocapability
   version: db04d3cc01c8b54962a58ec7e491717d06cfcc16
@@ -219,7 +225,7 @@ imports:
   - proxy
   - trace
 - name: golang.org/x/sys
-  version: abf9c25f54453410d0c6668e519582a9e1115027
+  version: e24f485414aeafb646f6fca458b0bf869c0880a1
   subpackages:
   - unix
   - windows
@@ -252,14 +258,17 @@ imports:
   - tap
   - transport
 - name: gopkg.in/bblfsh/sdk.v1
-  version: 421904bf0bfbebd6b56c63a144f9c81ae87348ed
+  version: a130294d82f3cc9c7edd3182479a72c1f68fe031
   subpackages:
   - manifest
   - protocol
+  - sdk/driver
+  - sdk/jsonlines
   - sdk/server
   - uast
+  - uast/transformer
 - name: gopkg.in/src-d/enry.v1
-  version: 95ef0a6cf3f84c2eefafbef2bb9f9cde6144ea5d
+  version: c73f347afa18919a6fd6e4a3d48fbd341c850644
   subpackages:
   - data
   - internal/tokenizer

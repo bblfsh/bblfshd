@@ -156,3 +156,31 @@ func (s *ControlService) DriverInstanceStates() ([]*protocol.DriverInstanceState
 
 	return out, nil
 }
+
+func (s *ControlService) DriverStates() ([]*protocol.DriverImageState, error) {
+	list, err := s.daemon.runtime.ListDrivers()
+	if err != nil {
+		return nil, err
+	}
+
+	var out []*protocol.DriverImageState
+	for _, d := range list {
+		build := d.Manifest.Build
+		if build == nil {
+			build = &time.Time{}
+		}
+
+		out = append(out, &protocol.DriverImageState{
+			Reference:     d.Reference,
+			Language:      d.Manifest.Language,
+			Version:       d.Manifest.Version,
+			Build:         *build,
+			Status:        string(d.Manifest.Status),
+			OS:            string(d.Manifest.Runtime.OS),
+			GoVersion:     string(d.Manifest.Runtime.GoVersion),
+			NativeVersion: []string(d.Manifest.Runtime.NativeVersion),
+		})
+	}
+
+	return out, nil
+}
