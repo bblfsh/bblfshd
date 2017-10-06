@@ -9,17 +9,18 @@ import (
 
 	"github.com/bblfsh/server/daemon/protocol"
 
+	"github.com/docker/go-units"
 	"github.com/olekukonko/tablewriter"
 )
 
-const InstancesCommandDescription = "prints the status for each driver instances running on the daemon."
+const InstancesCommandDescription = "List the driver instances running on the daemon"
 
 type InstancesCommand struct {
-	GRPCCommand
+	ControlCommand
 }
 
 func (c *InstancesCommand) Execute(args []string) error {
-	if err := c.GRPCCommand.Execute(nil); err != nil {
+	if err := c.ControlCommand.Execute(nil); err != nil {
 		return err
 	}
 
@@ -45,8 +46,11 @@ func instancesStatusToText(r *protocol.DriverInstanceStatesResponse) {
 
 		line := fmt.Sprintf("%s\t%s\t%s\t%s\t%s",
 			s.ID[:10], s.Image,
-			s.Status, time.Since(s.Created), pids,
+			s.Status,
+			units.HumanDuration(time.Since(s.Created)),
+			strings.Join(pids, ","),
 		)
+
 		table.Append(strings.Split(line, "\t"))
 	}
 

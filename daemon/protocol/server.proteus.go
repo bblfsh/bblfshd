@@ -20,3 +20,8 @@ func (s *protocolServiceServer) DriverPoolStates(ctx xcontext.Context, in *Drive
 	result = DriverPoolStates()
 	return
 }
+func (s *protocolServiceServer) DriverStates(ctx xcontext.Context, in *DriverStatesRequest) (result *DriverStatesResponse, err error) {
+	result = new(DriverStatesResponse)
+	result = DriverStates()
+	return
+}

@@ -1,4 +1,4 @@
-//go:generate proteus -f $GOPATH/src -p github.com/bblfsh/server/daemon/protocol
+//go:generate proteus -f $GOPATH/src/ -p github.com/bblfsh/server/daemon/protocol --verbose
 //go:generate stringer -type=Status -output stringer.go
 
 package protocol
@@ -52,4 +52,28 @@ type DriverInstanceState struct {
 	Created time.Time `json:"created"`
 	// Processes are the pids of the processes running inside of the container.
 	Processes []int `json:"processes"`
+}
+
+//proteus:generate
+type DriverImageState struct {
+	// Referene is the image reference from where retrieved.
+	Reference string `json:"reference"`
+
+	// This fields are from manifest.Manifest, due to some limitation of
+	// proteus, can't be used directly.
+	// Language of the driver.
+	Language string `json:"language"`
+	// Version of the driver.
+	Version string `json:"version,omitempty"`
+	// Build time at the compilation of the image.
+	Build time.Time `json:"build,omitempty"`
+	// Status is the development status of the driver (alpha, beta, etc).
+	Status string `json:"status"`
+	// OS is the linux distribution running on the driver container.
+	OS string `json:"os"`
+	// Native version is the version of the compiler/interpreter being use in the
+	// native side of the driver.
+	NativeVersion []string `json:"native_version"`
+	// Go version of the go runtime being use in the driver.
+	GoVersion string `json:"go_version"`
 }
