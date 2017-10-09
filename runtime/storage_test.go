@@ -17,11 +17,13 @@ func TestStorageInstall(t *testing.T) {
 	require.NoError(err)
 	defer os.RemoveAll(dir)
 
-	d := &FixtureDriverImage{"//foo", nil}
+	d := &FixtureDriverImage{"//foo", &manifest.Manifest{Language: "Go"}}
 
-	s := newStorage(dir)
-	err = s.Install(d, false)
+	s := newStorage(filepath.Join(dir, "images"), filepath.Join(dir, "tmp"))
+	m, err := s.Install(d, false)
 	require.NoError(err)
+	require.NotNil(m)
+	require.Equal(m.Manifest.Language, "Go")
 }
 
 func TestStorageStatus(t *testing.T) {
@@ -33,8 +35,8 @@ func TestStorageStatus(t *testing.T) {
 
 	d := &FixtureDriverImage{"//foo", &manifest.Manifest{Language: "Go"}}
 
-	s := newStorage(dir)
-	err = s.Install(d, false)
+	s := newStorage(filepath.Join(dir, "images"), filepath.Join(dir, "tmp"))
+	_, err = s.Install(d, false)
 	require.NoError(err)
 
 	status, err := s.Status(d)
@@ -53,14 +55,18 @@ func TestStorageStatus_Dirty(t *testing.T) {
 
 	d := &FixtureDriverImage{"//foo", &manifest.Manifest{Language: "Go"}}
 
-	s := newStorage(dir)
-	err = s.Install(d, false)
+	s := newStorage(filepath.Join(dir, "images"), filepath.Join(dir, "tmp"))
+	_, err = s.Install(d, false)
 	require.NoError(err)
 
-	err = os.MkdirAll(filepath.Join(dir, ComputeDigest("//foo").String(), ComputeDigest("bar").String()), 0777)
+	err = os.MkdirAll(filepath.Join(dir, "images",
+		ComputeDigest("//foo").String(),
+		ComputeDigest("bar").String(),
+	), 0777)
 	require.NoError(err)
+
 	di, err := s.Status(d)
-	require.Equal(ErrDirtyDriverStorage, err)
+	require.True(ErrDirtyDriverStorage.Is(err))
 	require.Nil(di)
 }
 
@@ -74,9 +80,9 @@ func TestStorageStatus_NotInstalled(t *testing.T) {
 	d, err := NewDriverImage("docker://busybox:latest")
 	require.NoError(err)
 
-	s := newStorage(dir)
+	s := newStorage(filepath.Join(dir, "images"), filepath.Join(dir, "tmp"))
 	di, err := s.Status(d)
-	require.Equal(ErrDriverNotInstalled, err)
+	require.True(ErrDriverNotInstalled.Is(err))
 	require.Nil(di)
 }
 
@@ -87,18 +93,17 @@ func TestStorageRemove(t *testing.T) {
 	require.NoError(err)
 	defer os.RemoveAll(dir)
 
-	d := &FixtureDriverImage{"//foo", nil}
+	d := &FixtureDriverImage{"//foo", &manifest.Manifest{}}
 
-	s := newStorage(dir)
-
-	err = s.Install(d, false)
+	s := newStorage(filepath.Join(dir, "images"), filepath.Join(dir, "tmp"))
+	_, err = s.Install(d, false)
 	require.NoError(err)
 
 	err = s.Remove(d)
 	require.NoError(err)
 
 	status, err := s.Status(d)
-	require.Equal(ErrDriverNotInstalled, err)
+	require.True(ErrDriverNotInstalled.Is(err))
 	require.Nil(status)
 }
 
@@ -112,9 +117,9 @@ func TestStorageRemove_Empty(t *testing.T) {
 	d, err := NewDriverImage("docker://busybox:latest")
 	require.NoError(err)
 
-	s := newStorage(dir)
+	s := newStorage(filepath.Join(dir, "images"), filepath.Join(dir, "tmp"))
 	err = s.Remove(d)
-	require.Equal(ErrDriverNotInstalled, err)
+	require.True(ErrDriverNotInstalled.Is(err))
 }
 
 func TestStorageList(t *testing.T) {
@@ -124,11 +129,12 @@ func TestStorageList(t *testing.T) {
 	require.NoError(err)
 	defer os.RemoveAll(dir)
 
-	s := newStorage(dir)
+	s := newStorage(filepath.Join(dir, "images"), filepath.Join(dir, "tmp"))
 
-	err = s.Install(&FixtureDriverImage{"//foo", nil}, false)
+	_, err = s.Install(&FixtureDriverImage{"//foo", &manifest.Manifest{}}, false)
 	require.NoError(err)
-	err = s.Install(&FixtureDriverImage{"//bar/bar", nil}, false)
+
+	_, err = s.Install(&FixtureDriverImage{"//bar/bar", &manifest.Manifest{}}, false)
 	require.NoError(err)
 
 	list, err := s.List()

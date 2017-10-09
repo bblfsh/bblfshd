@@ -14,6 +14,7 @@ import (
 const (
 	storagePath    = "images"
 	containersPath = "containers"
+	temporalPath   = "tmp"
 )
 
 type ConfigFactory func(containerID string) *configs.Config
@@ -32,7 +33,10 @@ func NewRuntime(path string) *Runtime {
 		ContainerConfigFactory: ContainerConfigFactory,
 
 		Root: path,
-		s:    newStorage(filepath.Join(path, storagePath)),
+		s: newStorage(
+			filepath.Join(path, storagePath),
+			filepath.Join(path, temporalPath),
+		),
 	}
 }
 
@@ -51,7 +55,7 @@ func (r *Runtime) Init() error {
 // only one version per image can be stored, update is required to overwrite a
 // previous image if already exists otherwise, Install fails if an previous
 // image already exists.
-func (r *Runtime) InstallDriver(d DriverImage, update bool) error {
+func (r *Runtime) InstallDriver(d DriverImage, update bool) (*DriverImageStatus, error) {
 	return r.s.Install(d, update)
 }
 
@@ -79,7 +83,7 @@ func (r *Runtime) Container(id string, d DriverImage, p *Process, f ConfigFactor
 		return nil, err
 	}
 
-	imgConfig, err := ReadImageConfig(cfg.Rootfs + ".json")
+	imgConfig, err := ReadImageConfig(cfg.Rootfs)
 	if err != nil {
 		return nil, err
 	}

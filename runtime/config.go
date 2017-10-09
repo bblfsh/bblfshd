@@ -7,6 +7,8 @@ import (
 	"github.com/opencontainers/image-spec/specs-go/v1"
 )
 
+const configExt = ".json"
+
 // ImageConfig describes some basic information about the image.
 type ImageConfig struct {
 	// ImageRef is the original image reference used to retrieve the image.
@@ -15,7 +17,7 @@ type ImageConfig struct {
 }
 
 func WriteImageConfig(config *ImageConfig, path string) error {
-	f, err := os.Create(path)
+	f, err := os.Create(path + configExt)
 	if err != nil {
 		return err
 	}
@@ -32,7 +34,7 @@ func WriteImageConfig(config *ImageConfig, path string) error {
 }
 
 func ReadImageConfig(path string) (*ImageConfig, error) {
-	f, err := os.Open(path)
+	f, err := os.Open(path + configExt)
 	if err != nil {
 		return nil, err
 	}
