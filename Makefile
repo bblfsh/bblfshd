@@ -22,11 +22,16 @@ VERSION ?= $(DEV_PREFIX)-$(GIT_COMMIT)$(GIT_DIRTY)
 
 # Go parameters
 GO_CMD = go
-GO_BUILD = $(GO_CMD) build -a
+GO_BUILD = $(GO_CMD) build
 GO_CLEAN = $(GO_CMD) clean
 GO_GET = $(GO_CMD) get -v
 GO_TEST = $(GO_CMD) test -v
 GLIDE ?= $(GOPATH)/bin/glide
+
+# Packages content
+PKG_OS_bblfshctl = darwin linux windows
+PKG_OS_bblfshd = linux
+PKG_ARCH = amd64
 
 # Coverage
 COVERAGE_REPORT = coverage.txt
@@ -152,3 +157,22 @@ push: docker-image-build
 			$(call unescape_docker_tag,$(DOCKER_IMAGE)):latest; \
 		$(DOCKER_PUSH) $(call unescape_docker_tag,$(DOCKER_IMAGE):latest); \
 	fi;
+
+packages: dependencies docker-build
+	$(DOCKER_RUN) -v $(GOPATH):/go $(DOCKER_BUILD_IMAGE) make packages-internal
+
+packages-internal: $(COMMANDS)
+
+$(COMMANDS):
+	for arch in $(PKG_ARCH); do \
+		for os in $(PKG_OS_$@); do \
+			mkdir -p $(BUILD_PATH)/$@_$${os}_$${arch}; \
+			GOOS=$${os} GOARCH=$${arch} $(GO_BUILD) \
+				--ldflags '$(LDFLAGS)' \
+				-o "$(BUILD_PATH)/$@_$${os}_$${arch}/$@" \
+				$(CMD_PATH)/$@/main.go; \
+			cd $(BUILD_PATH); \
+			tar -cvzf $@_$(VERSION)_$${os}_$${arch}.tar.gz $@_$${os}_$${arch}/; \
+			cd $(BASE_PATH); \
+		done; \
+	done; \

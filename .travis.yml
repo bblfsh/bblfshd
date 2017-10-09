@@ -29,11 +29,14 @@ after_success:
   - bash <(curl -s https://codecov.io/bash)
   - make push
 
+before_deploy:
+  - make packages
+
 deploy:
   provider: releases
   api_key:
     secure: $GITHUB_TOKEN
-  file: ./build/bblfshd
+  file: ./build/*.tar.gz
   skip_cleanup: true
   on:
     tags: true
