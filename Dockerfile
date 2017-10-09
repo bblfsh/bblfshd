@@ -6,6 +6,9 @@ RUN apt-get update && \
         libostree-1-1 \
     && apt-get clean
 
-ADD build /bin/
-ENTRYPOINT ["/bin/bblfshd"]
+ADD build/bin /opt/bblfsh/bin/
+ADD etc /opt/bblfsh/etc/
+ENV PATH="/opt/bblfsh/bin:${PATH}"
+
+ENTRYPOINT ["bblfshd"]
 
