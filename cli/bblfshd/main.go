@@ -85,6 +85,7 @@ func listenUser(d *daemon.Daemon) {
 		os.Exit(1)
 	}
 
+	allowAnyoneInUnixSocket(*network, *address)
 	logrus.Infof("server listening in %s (%s)", *address, *network)
 	if err = d.Serve(usrListener); err != nil {
 		logrus.Errorf("error starting server: %s", err)
@@ -102,12 +103,23 @@ func listenControl(d *daemon.Daemon) {
 		os.Exit(1)
 	}
 
+	allowAnyoneInUnixSocket(*ctl.network, *ctl.address)
 	logrus.Infof("control server listening in %s (%s)", *ctl.address, *ctl.network)
 	if err = d.ControlServer.Serve(ctlListener); err != nil {
 		logrus.Errorf("error starting control server: %s", err)
 		os.Exit(1)
 	}
+}
 
+func allowAnyoneInUnixSocket(network, address string) {
+	if network != "unix" {
+		return
+	}
+
+	if err := os.Chmod(address, 0777); err != nil {
+		logrus.Errorf("error changing permissions to socket %q: %s", address, err)
+		os.Exit(1)
+	}
 }
 
 func buildLogger() {
