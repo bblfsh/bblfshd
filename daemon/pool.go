@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"fmt"
 	"math"
 	"runtime"
 	"sync"
@@ -14,19 +15,24 @@ import (
 	"gopkg.in/src-d/go-errors.v1"
 )
 
-var (
+const (
 	// DefaultPoolTimeout is the time a request to the DriverPool can wait
 	// before getting a driver assigned.
 	DefaultPoolTimeout = 5 * time.Second
+	// MaxPoolTimeout maximum time allowed to wait for a driver be assigned.
+	MaxPoolTimeout = 5 * time.Minute
+)
 
+var (
 	// DefaultMaxInstancesPerDriver is the maximum number of instances of
 	// the same driver which can be launched following the default
 	// scaling policy (see DefaultScalingPolicy()).
 	DefaultMaxInstancesPerDriver = runtime.NumCPU()
 
-	ErrPoolClosed        = errors.NewKind("driver pool already closed")
-	ErrPoolTimeout       = errors.NewKind("timeout, all drivers are busy")
-	ErrNegativeInstances = errors.NewKind("cannot set instances to negative number")
+	ErrPoolClosed         = errors.NewKind("driver pool already closed")
+	ErrPoolTimeout        = errors.NewKind("timeout, all drivers are busy")
+	ErrInvalidPoolTimeout = errors.NewKind(fmt.Sprintf("invalid timeout, max. timeout allowed %s", MaxPoolTimeout))
+	ErrNegativeInstances  = errors.NewKind("cannot set instances to negative number")
 )
 
 // DriverPool controls a pool of drivers and balances requests among them,
@@ -185,18 +191,14 @@ type Function func(d Driver) error
 // It gets a driver from the pool and forwards the request to it. If all drivers
 // are busy, it will return an error after the timeout passes. If the DriverPool
 // is closed, an error will be returned.
-func (dp *DriverPool) Execute(c Function) error {
-	dp.stats.waiting.Add(1)
-	d, more, err := dp.queue.GetWithTimeout(dp.Timeout)
-	dp.stats.waiting.Add(-1)
-	if err != nil {
-		dp.stats.errors.Add(1)
-		dp.Logger.Warningf("unable to allocate a driver instance: %s", err)
-		return err
+func (dp *DriverPool) Execute(c Function, timeout time.Duration) error {
+	if timeout == 0 {
+		timeout = DefaultPoolTimeout
 	}
 
-	if !more {
-		return ErrPoolClosed.New()
+	d, err := dp.getDriver(timeout)
+	if err != nil {
+		return err
 	}
 
 	status, err := d.Status()
@@ -213,7 +215,7 @@ func (dp *DriverPool) Execute(c Function) error {
 			}
 		}()
 
-		return dp.Execute(c)
+		return dp.Execute(c, timeout)
 	}
 
 	defer dp.queue.Put(d)
@@ -224,6 +226,24 @@ func (dp *DriverPool) Execute(c Function) error {
 
 	dp.stats.success.Add(1)
 	return nil
+}
+
+func (dp *DriverPool) getDriver(timeout time.Duration) (Driver, error) {
+	dp.stats.waiting.Add(1)
+	defer dp.stats.waiting.Add(-1)
+
+	d, more, err := dp.queue.GetWithTimeout(timeout)
+	if err != nil {
+		dp.stats.errors.Add(1)
+		dp.Logger.Warningf("unable to allocate a driver instance: %s", err)
+		return nil, err
+	}
+
+	if !more {
+		return nil, ErrPoolClosed.New()
+	}
+
+	return d, nil
 }
 
 // Current returns a list of the current instances from the pool, it includes
@@ -288,6 +308,10 @@ func (q *driverQueue) Get() (driver Driver, more bool) {
 }
 
 func (q *driverQueue) GetWithTimeout(timeout time.Duration) (driver Driver, more bool, err error) {
+	if timeout > MaxPoolTimeout {
+		return nil, true, ErrInvalidPoolTimeout.New()
+	}
+
 	select {
 	case d, more := <-q.c:
 		q.n.Add(-1)

@@ -43,7 +43,7 @@ func (d *Service) Parse(req *sdk.ParseRequest) *sdk.ParseResponse {
 	err = dp.Execute(func(driver Driver) error {
 		resp, err = driver.Service().Parse(context.Background(), req)
 		return err
-	})
+	}, req.Timeout)
 
 	if err != nil {
 		resp = &sdk.ParseResponse{}
@@ -96,7 +96,7 @@ func (d *Service) NativeParse(req *sdk.NativeParseRequest) *sdk.NativeParseRespo
 	err = dp.Execute(func(driver Driver) error {
 		resp, err = driver.Service().NativeParse(context.Background(), req)
 		return err
-	})
+	}, req.Timeout)
 
 	if err != nil {
 		resp = &sdk.NativeParseResponse{}
