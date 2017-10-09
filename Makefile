@@ -13,7 +13,7 @@ BUILD_PATH := $(BASE_PATH)/build
 CMD_PATH := $(BASE_PATH)/cli
 
 # Build information
-BUILD := $(shell date -Iseconds)
+BUILD ?= $(shell date -Iseconds)
 GIT_COMMIT=$(shell git rev-parse HEAD | cut -c1-7)
 GIT_DIRTY=$(shell test -n "`git status --porcelain`" && echo "-dirty" || true)
 DEV_PREFIX := dev
@@ -39,7 +39,7 @@ COVERAGE_PROFILE = profile.out
 COVERAGE_MODE = atomic
 
 ifneq ($(origin TRAVIS_TAG), undefined)
-	COMMIT := $(TRAVIS_TAG)
+	VERSION := $(TRAVIS_TAG)
 endif
 
 # Build
@@ -48,7 +48,7 @@ LDFLAGS = -X main.version=$(VERSION) -X main.build=$(BUILD)
 # Docker
 DOCKER_CMD = docker
 DOCKER_BUILD = $(DOCKER_CMD) build
-DOCKER_RUN = $(DOCKER_CMD) run --rm
+DOCKER_RUN = $(DOCKER_CMD) run --rm -e VERSION=$(VERSION) -e BUILD=$(BUILD)
 DOCKER_BUILD_IMAGE = bblfshd-build
 DOCKER_TAG ?= $(DOCKER_CMD) tag
 DOCKER_PUSH ?= $(DOCKER_CMD) push
@@ -159,6 +159,7 @@ push: docker-image-build
 	fi;
 
 packages: dependencies docker-build
+	$(if $(pushdisabled),$(error $(pushdisabled)))
 	$(DOCKER_RUN) -v $(GOPATH):/go $(DOCKER_BUILD_IMAGE) make packages-internal
 
 packages-internal: $(COMMANDS)

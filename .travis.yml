@@ -27,15 +27,16 @@ script:
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
-  - make push
 
 before_deploy:
+  - make push
   - make packages
 
 deploy:
   provider: releases
   api_key:
     secure: $GITHUB_TOKEN
+  file_glob: true
   file: ./build/*.tar.gz
   skip_cleanup: true
   on:
