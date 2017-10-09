@@ -5,7 +5,6 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"strings"
 	"sync"
 	"syscall"
 
@@ -68,7 +67,6 @@ func main() {
 	r := buildRuntime()
 	d := daemon.NewDaemon(version, r)
 	d.Options = buildGRPCOptions()
-	d.Overrides = buildOverrides()
 
 	wg.Add(2)
 	go listenUser(d)
@@ -152,28 +150,6 @@ func buildGRPCOptions() []grpc.ServerOption {
 		grpc.MaxRecvMsgSize(size),
 		grpc.MaxSendMsgSize(size),
 	}
-}
-
-func buildOverrides() map[string]string {
-	overrides := make(map[string]string)
-	for _, img := range strings.Split(os.Getenv("BBLFSH_DRIVER_IMAGES"), ";") {
-		if img = strings.TrimSpace(img); img == "" {
-			continue
-		}
-
-		fields := strings.Split(img, "=")
-		if len(fields) != 2 {
-			logrus.Errorf("invalid image driver format %s", img)
-			os.Exit(1)
-		}
-
-		lang := strings.TrimSpace(fields[0])
-		image := strings.TrimSpace(fields[1])
-		logrus.Warningf("image for %s overrided with: %q", lang, image)
-		overrides[lang] = image
-	}
-
-	return overrides
 }
 
 func handleGracefullyShutdown(d *daemon.Daemon) {
