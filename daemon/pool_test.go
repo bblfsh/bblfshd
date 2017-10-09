@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewDriverPool_StartNoopClose(t *testing.T) {
+func TestDriverPoolClose_StartNoopClose(t *testing.T) {
 	require := require.New(t)
 	dp := NewDriverPool(newMockDriver)
 
@@ -24,11 +24,11 @@ func TestNewDriverPool_StartNoopClose(t *testing.T) {
 	err = dp.Stop()
 	require.True(ErrPoolClosed.Is(err))
 
-	err = dp.Execute(nil)
+	err = dp.Execute(nil, 0)
 	require.True(ErrPoolClosed.Is(err))
 }
 
-func TestNewDriverPool_Current(t *testing.T) {
+func TestDriverPoolCurrent(t *testing.T) {
 	require := require.New(t)
 
 	dp := NewDriverPool(newMockDriver)
@@ -39,7 +39,31 @@ func TestNewDriverPool_Current(t *testing.T) {
 	require.Len(dp.Current(), 1)
 }
 
-func TestNewDriverPool_State(t *testing.T) {
+func TestDriverPoolExecute_Timeout(t *testing.T) {
+	require := require.New(t)
+
+	dp := NewDriverPool(func() (Driver, error) {
+		time.Sleep(time.Millisecond)
+		return newMockDriver()
+	})
+
+	err := dp.Execute(nil, time.Nanosecond)
+	require.True(ErrPoolTimeout.Is(err))
+}
+
+func TestDriverPoolExecute_InvalidTimeout(t *testing.T) {
+	require := require.New(t)
+
+	dp := NewDriverPool(func() (Driver, error) {
+		time.Sleep(time.Millisecond)
+		return newMockDriver()
+	})
+
+	err := dp.Execute(nil, 100*time.Minute)
+	require.True(ErrInvalidPoolTimeout.Is(err))
+}
+
+func TestDriverPoolState(t *testing.T) {
 	require := require.New(t)
 
 	dp := NewDriverPool(newMockDriver)
@@ -56,7 +80,7 @@ func TestNewDriverPool_State(t *testing.T) {
 
 }
 
-func TestNewDiverPool_StartFailingDriver(t *testing.T) {
+func TestDiverPoolStart_FailingDriver(t *testing.T) {
 	require := require.New(t)
 
 	dp := NewDriverPool(func() (Driver, error) {
@@ -67,7 +91,7 @@ func TestNewDiverPool_StartFailingDriver(t *testing.T) {
 	require.EqualError(err, "driver error")
 }
 
-func TestNewDriverPool_Recovery(t *testing.T) {
+func TestDriverPoolExecute_Recovery(t *testing.T) {
 	require := require.New(t)
 
 	var called int
@@ -88,7 +112,7 @@ func TestNewDriverPool_Recovery(t *testing.T) {
 			}
 
 			return nil
-		})
+		}, 0)
 
 		require.Nil(err)
 		require.Len(dp.Current(), 1)
@@ -101,7 +125,7 @@ func TestNewDriverPool_Recovery(t *testing.T) {
 	require.Equal(dp.State().Wanted, 0)
 }
 
-func TestNewDriverPool_Sequential(t *testing.T) {
+func TestDriverPoolExecute_Sequential(t *testing.T) {
 	require := require.New(t)
 
 	dp := NewDriverPool(newMockDriver)
@@ -113,7 +137,7 @@ func TestNewDriverPool_Sequential(t *testing.T) {
 		err := dp.Execute(func(d Driver) error {
 			require.NotNil(d)
 			return nil
-		})
+		}, 0)
 
 		require.Nil(err)
 		require.Equal(dp.State().Running, 1)
@@ -123,7 +147,7 @@ func TestNewDriverPool_Sequential(t *testing.T) {
 	require.NoError(err)
 }
 
-func TestNewDriverPool_Parallel(t *testing.T) {
+func TestDriverPoolExecute_Parallel(t *testing.T) {
 	require := require.New(t)
 
 	dp := NewDriverPool(newMockDriver)
@@ -139,7 +163,7 @@ func TestNewDriverPool_Parallel(t *testing.T) {
 				defer wg.Done()
 				time.Sleep(50 * time.Millisecond)
 				return nil
-			})
+			}, 0)
 
 			require.Nil(err)
 			require.True(len(dp.Current()) >= 1)
