@@ -1,5 +1,5 @@
 # Package configuration
-PROJECT = server
+PROJECT = bblfshd
 COMMANDS = bblfshd bblfshctl
 DEPENDENCIES = \
 	golang.org/x/tools/cmd/cover \
@@ -44,7 +44,7 @@ LDFLAGS = -X main.version=$(VERSION) -X main.build=$(BUILD)
 DOCKER_CMD = docker
 DOCKER_BUILD = $(DOCKER_CMD) build
 DOCKER_RUN = $(DOCKER_CMD) run --rm
-DOCKER_BUILD_IMAGE = bblfsh-server-build
+DOCKER_BUILD_IMAGE = bblfshd-build
 DOCKER_TAG ?= $(DOCKER_CMD) tag
 DOCKER_PUSH ?= $(DOCKER_CMD) push
 
@@ -75,12 +75,12 @@ ifneq ($(TRAVIS_PULL_REQUEST), false)
         pushdisabled = "push disabled for pull-requests"
 endif
 
-DOCKER_IMAGE ?= bblfsh/server
+DOCKER_IMAGE ?= bblfsh/bblfshd
 DOCKER_IMAGE_VERSIONED ?= $(call escape_docker_tag,$(DOCKER_IMAGE):$(VERSION))
 DOCKER_IMAGE_FIXTURE ?= $(DOCKER_IMAGE):fixture
 
 # Rules
-all: clean build
+all: clean test build
 
 dependencies: $(DEPENDENCIES) $(VENDOR_PATH) build-fixture
 
@@ -95,7 +95,7 @@ docker-build:
 	$(DOCKER_BUILD) -f Dockerfile.build -t $(DOCKER_BUILD_IMAGE) .
 
 test: dependencies docker-build
-	$(DOCKER_RUN) --privileged -v $(GOPATH):/go $(DOCKER_BUILD_IMAGE) make test-internal
+	$(DOCKER_RUN) --privileged  -v /var/run/docker.sock:/var/run/docker.sock -v $(GOPATH):/go $(DOCKER_BUILD_IMAGE) make test-internal
 
 test-internal:
 	export TEST_NETWORKING=1; \

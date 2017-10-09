@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/bblfsh/server/cli/bblfshctl/cmd"
+	"github.com/bblfsh/bblfshd/cli/bblfshctl/cmd"
 
 	"github.com/jessevdk/go-flags"
 )
@@ -57,7 +57,7 @@ func main() {
 		} else {
 			fmt.Println()
 			parser.WriteHelp(os.Stdout)
-			fmt.Printf("\nBuild information\n  commit: %s\n  date:%s\n", version, build)
+			fmt.Printf("\nBuild information\n  commit: %s\n  date: %s\n", version, build)
 			os.Exit(1)
 		}
 	}

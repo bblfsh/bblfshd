@@ -1,4 +1,4 @@
-package: github.com/bblfsh/server
+package: github.com/bblfsh/bblfshd
 import:
 - package: github.com/sirupsen/logrus
   version: ^1.0.3

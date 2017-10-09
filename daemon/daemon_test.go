@@ -13,7 +13,7 @@ import (
 	"google.golang.org/grpc"
 	"gopkg.in/bblfsh/sdk.v1/protocol"
 
-	"github.com/bblfsh/server/runtime"
+	"github.com/bblfsh/bblfshd/runtime"
 
 	"github.com/stretchr/testify/require"
 )

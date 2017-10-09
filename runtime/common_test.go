@@ -10,7 +10,7 @@ import (
 	"gopkg.in/bblfsh/sdk.v1/sdk/driver"
 )
 
-const FixtureReference = "docker-daemon:bblfsh/server:fixture"
+const FixtureReference = "docker-daemon:bblfsh/bblfshd:fixture"
 
 func init() {
 	Bootstrap()

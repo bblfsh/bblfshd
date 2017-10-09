@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/bblfsh/server/daemon/protocol"
+	"github.com/bblfsh/bblfshd/daemon/protocol"
 )
 
 const (

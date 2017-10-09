@@ -8,8 +8,8 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/bblfsh/server/daemon"
-	"github.com/bblfsh/server/runtime"
+	"github.com/bblfsh/bblfshd/daemon"
+	"github.com/bblfsh/bblfshd/runtime"
 
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"

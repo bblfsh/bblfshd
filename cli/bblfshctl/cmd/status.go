@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/bblfsh/server/daemon/protocol"
+	"github.com/bblfsh/bblfshd/daemon/protocol"
 
 	"github.com/olekukonko/tablewriter"
 )
