@@ -1,4 +1,4 @@
-# bblfshd [![Build Status](https://travis-ci.org/bblfsh/bblfshd.svg?branch=master)](https://travis-ci.org/bblfsh/bblfshd) [![codecov](https://codecov.io/gh/bblfsh/bblfshd/branch/master/graph/badge.svg)](https://codecov.io/gh/bblfsh/bblfshd) [![license](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](https://github.com/bblfsh/bblfshd/blob/master/LICENSE) [![GitHub release](https://img.shields.io/github/release/bblfsh/bblfshd.svg)](Release)
+# bblfshd [![Build Status](https://travis-ci.org/bblfsh/bblfshd.svg?branch=master)](https://travis-ci.org/bblfsh/bblfshd) [![codecov](https://codecov.io/gh/bblfsh/bblfshd/branch/master/graph/badge.svg)](https://codecov.io/gh/bblfsh/bblfshd) [![license](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](https://github.com/bblfsh/bblfshd/blob/master/LICENSE) [![GitHub release](https://img.shields.io/github/release/bblfsh/bblfshd.svg)](https://github.com/bblfsh/bblfshd/releases)
 
 This repository contains bblfsh daemon (*bblfshd*), which includes the
 runtime that runs the driver in *containers* and the bblfshctl, a cli tool used
@@ -11,6 +11,49 @@ on GitHub. For more information, see [bblfsh SDK documentation](https://doc.bblf
 ## Getting Started
 
 See the [Getting Started](https://doc.bblf.sh/user/getting-started.html) guide.
+
+### Quick start
+
+The recommended way to run *bblfshd* is using *docker*:
+
+```sh
+docker run -d --name bblfshd --privileged -p 9432:9432 -v /var/lib/bblfshd:/var/lib/bblfshd bblfsh/bblfshd
+```
+
+The container should be executed with the `--privileged` flag since *bblfshd* it's
+based on [container technology](https://github.com/opencontainers/runc/tree/master/libcontainer)
+and interacts with the kernel at a low level. *bblfshd*, expose a gRPC server at
+the port `9432` by default, this gRPC will be used by the [clients](https://github.com/search?q=topic%3Aclient+org%3Abblfsh&type=Repositories)
+to interact with the server. Also, we mount the path `/var/lib/bblfshd/` where
+all the driver images and container instances will be stored.
+
+Now you we need to install the driver images into the daemon, you can install
+the official images just running the command:
+
+```sh
+docker exec -it bblfshd bblfshctl driver install --all
+```
+
+You can check the installed versions executing:
+```
+docker exec -it bblfshd bblfshctl driver list
+```
+
+```
++----------+-------------------------------+---------+--------+---------+--------+-----+-------------+
+| LANGUAGE |             IMAGE             | VERSION | STATUS | CREATED |   OS   | GO  |   NATIVE    |
++----------+-------------------------------+---------+--------+---------+--------+-----+-------------+
+| python   | //bblfsh/python-driver:latest | v1.1.5  | beta   | 4 days  | alpine | 1.8 | 3.6.2       |
+| java     | //bblfsh/java-driver:latest   | v1.1.0  | alpha  | 6 days  | alpine | 1.8 | 8.131.11-r2 |
++----------+-------------------------------+---------+--------+---------+--------+-----+-------------+
+```
+
+To test the driver you can executed a parse request to the server with the `bblfshctl parse` command,
+and an example contained in the docker image:
+
+```sh
+docker exec -it bblfshd bblfshctl parse /opt/bblfsh/etc/examples/python.py
+```
 
 ## Development
 

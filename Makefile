@@ -130,7 +130,7 @@ build-internal:
 	mkdir -p $(BUILD_PATH); \
 	for cmd in $(COMMANDS); do \
         cd $(CMD_PATH)/$${cmd}; \
-		$(GO_BUILD) --ldflags '$(LDFLAGS)' -o $(BUILD_PATH)/$${cmd} .; \
+		$(GO_BUILD) --ldflags '$(LDFLAGS)' -o $(BUILD_PATH)/bin/$${cmd} .; \
 	done;
 
 build-fixture:
