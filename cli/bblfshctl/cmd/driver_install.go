@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/bblfsh/bblfshd/daemon/protocol"
-	"github.com/bblfsh/bblfshd/runtime"
 
 	"github.com/briandowns/spinner"
 )
@@ -20,6 +20,11 @@ var (
 	OfficialDriver = map[string]string{
 		"python": "docker://bblfsh/python-driver:latest",
 		"java":   "docker://bblfsh/java-driver:latest",
+	}
+
+	SupportedTransports = map[string]bool{
+		"docker":        true,
+		"docker-daemon": true,
 	}
 )
 
@@ -102,8 +107,8 @@ func (c *DriverInstallCommand) installDriver(lang, ref string) error {
 }
 
 func (c *DriverInstallCommand) getImageReference(ref string) string {
-	_, err := runtime.ParseImageName(ref)
-	if runtime.ErrInvalidImageName.Is(err) {
+	parts := strings.SplitN(ref, ":", 2)
+	if _, ok := SupportedTransports[parts[0]]; !ok {
 		return DefaultTransport + ref
 	}
 

@@ -9,7 +9,6 @@ import (
 
 	"github.com/bblfsh/bblfshd/daemon/protocol"
 
-	"github.com/bblfsh/bblfshd/runtime"
 	"github.com/docker/go-units"
 	"github.com/olekukonko/tablewriter"
 )
@@ -53,10 +52,8 @@ func driverStatusToText(r *protocol.DriverStatesResponse) {
 			native = append(native, fmt.Sprintf("%s", v))
 		}
 
-		image, _ := runtime.ParseImageName(s.Reference)
-
 		line := fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s",
-			s.Language, image.StringWithinTransport(), s.Version,
+			s.Language, s.Reference, s.Version,
 			s.Status, units.HumanDuration(time.Since(s.Build)),
 			s.OS, s.GoVersion, strings.Join(native, ","),
 		)
