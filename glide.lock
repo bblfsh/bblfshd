@@ -1,6 +1,8 @@
-hash: eff2d0184d200185de80d76f13a0c5a42ac427166d32b411accd8456c9a5ca7c
-updated: 2017-10-05T19:59:34.545795603+02:00
+hash: 8a173f805172fe47f7116e2c67716d6dfdca8c286a9538e69d9961f41c3326bb
+updated: 2017-10-06T15:08:42.513737452+02:00
 imports:
+- name: github.com/briandowns/spinner
+  version: 48dbb65d7bd5c74ab50d53d04c949f20e3d14944
 - name: github.com/BurntSushi/toml
   version: a368813c5e648fee92e5f6c30e3944ff9d5e8895
 - name: github.com/containers/image
