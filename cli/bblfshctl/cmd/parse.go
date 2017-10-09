@@ -11,7 +11,10 @@ import (
 	"github.com/hokaccha/go-prettyjson"
 )
 
-const ParseCommandDescription = "Parse a file and prints the UAST or AST"
+const (
+	ParseCommandDescription = "Parse a file and prints the UAST or AST"
+	ParseCommandHelp        = ParseCommandDescription
+)
 
 type ParseCommand struct {
 	Args struct {
@@ -81,13 +84,15 @@ func (c *ParseCommand) doNative(content string) error {
 func printResponse(r *protocol.Response) {
 	fmt.Printf("Status: %s\n", r.Status)
 	fmt.Printf("Elapsed: %s\n", r.Elapsed)
+	printErrors(r.Errors)
+	fmt.Println("")
+}
 
-	if len(r.Errors) != 0 {
+func printErrors(errors []string) {
+	if len(errors) != 0 {
 		fmt.Println("Errors:")
-		for _, err := range r.Errors {
+		for _, err := range errors {
 			fmt.Printf("\t- %s\n", err)
 		}
 	}
-
-	fmt.Println("")
 }

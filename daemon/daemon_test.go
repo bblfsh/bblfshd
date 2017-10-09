@@ -79,27 +79,6 @@ func TestDaemonParse_MockedDriverParallelClients(t *testing.T) {
 
 }
 
-func TestDefaultDriverImageReference(t *testing.T) {
-	require := require.New(t)
-	tmpDir, err := ioutil.TempDir(os.TempDir(), "bblfsh-runtime")
-	r := runtime.NewRuntime(tmpDir)
-	err = r.Init()
-	require.NoError(err)
-
-	s := NewDaemon("", r)
-	s.Transport = "docker"
-	require.Equal("docker://bblfsh/python-driver:latest", s.defaultDriverImageReference("python"))
-	s.Transport = ""
-	require.Equal("docker://bblfsh/python-driver:latest", s.defaultDriverImageReference("python"))
-	s.Transport = "docker-daemon"
-	require.Equal("docker-daemon:bblfsh/python-driver:latest", s.defaultDriverImageReference("python"))
-
-	s = NewDaemon("", r)
-	s.Overrides["python"] = "overriden"
-	s.Transport = "docker-daemon"
-	require.Equal("overriden", s.defaultDriverImageReference("python"))
-}
-
 func buildMockedDaemon(t *testing.T) (*Daemon, string) {
 	require := require.New(t)
 

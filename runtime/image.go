@@ -85,7 +85,7 @@ func (d *driverImage) WriteTo(path string) error {
 	return WriteImageConfig(&ImageConfig{
 		Image:    *config,
 		ImageRef: d.imageRef,
-	}, path+".json")
+	}, path)
 }
 
 func (d *driverImage) image() (types.Image, error) {

@@ -1,0 +1,10 @@
+language = "fixture"
+status = "beta"
+version = "42"
+build = 2015-10-21T04:29:00Z
+commit = "424242+"
+
+[runtime]
+  os = "alpine"
+  go_version = "1.8"
+  native_version = ["3.6.2"]

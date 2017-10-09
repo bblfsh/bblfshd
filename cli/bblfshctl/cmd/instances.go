@@ -13,7 +13,10 @@ import (
 	"github.com/olekukonko/tablewriter"
 )
 
-const InstancesCommandDescription = "List the driver instances running on the daemon"
+const (
+	InstancesCommandDescription = "List the driver instances running on the daemon"
+	InstancesCommandHelp        = InstancesCommandDescription
+)
 
 type InstancesCommand struct {
 	ControlCommand
@@ -29,8 +32,12 @@ func (c *InstancesCommand) Execute(args []string) error {
 		return err
 	}
 
-	instancesStatusToText(r)
-	return nil
+	if err == nil && len(r.Errors) == 0 {
+		instancesStatusToText(r)
+		return nil
+	}
+
+	return err
 }
 
 func instancesStatusToText(r *protocol.DriverInstanceStatesResponse) {

@@ -23,7 +23,6 @@ func TestContainerSuite(t *testing.T) {
 }
 
 func (s *ContainerSuite) SetupSuite() {
-	IfNetworking(s.T())
 	require := require.New(s.T())
 
 	tmpDir, err := ioutil.TempDir(os.TempDir(), "bblfsh-runtime")
@@ -35,11 +34,11 @@ func (s *ContainerSuite) SetupSuite() {
 	err = rt.Init()
 	require.NoError(err)
 
-	d, err := NewDriverImage("docker://busybox:latest")
+	d, err := NewDriverImage(FixtureReference)
 	require.NoError(err)
 	s.Image = d
 
-	err = rt.InstallDriver(d, false)
+	_, err = rt.InstallDriver(d, false)
 	require.NoError(err)
 }
 
@@ -115,7 +114,7 @@ func (s *ContainerSuite) TestContainer_StartWait() {
 	err = c.Wait()
 	require.NoError(err)
 
-	require.Equal("bin\ndev\netc\nhome\nproc\nroot\nsys\ntmp\nusr\nvar\n", out.String())
+	require.Equal("bin\ndev\netc\nhome\nopt\nproc\nroot\nsys\ntmp\nusr\nvar\n", out.String())
 }
 
 func (s *ContainerSuite) TestContainer_StartWaitExit1() {

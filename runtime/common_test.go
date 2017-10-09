@@ -10,6 +10,8 @@ import (
 	"gopkg.in/bblfsh/sdk.v1/sdk/driver"
 )
 
+const FixtureReference = "docker-daemon:bblfsh/server:fixture"
+
 func init() {
 	Bootstrap()
 }
@@ -44,13 +46,16 @@ func (d *FixtureDriverImage) WriteTo(path string) error {
 		return err
 	}
 
-	if err := WriteImageConfig(&ImageConfig{ImageRef: d.N}, path+".json"); err != nil {
+	if err := WriteImageConfig(&ImageConfig{ImageRef: d.N}, path); err != nil {
 		return err
 	}
 
+	if d.M == nil {
+		return nil
+	}
+
 	m := filepath.Join(path, driver.ManifestLocation)
-	err := os.MkdirAll(filepath.Dir(m), 0777)
-	if err != nil {
+	if err := os.MkdirAll(filepath.Dir(m), 0777); err != nil {
 		return err
 	}
 
@@ -60,10 +65,5 @@ func (d *FixtureDriverImage) WriteTo(path string) error {
 	}
 
 	defer w.Close()
-
-	if d.M == nil {
-		d.M = &manifest.Manifest{}
-	}
-
 	return d.M.Encode(w)
 }

@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/bblfsh/server/daemon/protocol"
@@ -14,13 +13,9 @@ import (
 	"gopkg.in/src-d/go-errors.v1"
 )
 
-const (
-	defaultTransport = "docker"
-)
-
 var (
 	ErrUnexpected       = errors.NewKind("unexpected error")
-	ErrMissingDriver    = errors.NewKind("missing driver for language %s")
+	ErrMissingDriver    = errors.NewKind("missing driver for language %q")
 	ErrRuntime          = errors.NewKind("runtime failure")
 	ErrAlreadyInstalled = errors.NewKind("driver already installed: %s (image reference: %s)")
 )
@@ -30,18 +25,10 @@ type Daemon struct {
 	server.Server
 	ControlServer *grpc.Server
 
-	// Transport to use to fetch driver images. Defaults to "docker".
-	// Useful transports:
-	// - docker: uses Docker registries (docker.io by default).
-	// - docker-daemon: gets images from a local Docker daemon.
-	Transport string
-	// Overrides for images per language
-	Overrides map[string]string
-
 	version string
 	runtime *runtime.Runtime
-	mutex   sync.RWMutex
 	pool    map[string]*DriverPool
+	mutex   sync.Mutex
 }
 
 // NewDaemon creates a new server based on the runtime with the given version.
@@ -50,7 +37,6 @@ func NewDaemon(version string, r *runtime.Runtime) *Daemon {
 		version:       version,
 		runtime:       r,
 		pool:          make(map[string]*DriverPool),
-		Overrides:     make(map[string]string),
 		ControlServer: grpc.NewServer(),
 	}
 
@@ -68,24 +54,79 @@ func registerGRPC(d *Daemon) {
 	)
 }
 
-func (d *Daemon) AddDriver(language string, img string) error {
-	d.mutex.Lock()
-	defer d.mutex.Unlock()
-
-	if _, ok := d.pool[language]; ok {
-		return ErrAlreadyInstalled.New(language, img)
+func (d *Daemon) InstallDriver(language string, image string, update bool) error {
+	if !update {
+		s, err := d.getDriverImage(language)
+		switch {
+		case err == nil:
+			return ErrAlreadyInstalled.New(language, s.Name())
+		case !ErrMissingDriver.Is(err):
+			return ErrRuntime.Wrap(err)
+		}
 	}
 
-	image, err := runtime.NewDriverImage(img)
+	img, err := runtime.NewDriverImage(image)
 	if err != nil {
 		return ErrRuntime.Wrap(err)
 	}
 
-	if err := d.runtime.InstallDriver(image, false); err != nil {
+	_, err = d.runtime.InstallDriver(img, update)
+	if err != nil {
+		return err
+	}
+
+	logrus.Infof("driver %s installed %q", language, img.Name())
+	return nil
+}
+
+func (d *Daemon) RemoveDriver(language string) error {
+	img, err := d.getDriverImage(language)
+	if err != nil {
 		return ErrRuntime.Wrap(err)
 	}
 
-	logrus.Infof("new driver installed: %q", image.Name())
+	if err := d.runtime.RemoveDriver(img); err != nil {
+		return err
+	}
+
+	logrus.Infof("driver %s removed %q", language, img.Name())
+	return err
+}
+
+func (d *Daemon) DriverPool(language string) (*DriverPool, error) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	if dp, ok := d.pool[language]; ok {
+		return dp, nil
+	}
+
+	image, err := d.getDriverImage(language)
+	if err != nil {
+		return nil, ErrRuntime.Wrap(err)
+	}
+
+	return d.newDriverPool(language, image)
+}
+
+func (d *Daemon) getDriverImage(language string) (runtime.DriverImage, error) {
+	list, err := d.runtime.ListDrivers()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, d := range list {
+		if d.Manifest.Language == language {
+			return runtime.NewDriverImage(d.Reference)
+		}
+	}
+
+	return nil, ErrMissingDriver.New(language)
+}
+
+// newDriverPool, instance a new driver pool for the given language and image
+// and should be called under a lock.
+func (d *Daemon) newDriverPool(language string, image runtime.DriverImage) (*DriverPool, error) {
 	dp := NewDriverPool(func() (Driver, error) {
 		logrus.Debugf("spawning driver instance %q ...", image.Name())
 
@@ -108,35 +149,13 @@ func (d *Daemon) AddDriver(language string, img string) error {
 	})
 
 	d.pool[language] = dp
-	return dp.Start()
-}
-
-func (d *Daemon) DriverPool(language string) (*DriverPool, error) {
-	d.mutex.RLock()
-	dp, ok := d.pool[language]
-	d.mutex.RUnlock()
-
-	if ok {
-		return dp, nil
-	}
-
-	i := d.defaultDriverImageReference(language)
-	err := d.AddDriver(language, i)
-	if err != nil && !ErrAlreadyInstalled.Is(err) {
-		return nil, ErrMissingDriver.Wrap(err, language)
-	}
-
-	d.mutex.RLock()
-	dp = d.pool[language]
-	d.mutex.RUnlock()
-
-	return dp, nil
+	return dp, dp.Start()
 }
 
 // Current returns the current list of driver pools.
 func (d *Daemon) Current() map[string]*DriverPool {
-	d.mutex.RLock()
-	defer d.mutex.RUnlock()
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 
 	out := make(map[string]*DriverPool, len(d.pool))
 	for k, pool := range d.pool {
@@ -156,26 +175,6 @@ func (d *Daemon) Stop() error {
 	}
 
 	return err
-}
-
-// returns the default image reference for a driver given a language.
-func (d *Daemon) defaultDriverImageReference(lang string) string {
-	if override := d.Overrides[lang]; override != "" {
-		return override
-	}
-
-	transport := d.Transport
-	if transport == "" {
-		transport = defaultTransport
-	}
-
-	ref := fmt.Sprintf("bblfsh/%s-driver:latest", lang)
-	switch transport {
-	case "docker":
-		ref = "//" + ref
-	}
-
-	return fmt.Sprintf("%s:%s", transport, ref)
 }
 
 func getDriverInstanceOptions() *Options {

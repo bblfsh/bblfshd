@@ -1,58 +1,98 @@
 package runtime
 
 import (
-	"errors"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 
 	"gopkg.in/bblfsh/sdk.v1/manifest"
 	"gopkg.in/bblfsh/sdk.v1/sdk/driver"
+	"gopkg.in/src-d/go-errors.v1"
 )
 
 var (
-	ErrDirtyDriverStorage = errors.New("dirty driver storage")
-	ErrDriverNotInstalled = errors.New("driver not installed")
+	ErrDirtyDriverStorage = errors.NewKind("dirty driver storage")
+	ErrDriverNotInstalled = errors.NewKind("driver not installed")
+	ErrMalformedDriver    = errors.NewKind("malformed driver, missing manifest.toml")
 )
 
 // storage represents the DriverImage storage, taking care of filesystem
 // image operations, such as install, update, remove, etc.
 type storage struct {
 	path string
+	temp string
 }
 
-func newStorage(path string) *storage {
-	return &storage{path: path}
+func newStorage(path, temp string) *storage {
+	return &storage{path: path, temp: temp}
 }
 
 // Install installs a DriverImage extracting his content to the filesystem,
 // only one version per image can be stored, update is required to overwrite a
 // previous image if already exists otherwise, Install fails if an previous
 // image already exists.
-func (s *storage) Install(d DriverImage, update bool) error {
+func (s *storage) Install(d DriverImage, update bool) (*DriverImageStatus, error) {
 	current, err := s.RootFS(d)
-	if err != nil && err != ErrDriverNotInstalled {
-		return err
+	if err != nil && !ErrDriverNotInstalled.Is(err) {
+		return nil, err
 	}
 
 	exists := current != ""
 	if exists && !update {
-		return nil
+		return nil, nil
 	}
 
 	di, err := d.Digest()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if exists {
 		if err := s.Remove(d); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	rootfs := s.rootFSPath(d, di)
-	return d.WriteTo(rootfs)
+	tmp, err := s.tempPath()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := d.WriteTo(tmp); err != nil {
+		return nil, err
+	}
+
+	m, err := newDriverImageStatus(tmp)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, ErrMalformedDriver.New()
+		}
+
+		return nil, err
+	}
+	return m, s.moveImage(tmp, d, di)
+}
+
+func (s *storage) tempPath() (string, error) {
+	if err := os.MkdirAll(s.temp, 0655); err != nil {
+		return "", err
+	}
+
+	return ioutil.TempDir(s.temp, "image")
+}
+
+func (s *storage) moveImage(source string, d DriverImage, di Digest) error {
+	root := s.rootFSPath(d, di)
+	dir := filepath.Dir(root)
+	if err := os.MkdirAll(dir, 0655); err != nil {
+		return err
+	}
+
+	if err := os.Rename(source+configExt, root+configExt); err != nil {
+		return err
+	}
+
+	return os.Rename(source, root)
 }
 
 // RootFS returns the path in the host filesystem to an installed image.
@@ -70,9 +110,9 @@ func (s *storage) rootFSFromBase(path string) (string, error) {
 	case 1:
 		return dirs[0], nil
 	case 0:
-		return "", ErrDriverNotInstalled
+		return "", ErrDriverNotInstalled.New()
 	default:
-		return "", ErrDirtyDriverStorage
+		return "", ErrDirtyDriverStorage.New()
 	}
 }
 
@@ -94,23 +134,23 @@ func (s *storage) Remove(d DriverImage) error {
 		return err
 	}
 
+	if err := os.RemoveAll(path + configExt); err != nil {
+		return err
+	}
+
 	return os.RemoveAll(path)
 }
 
 // List lists all the driver images installed on disk.
 func (s *storage) List() ([]*DriverImageStatus, error) {
-	dirs, err := getDirs(s.path)
+	config, err := filepath.Glob(filepath.Join(s.path, "*/*"+configExt))
 	if err != nil {
 		return nil, err
 	}
 
 	var list []*DriverImageStatus
-	for _, base := range dirs {
-		root, err := s.rootFSFromBase(base)
-		if err != nil {
-			return nil, err
-		}
-
+	for _, c := range config {
+		root := c[:len(c)-len(configExt)]
 		status, err := newDriverImageStatus(root)
 		if err != nil {
 			return nil, err
@@ -172,7 +212,7 @@ func newDriverImageStatus(path string) (*DriverImageStatus, error) {
 		return nil, err
 	}
 
-	config, err := ReadImageConfig(path + ".json")
+	config, err := ReadImageConfig(path)
 	if err != nil {
 		return nil, err
 	}

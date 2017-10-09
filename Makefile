@@ -77,11 +77,12 @@ endif
 
 DOCKER_IMAGE ?= bblfsh/server
 DOCKER_IMAGE_VERSIONED ?= $(call escape_docker_tag,$(DOCKER_IMAGE):$(VERSION))
+DOCKER_IMAGE_FIXTURE ?= $(DOCKER_IMAGE):fixture
 
 # Rules
 all: clean build
 
-dependencies: $(DEPENDENCIES) $(VENDOR_PATH)
+dependencies: $(DEPENDENCIES) $(VENDOR_PATH) build-fixture
 
 $(DEPENDENCIES):
 	$(GO_GET) $@/...
@@ -101,7 +102,7 @@ test-internal:
 	$(GO_TEST) $(NOVENDOR_PACKAGES)
 
 test-coverage: dependencies docker-build
-	$(DOCKER_RUN) --privileged -v $(GOPATH):/go $(DOCKER_BUILD_IMAGE) make test-coverage-internal
+	$(DOCKER_RUN) --privileged -v /var/run/docker.sock:/var/run/docker.sock -v $(GOPATH):/go $(DOCKER_BUILD_IMAGE) make test-coverage-internal
 
 test-coverage-internal:
 	export TEST_NETWORKING=1; \
@@ -126,6 +127,10 @@ build-internal:
         cd $(CMD_PATH)/$${cmd}; \
 		$(GO_BUILD) --ldflags '$(LDFLAGS)' -o $(BUILD_PATH)/$${cmd} .; \
 	done;
+
+build-fixture:
+	cd $(BASE_PATH)/runtime/fixture/; \
+	$(DOCKER_BUILD) -t $(DOCKER_IMAGE_FIXTURE) .
 
 docker-image-build: build
 	$(DOCKER_BUILD) -t $(call unescape_docker_tag,$(DOCKER_IMAGE_VERSIONED)) .

@@ -14,13 +14,16 @@ import (
 	"github.com/olekukonko/tablewriter"
 )
 
-const DriversCommandDescription = "List the installed drivers for each language"
+const (
+	DriverListCommandDescription = "List the installed drivers for each language"
+	DriverListCommandHelp        = DriverListCommandDescription
+)
 
-type DriversCommand struct {
-	ControlCommand
+type DriverListCommand struct {
+	DriverCommand
 }
 
-func (c *DriversCommand) Execute(args []string) error {
+func (c *DriverListCommand) Execute(args []string) error {
 	if err := c.ControlCommand.Execute(nil); err != nil {
 		return err
 	}
@@ -30,8 +33,13 @@ func (c *DriversCommand) Execute(args []string) error {
 		return err
 	}
 
-	driverStatusToText(r)
-	return nil
+	if err == nil && len(r.Errors) == 0 {
+		driverStatusToText(r)
+		return nil
+	}
+
+	printErrors(r.Errors)
+	return err
 }
 
 func driverStatusToText(r *protocol.DriverStatesResponse) {

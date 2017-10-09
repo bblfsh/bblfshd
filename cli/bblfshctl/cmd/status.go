@@ -11,7 +11,16 @@ import (
 	"github.com/olekukonko/tablewriter"
 )
 
-const StatusCommandDescription = "List all the pools of driver instances running"
+const (
+	StatusCommandDescription = "List all the pools of driver instances running"
+	StatusCommandHelp        = StatusCommandDescription + "\n\n" +
+		"The drivers are started on-demand based on the load of the server, \n" +
+		"this driver instances are organized in pools by language.\n\n" +
+		"This command prints a list of the pools running on the daemon, with \n" +
+		"the number of requests success and failed, the number of instances \n" +
+		"current and desired, the number of request waiting to be handle and \n" +
+		"the drivers existed with with a non-zero code."
+)
 
 type StatusCommand struct {
 	ControlCommand
@@ -27,8 +36,12 @@ func (c *StatusCommand) Execute(args []string) error {
 		return err
 	}
 
-	daemonStatusToText(r)
-	return nil
+	if err == nil && len(r.Errors) == 0 {
+		daemonStatusToText(r)
+		return nil
+	}
+
+	return err
 }
 
 func daemonStatusToText(r *protocol.DriverPoolStatesResponse) {

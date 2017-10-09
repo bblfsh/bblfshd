@@ -38,6 +38,8 @@ import:
   version: ^1.0.0
 - package: github.com/olekukonko/tablewriter
 - package: github.com/hokaccha/go-prettyjson
+- package: github.com/briandowns/spinner
+  version: ^1.0.0
 testImport:
 - package: github.com/stretchr/testify
   version: ^1.1.4
