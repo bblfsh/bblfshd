@@ -10,9 +10,11 @@ import (
 var DefaultService Service
 
 type Service interface {
+	InstallDriver(language string, image string, update bool) error
+	RemoveDriver(language string) error
+	DriverStates() ([]*DriverImageState, error)
 	DriverPoolStates() map[string]*DriverPoolState
 	DriverInstanceStates() ([]*DriverInstanceState, error)
-	DriverStates() ([]*DriverImageState, error)
 }
 
 //proteus:generate
@@ -76,6 +78,62 @@ func DriverStates() *DriverStatesResponse {
 	var err error
 	resp.State, err = DefaultService.DriverStates()
 	if err != nil {
+		resp.Errors = append(resp.Errors, err.Error())
+	}
+
+	return resp
+}
+
+//proteus:generate
+type InstallDriverRequest struct {
+	// Language supported by the driver being installed.
+	Language string
+	// ImageReference is the name of the image to be installed in the following
+	// format: `transport:[//]name[:tag]`. The default value for tag is `latest`
+	ImageReference string
+	// Update indicates whether an image should be updated. When set to false,
+	// the installation fails if the image already exists.
+	Update bool
+}
+
+type Response protocol.Response
+
+//proteus:generate
+func InstallDriver(req *InstallDriverRequest) *Response {
+	resp := &Response{}
+	start := time.Now()
+	defer func() {
+		resp.Elapsed = time.Since(start)
+	}()
+
+	err := DefaultService.InstallDriver(
+		req.Language,
+		req.ImageReference,
+		req.Update,
+	)
+
+	if err != nil {
+		resp.Errors = append(resp.Errors, err.Error())
+	}
+
+	return resp
+}
+
+//proteus:generate
+type RemoveDriverRequest struct {
+	// Language supported by the driver to be deleted.
+	Language string
+}
+
+//proteus:generate
+func RemoveDriver(req *RemoveDriverRequest) *Response {
+	resp := &Response{}
+	start := time.Now()
+	defer func() {
+		resp.Elapsed = time.Since(start)
+	}()
+
+	if err := DefaultService.RemoveDriver(req.Language); err != nil {
 		resp.Errors = append(resp.Errors, err.Error())
 	}
 

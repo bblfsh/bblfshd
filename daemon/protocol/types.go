@@ -58,7 +58,6 @@ type DriverInstanceState struct {
 type DriverImageState struct {
 	// Referene is the image reference from where retrieved.
 	Reference string `json:"reference"`
-
 	// This fields are from manifest.Manifest, due to some limitation of
 	// proteus, can't be used directly.
 	// Language of the driver.
@@ -67,7 +66,7 @@ type DriverImageState struct {
 	Version string `json:"version,omitempty"`
 	// Build time at the compilation of the image.
 	Build time.Time `json:"build,omitempty"`
-	// Status is the development status of the driver (alpha, beta, etc).
+	// Status is the development status of the driver (alpha, beta, etc)
 	Status string `json:"status"`
 	// OS is the linux distribution running on the driver container.
 	OS string `json:"os"`

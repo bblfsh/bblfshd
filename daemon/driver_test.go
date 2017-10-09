@@ -22,7 +22,7 @@ func TestNewDriver(t *testing.T) {
 	run, image, path := NewRuntime(t)
 	defer os.RemoveAll(path)
 
-	err := run.InstallDriver(image, false)
+	_, err := run.InstallDriver(image, false)
 	require.NoError(err)
 
 	i, err := NewDriverInstance(run, "foo", image, &Options{
@@ -91,7 +91,7 @@ func NewRuntime(t *testing.T) (*runtime.Runtime, runtime.DriverImage, string) {
 	image, err := runtime.NewDriverImage("docker://bblfsh/python-driver:experimental")
 	require.NoError(err)
 
-	err = run.InstallDriver(image, false)
+	_, err = run.InstallDriver(image, false)
 	require.NoError(err)
 
 	return run, image, dir

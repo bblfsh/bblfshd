@@ -67,6 +67,27 @@ message DriverStatesResponse {
 	repeated github.com.bblfsh.server.daemon.protocol.DriverImageState state = 3;
 }
 
+message InstallDriverRequest {
+	option (gogoproto.goproto_getters) = false;
+	option (gogoproto.typedecl) = false;
+	string language = 1;
+	string image_reference = 2;
+	bool update = 3;
+}
+
+message RemoveDriverRequest {
+	option (gogoproto.goproto_getters) = false;
+	option (gogoproto.typedecl) = false;
+	string language = 1;
+}
+
+message Response {
+	option (gogoproto.goproto_getters) = false;
+	option (gogoproto.typedecl) = false;
+	repeated string errors = 1;
+	google.protobuf.Duration elapsed = 2 [(gogoproto.nullable) = false, (gogoproto.stdduration) = true];
+}
+
 message DriverInstanceStatesRequest {
 }
 
@@ -97,5 +118,7 @@ service ProtocolService {
 	rpc DriverInstanceStates (github.com.bblfsh.server.daemon.protocol.DriverInstanceStatesRequest) returns (github.com.bblfsh.server.daemon.protocol.DriverInstanceStatesResponse);
 	rpc DriverPoolStates (github.com.bblfsh.server.daemon.protocol.DriverPoolStatesRequest) returns (github.com.bblfsh.server.daemon.protocol.DriverPoolStatesResponse);
 	rpc DriverStates (github.com.bblfsh.server.daemon.protocol.DriverStatesRequest) returns (github.com.bblfsh.server.daemon.protocol.DriverStatesResponse);
+	rpc InstallDriver (github.com.bblfsh.server.daemon.protocol.InstallDriverRequest) returns (github.com.bblfsh.server.daemon.protocol.Response);
+	rpc RemoveDriver (github.com.bblfsh.server.daemon.protocol.RemoveDriverRequest) returns (github.com.bblfsh.server.daemon.protocol.Response);
 }
 

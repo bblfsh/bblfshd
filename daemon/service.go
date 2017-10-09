@@ -125,16 +125,16 @@ func (d *Service) Version(req *sdk.VersionRequest) *sdk.VersionResponse {
 }
 
 type ControlService struct {
-	daemon *Daemon
+	*Daemon
 }
 
 func NewControlService(d *Daemon) *ControlService {
-	return &ControlService{daemon: d}
+	return &ControlService{Daemon: d}
 }
 
 func (s *ControlService) DriverPoolStates() map[string]*protocol.DriverPoolState {
 	out := make(map[string]*protocol.DriverPoolState, 0)
-	for language, pool := range s.daemon.Current() {
+	for language, pool := range s.Daemon.Current() {
 		out[language] = pool.State()
 	}
 
@@ -143,7 +143,7 @@ func (s *ControlService) DriverPoolStates() map[string]*protocol.DriverPoolState
 
 func (s *ControlService) DriverInstanceStates() ([]*protocol.DriverInstanceState, error) {
 	var out []*protocol.DriverInstanceState
-	for _, pool := range s.daemon.Current() {
+	for _, pool := range s.Daemon.Current() {
 		for _, driver := range pool.Current() {
 			status, err := driver.State()
 			if err != nil {
@@ -158,7 +158,7 @@ func (s *ControlService) DriverInstanceStates() ([]*protocol.DriverInstanceState
 }
 
 func (s *ControlService) DriverStates() ([]*protocol.DriverImageState, error) {
-	list, err := s.daemon.runtime.ListDrivers()
+	list, err := s.Daemon.runtime.ListDrivers()
 	if err != nil {
 		return nil, err
 	}

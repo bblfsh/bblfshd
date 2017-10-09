@@ -25,3 +25,13 @@ func (s *protocolServiceServer) DriverStates(ctx xcontext.Context, in *DriverSta
 	result = DriverStates()
 	return
 }
+func (s *protocolServiceServer) InstallDriver(ctx xcontext.Context, in *InstallDriverRequest) (result *Response, err error) {
+	result = new(Response)
+	result = InstallDriver(in)
+	return
+}
+func (s *protocolServiceServer) RemoveDriver(ctx xcontext.Context, in *RemoveDriverRequest) (result *Response, err error) {
+	result = new(Response)
+	result = RemoveDriver(in)
+	return
+}
