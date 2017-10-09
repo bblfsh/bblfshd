@@ -8,4 +8,4 @@ RUN apt-get update && \
     && apt-get clean
 
 ENV GOPATH=/go
-WORKDIR /go/src/github.com/bblfsh/server
+WORKDIR /go/src/github.com/bblfsh/bblfshd

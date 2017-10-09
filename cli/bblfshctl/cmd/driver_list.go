@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bblfsh/server/daemon/protocol"
+	"github.com/bblfsh/bblfshd/daemon/protocol"
 
-	"github.com/bblfsh/server/runtime"
+	"github.com/bblfsh/bblfshd/runtime"
 	"github.com/docker/go-units"
 	"github.com/olekukonko/tablewriter"
 )

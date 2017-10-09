@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/bblfsh/server/daemon/protocol"
+	"github.com/bblfsh/bblfshd/daemon/protocol"
 
 	"github.com/sirupsen/logrus"
 	sdk "gopkg.in/bblfsh/sdk.v1/protocol"

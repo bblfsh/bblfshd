@@ -11,8 +11,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/bblfsh/server/daemon/protocol"
-	"github.com/bblfsh/server/runtime"
+	"github.com/bblfsh/bblfshd/daemon/protocol"
+	"github.com/bblfsh/bblfshd/runtime"
 
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"google.golang.org/grpc"

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bblfsh/server/daemon/protocol"
+	"github.com/bblfsh/bblfshd/daemon/protocol"
 	"github.com/stretchr/testify/require"
 )
 

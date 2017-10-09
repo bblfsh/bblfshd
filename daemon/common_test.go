@@ -1,8 +1,8 @@
 package daemon
 
 import (
-	"github.com/bblfsh/server/daemon/protocol"
-	"github.com/bblfsh/server/runtime"
+	"github.com/bblfsh/bblfshd/daemon/protocol"
+	"github.com/bblfsh/bblfshd/runtime"
 
 	oldctx "golang.org/x/net/context"
 	"google.golang.org/grpc"
