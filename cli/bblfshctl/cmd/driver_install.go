@@ -34,8 +34,8 @@ const (
 		"Using `--all` all the official bblfsh driver are install in the \n" +
 		"daemon. Using `--language` and `--image` arguments one single driver \n" +
 		"can be installed or updated.\n\n" +
-		"Image reference format should be `[transport://]name[:tag]` if\n" +
-		"transport is missing 'docker' or tag is missing 'lastest' are assumed"
+		"Image reference format should be `[transport]name[:tag]`.\n" +
+		"Defaults are 'docker://' for transport and 'latest' for tag."
 )
 
 type DriverInstallCommand struct {
