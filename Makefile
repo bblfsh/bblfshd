@@ -63,11 +63,6 @@ define unescape_docker_tag
 $(subst --,:,$(1))
 endef
 
-# if TRAVIS_TAG defined DOCKER_VERSION is overrided
-ifneq ($(TRAVIS_TAG), )
-    VERSION := $(TRAVIS_TAG)
-endif
-
 # if we are not in master, and it's not a tag the push is disabled
 ifneq ($(TRAVIS_BRANCH), master)
 	ifeq ($(TRAVIS_TAG), )
