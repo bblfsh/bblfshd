@@ -27,7 +27,7 @@ the port `9432` by default, this gRPC will be used by the [clients](https://gith
 to interact with the server. Also, we mount the path `/var/lib/bblfshd/` where
 all the driver images and container instances will be stored.
 
-Now you we need to install the driver images into the daemon, you can install
+Now you need to install the driver images into the daemon, you can install
 the official images just running the command:
 
 ```sh
