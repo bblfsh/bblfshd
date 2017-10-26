@@ -14,10 +14,11 @@ import (
 )
 
 var (
-	ErrUnexpected       = errors.NewKind("unexpected error")
-	ErrMissingDriver    = errors.NewKind("missing driver for language %q")
-	ErrRuntime          = errors.NewKind("runtime failure")
-	ErrAlreadyInstalled = errors.NewKind("driver already installed: %s (image reference: %s)")
+	ErrUnexpected        = errors.NewKind("unexpected error")
+	ErrMissingDriver     = errors.NewKind("missing driver for language %q")
+	ErrRuntime           = errors.NewKind("runtime failure")
+	ErrAlreadyInstalled  = errors.NewKind("driver already installed: %s (image reference: %s)")
+	ErrLanguageDetection = errors.NewKind("could not autodetect language")
 )
 
 // Daemon is a Babelfish server.
