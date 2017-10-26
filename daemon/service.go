@@ -109,6 +109,9 @@ func (d *Service) NativeParse(req *sdk.NativeParseRequest) *sdk.NativeParseRespo
 func (s *Service) selectPool(language, content, filename string) (string, *DriverPool, error) {
 	if language == "" {
 		language = GetLanguage(filename, []byte(content))
+		if language == "" {
+			return language, nil, ErrLanguageDetection.New()
+		}
 		logrus.Debugf("detected language %q, filename %q", language, filename)
 	}
 
