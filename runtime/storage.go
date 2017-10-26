@@ -74,7 +74,7 @@ func (s *storage) Install(d DriverImage, update bool) (*DriverImageStatus, error
 }
 
 func (s *storage) tempPath() (string, error) {
-	if err := os.MkdirAll(s.temp, 0655); err != nil {
+	if err := os.MkdirAll(s.temp, 0755); err != nil {
 		return "", err
 	}
 
@@ -84,7 +84,7 @@ func (s *storage) tempPath() (string, error) {
 func (s *storage) moveImage(source string, d DriverImage, di Digest) error {
 	root := s.rootFSPath(d, di)
 	dir := filepath.Dir(root)
-	if err := os.MkdirAll(dir, 0655); err != nil {
+	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
 	}
 
