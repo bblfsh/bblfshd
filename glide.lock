@@ -260,7 +260,7 @@ imports:
   - tap
   - transport
 - name: gopkg.in/bblfsh/sdk.v1
-  version: 688162d08804092091fc4b728c85128e7a1724ea
+  version: 62b4632cfb27041e67ff93b8cd596a9cb156f32b
   subpackages:
   - manifest
   - protocol
