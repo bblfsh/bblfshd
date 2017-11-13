@@ -28,6 +28,7 @@ func (d *Service) Parse(req *sdk.ParseRequest) *sdk.ParseResponse {
 	}()
 
 	if req.Content == "" {
+		logrus.Debugf("empty request received, returning empty UAST")
 		return resp
 	}
 
@@ -35,6 +36,7 @@ func (d *Service) Parse(req *sdk.ParseRequest) *sdk.ParseResponse {
 	if err != nil {
 		logrus.Errorf("error selecting pool: %s", err)
 		resp.Response = newResponseFromError(err)
+		resp.Language = language
 		return resp
 	}
 
@@ -50,6 +52,7 @@ func (d *Service) Parse(req *sdk.ParseRequest) *sdk.ParseResponse {
 		resp.Response = newResponseFromError(err)
 	}
 
+	resp.Language = language
 	return resp
 }
 
@@ -103,6 +106,7 @@ func (d *Service) NativeParse(req *sdk.NativeParseRequest) *sdk.NativeParseRespo
 		resp.Response = newResponseFromError(err)
 	}
 
+	resp.Language = language
 	return resp
 }
 
