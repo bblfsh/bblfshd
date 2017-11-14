@@ -32,6 +32,8 @@ import:
   version: ^1.6.0
 - package: gopkg.in/bblfsh/sdk.v1
   version: ^1.8.0
+- package: github.com/mcuadros/go-lookup
+  version: 5650f26be7675b629fff8356a50d906fa03e9c8b
 - package: gopkg.in/src-d/enry.v1
   version: ^1.4.2
 - package: gopkg.in/src-d/go-errors.v1
