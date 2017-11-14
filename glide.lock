@@ -1,5 +1,5 @@
-hash: ae93c7b1d72d10e1f8aaf679ded7d5d0f0970f95179a97eea4ca698c4fe17e7f
-updated: 2017-10-11T15:33:22.131131244+02:00
+hash: b32fe5f156dddc0c159f48945f745293bcffafbef1774b90219cdcb5113c8e4b
+updated: 2017-11-14T09:57:59.132090324+01:00
 imports:
 - name: github.com/briandowns/spinner
   version: 48dbb65d7bd5c74ab50d53d04c949f20e3d14944
@@ -138,6 +138,8 @@ imports:
   repo: https://github.com/mattn/go-isatty
 - name: github.com/mattn/go-runewidth
   version: 97311d9f7767e3d6f422ea06661bc2c7a19e8a5d
+- name: github.com/mcuadros/go-lookup
+  version: 5650f26be7675b629fff8356a50d906fa03e9c8b
 - name: github.com/mgutz/ansi
   version: 9520e82c474b0a04dd04f8a40959027271bab992
 - name: github.com/Microsoft/go-winio
@@ -151,7 +153,7 @@ imports:
 - name: github.com/opencontainers/go-digest
   version: 279bed98673dd5bef374d3b6e4b09e2af76183bf
 - name: github.com/opencontainers/image-spec
-  version: ab7389ef9f50030c9b245bc16b981c7ddf192882
+  version: d60099175f88c47cd379c4738d158884749ed235
   subpackages:
   - specs-go
   - specs-go/v1
@@ -192,9 +194,9 @@ imports:
   version: 645ef00459ed84a119197bfb8d8205042c6df63d
 - name: github.com/seccomp/libseccomp-golang
   version: f6ec81daf48e41bf48b475afc7fe06a26bfb72d1
-- name: github.com/sirupsen/logrus
-  version: f006c2ac4710855cf0f916dd6b77acf6b048dc6e
 - name: github.com/Sirupsen/logrus
+  version: f006c2ac4710855cf0f916dd6b77acf6b048dc6e
+- name: github.com/sirupsen/logrus
   version: f006c2ac4710855cf0f916dd6b77acf6b048dc6e
 - name: github.com/syndtr/gocapability
   version: db04d3cc01c8b54962a58ec7e491717d06cfcc16
@@ -243,8 +245,9 @@ imports:
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc
-  version: f92cdcd7dcdc69e81b2d7b338479a19a8723cfa3
+  version: 5ffe3083946d5603a0578721101dc8165b1d5b5f
   subpackages:
+  - balancer
   - codes
   - connectivity
   - credentials
@@ -255,12 +258,13 @@ imports:
   - metadata
   - naming
   - peer
+  - resolver
   - stats
   - status
   - tap
   - transport
 - name: gopkg.in/bblfsh/sdk.v1
-  version: 32aa0b974ef93fce79e6336067c877a0e729496b
+  version: 62b4632cfb27041e67ff93b8cd596a9cb156f32b
   subpackages:
   - manifest
   - protocol
@@ -270,7 +274,7 @@ imports:
   - uast
   - uast/transformer
 - name: gopkg.in/src-d/enry.v1
-  version: c73f347afa18919a6fd6e4a3d48fbd341c850644
+  version: acaf8f3d385e8c6f43e24713538007fb72bbfc16
   subpackages:
   - data
   - internal/tokenizer

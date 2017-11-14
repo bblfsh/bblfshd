@@ -18,6 +18,7 @@ func TestServiceParse(t *testing.T) {
 	resp := s.Parse(&protocol.ParseRequest{Filename: "foo.py", Content: "foo"})
 	require.Len(resp.Errors, 0)
 	require.Equal(resp.UAST.Token, "foo")
+	require.Equal(resp.Language, "python")
 	require.True(resp.Elapsed.Nanoseconds() > 0)
 }
 
@@ -31,6 +32,7 @@ func TestServiceNativeParse(t *testing.T) {
 	resp := s.NativeParse(&protocol.NativeParseRequest{Filename: "foo.py", Content: "foo"})
 	require.Len(resp.Errors, 0)
 	require.Equal(resp.AST, "foo")
+	require.Equal(resp.Language, "python")
 	require.True(resp.Elapsed.Nanoseconds() > 0)
 }
 
