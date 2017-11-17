@@ -81,7 +81,7 @@ func (c *DriverInstallCommand) Validate() error {
 }
 
 func (c *DriverInstallCommand) installDriver(lang, ref string) error {
-	fmt.Printf("Installing %s driver language from %q... ", lang, ref)
+	fmt.Printf("Installing %s language driver from %q... ", lang, ref)
 	s := spinner.New(spinner.CharSets[9], 100*time.Millisecond) // Build our new spinner
 	s.Start()
 
