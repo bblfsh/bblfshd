@@ -24,7 +24,7 @@ func (d *Service) Parse(req *sdk.ParseRequest) *sdk.ParseResponse {
 	start := time.Now()
 	defer func() {
 		resp.Elapsed = time.Since(start)
-		d.logResponse(resp.Status, req.Language, len(req.Content), resp.Elapsed)
+		d.logResponse(resp.Status, req.Filename, req.Language, len(req.Content), resp.Elapsed)
 	}()
 
 	if req.Content == "" {
@@ -56,8 +56,9 @@ func (d *Service) Parse(req *sdk.ParseRequest) *sdk.ParseResponse {
 	return resp
 }
 
-func (d *Service) logResponse(s sdk.Status, language string, size int, elapsed time.Duration) {
+func (d *Service) logResponse(s sdk.Status, filename string, language string, size int, elapsed time.Duration) {
 	l := logrus.WithFields(logrus.Fields{
+		"filename": filename,
 		"language": language,
 		"elapsed":  elapsed,
 	})
@@ -79,7 +80,7 @@ func (d *Service) NativeParse(req *sdk.NativeParseRequest) *sdk.NativeParseRespo
 	start := time.Now()
 	defer func() {
 		resp.Elapsed = time.Since(start)
-		d.logResponse(resp.Status, req.Language, len(req.Content), resp.Elapsed)
+		d.logResponse(resp.Status, req.Language, req.Language, len(req.Content), resp.Elapsed)
 	}()
 
 	if req.Content == "" {
