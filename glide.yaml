@@ -21,7 +21,7 @@ import:
   subpackages:
   - specs-go/v1
 - package: github.com/opencontainers/runc
-  version: ^1.0.0-rc4
+  version: e8149af2910850602cae998dede29e630d1b8ee1
   subpackages:
   - libcontainer
   - libcontainer/configs

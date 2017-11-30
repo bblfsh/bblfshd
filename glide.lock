@@ -158,7 +158,7 @@ imports:
   - specs-go
   - specs-go/v1
 - name: github.com/opencontainers/runc
-  version: 2e7cfe036e2c6dc51ccca6eb7fa3ee6b63976dcd
+  version: e8149af2910850602cae998dede29e630d1b8ee1
   subpackages:
   - libcontainer
   - libcontainer/apparmor
