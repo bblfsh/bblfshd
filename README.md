@@ -20,6 +20,13 @@ The recommended way to run *bblfshd* is using *docker*:
 docker run -d --name bblfshd --privileged -p 9432:9432 -v /var/lib/bblfshd:/var/lib/bblfshd bblfsh/bblfshd
 ```
 
+On macOS, use this command instead to use a docker volume:
+
+```sh
+docker run -d --name bblfshd --privileged -p 9432:9432 -v bblfsh-cache:/var/lib/bblfshd bblfsh/bblfshd
+```
+
+
 The container should be executed with the `--privileged` flag since *bblfshd* it's
 based on [container technology](https://github.com/opencontainers/runc/tree/master/libcontainer)
 and interacts with the kernel at a low level. *bblfshd*, expose a gRPC server at
