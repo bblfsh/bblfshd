@@ -18,6 +18,16 @@ var (
 	DefaultTransport = "docker://"
 	// OfficialDriver represents the list of all the official bblfsh drivers.
 	OfficialDriver = map[string]string{
+		"python":     "docker://bblfsh/python-driver:latest",
+		"java":       "docker://bblfsh/java-driver:latest",
+		"bash":       "docker://bblfsh/bash-driver:latest",
+		"php":        "docker://bblfsh/php-driver:latest",
+		"javascript": "docker://bblfsh/javascript-driver:latest",
+		"ruby":       "docker://bblfsh/ruby-driver:latest",
+		"typescript": "docker://bblfsh/typescript-driver:latest",
+	}
+
+	RecommendedDriver = map[string]string{
 		"python": "docker://bblfsh/python-driver:latest",
 		"java":   "docker://bblfsh/java-driver:latest",
 	}
@@ -32,7 +42,8 @@ const (
 	DriverInstallCommandDescription = "Installs a new driver for a given language"
 	DriverInstallCommandHelp        = DriverInstallCommandDescription + "\n\n" +
 		"Using `--all` all the official bblfsh driver are install in the \n" +
-		"daemon. Using `--language` and `--image` arguments one single driver \n" +
+		"daemon. Using `--recommended` will only install the recommended, \n" +
+		"more developed. Using `--language` and `--image` arguments one single driver \n" +
 		"can be installed or updated.\n\n" +
 		"Image reference format should be `[transport]name[:tag]`.\n" +
 		"Defaults are 'docker://' for transport and 'latest' for tag."
@@ -44,8 +55,9 @@ type DriverInstallCommand struct {
 		ImageReference string `positional-arg-name:"image" description:"driver's image reference"`
 	} `positional-args:"yes"`
 
-	Update bool `long:"update" description:"replace the current image for the language if any"`
-	All    bool `long:"all" description:"installs all the official drivers"`
+	Update      bool `long:"update" description:"replace the current image for the language if any"`
+	All         bool `long:"all" description:"installs all the official drivers"`
+	Recommended bool `long:"recommended" description:"install the recommended official drivers"`
 
 	DriverCommand
 }
@@ -59,22 +71,32 @@ func (c *DriverInstallCommand) Execute(args []string) error {
 		return err
 	}
 
-	if !c.All {
-		return c.installDriver(c.Args.Language, c.Args.ImageReference)
-	}
-
-	for lang, image := range OfficialDriver {
-		if err := c.installDriver(lang, image); err != nil {
-			return err
+	if c.All {
+		for lang, image := range OfficialDriver {
+			if err := c.installDriver(lang, image); err != nil {
+				return err
+			}
 		}
+	} else if c.Recommended {
+		for lang, image := range RecommendedDriver {
+			if err := c.installDriver(lang, image); err != nil {
+				return err
+			}
+		}
+	} else {
+		return c.installDriver(c.Args.Language, c.Args.ImageReference)
 	}
 
 	return nil
 }
 
 func (c *DriverInstallCommand) Validate() error {
-	if !c.All && (c.Args.Language == "" || c.Args.ImageReference == "") {
+	if !c.All && !c.Recommended && (c.Args.Language == "" || c.Args.ImageReference == "") {
 		return fmt.Errorf("error --language and --image are mandatory")
+	}
+
+	if c.All && c.Recommended {
+		return fmt.Errorf("error --all and --recommended are exclusive")
 	}
 
 	return nil
