@@ -1,4 +1,5 @@
 # bblfshd [![Build Status](https://travis-ci.org/bblfsh/bblfshd.svg?branch=master)](https://travis-ci.org/bblfsh/bblfshd) [![codecov](https://codecov.io/gh/bblfsh/bblfshd/branch/master/graph/badge.svg)](https://codecov.io/gh/bblfsh/bblfshd) [![license](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](https://github.com/bblfsh/bblfshd/blob/master/LICENSE) [![GitHub release](https://img.shields.io/github/release/bblfsh/bblfshd.svg)](https://github.com/bblfsh/bblfshd/releases)
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fbblfsh%2Fbblfshd.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fbblfsh%2Fbblfshd?ref=badge_shield)
 
 This repository contains bblfsh daemon (*bblfshd*), which includes the
 runtime that runs the driver in *containers* and the bblfshctl, a cli tool used
@@ -114,3 +115,6 @@ $ make test
 
 GPLv3, see [LICENSE](LICENSE)
 
+
+
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fbblfsh%2Fbblfshd.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fbblfsh%2Fbblfshd?ref=badge_large)
