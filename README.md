@@ -23,7 +23,7 @@ docker run -d --name bblfshd --privileged -p 9432:9432 -v /var/lib/bblfshd:/var/
 On macOS, use this command instead to use a docker volume:
 
 ```sh
-docker run -d --name bblfshd --privileged -p 9432:9432 -v bblfsh-cache:/var/lib/bblfshd bblfsh/bblfshd
+docker run -d --name bblfshd --privileged -p 9432:9432 -v bblfsh-storage:/var/lib/bblfshd bblfsh/bblfshd
 ```
 
 
