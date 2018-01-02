@@ -28,8 +28,9 @@ var (
 	}
 
 	RecommendedDriver = map[string]string{
-		"python": "docker://bblfsh/python-driver:latest",
-		"java":   "docker://bblfsh/java-driver:latest",
+		"python":     "docker://bblfsh/python-driver:latest",
+		"java":       "docker://bblfsh/java-driver:latest",
+		"javascript": "docker://bblfsh/javascript-driver:latest",
 	}
 
 	SupportedTransports = map[string]bool{
