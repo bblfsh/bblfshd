@@ -31,6 +31,7 @@ var (
 		"python":     "docker://bblfsh/python-driver:latest",
 		"java":       "docker://bblfsh/java-driver:latest",
 		"javascript": "docker://bblfsh/javascript-driver:latest",
+		"ruby":       "docker://bblfsh/ruby-driver:latest",
 	}
 
 	SupportedTransports = map[string]bool{
