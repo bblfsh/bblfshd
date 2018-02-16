@@ -21,6 +21,7 @@ var (
 		"python":     "docker://bblfsh/python-driver:latest",
 		"java":       "docker://bblfsh/java-driver:latest",
 		"bash":       "docker://bblfsh/bash-driver:latest",
+		"php":        "docker://bblfsh/php-driver:latest",
 		"javascript": "docker://bblfsh/javascript-driver:latest",
 		"ruby":       "docker://bblfsh/ruby-driver:latest",
 		"typescript": "docker://bblfsh/typescript-driver:latest",
