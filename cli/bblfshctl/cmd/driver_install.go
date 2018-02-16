@@ -26,12 +26,13 @@ var (
 		"ruby":       "docker://bblfsh/ruby-driver:latest",
 		"typescript": "docker://bblfsh/typescript-driver:latest",
 	}
-
+	// RecommendedDriver is the list of drivers in beta state or better
 	RecommendedDriver = map[string]string{
 		"python":     "docker://bblfsh/python-driver:latest",
 		"java":       "docker://bblfsh/java-driver:latest",
 		"javascript": "docker://bblfsh/javascript-driver:latest",
 		"ruby":       "docker://bblfsh/ruby-driver:latest",
+		"php":        "docker://bblfsh/php-driver:latest",
 	}
 
 	SupportedTransports = map[string]bool{
