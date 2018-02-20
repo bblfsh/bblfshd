@@ -1,5 +1,5 @@
-hash: b32fe5f156dddc0c159f48945f745293bcffafbef1774b90219cdcb5113c8e4b
-updated: 2017-11-14T09:57:59.132090324+01:00
+hash: b412c7b4e98e8573f92fbfd44acf8e8ab6021885899f9eea85509d9a969d534d
+updated: 2018-02-21T19:43:10.535609157+02:00
 imports:
 - name: github.com/briandowns/spinner
   version: 48dbb65d7bd5c74ab50d53d04c949f20e3d14944
@@ -122,6 +122,14 @@ imports:
   - ptypes/any
   - ptypes/duration
   - ptypes/timestamp
+- name: github.com/google/go-github
+  version: 632a2caf6d3d380753dc7e422748202982ad18a3
+  subpackages:
+  - github
+- name: github.com/google/go-querystring
+  version: 53e6ce116135b80d037921a7fdd5138cf32d7a8a
+  subpackages:
+  - query
 - name: github.com/gorilla/context
   version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
 - name: github.com/gorilla/mux
@@ -264,9 +272,10 @@ imports:
   - tap
   - transport
 - name: gopkg.in/bblfsh/sdk.v1
-  version: 62b4632cfb27041e67ff93b8cd596a9cb156f32b
+  version: 9ec655062322ee4aaaac8c11c7660a7963905c1d
   subpackages:
   - manifest
+  - manifest/discovery
   - protocol
   - sdk/driver
   - sdk/jsonlines
