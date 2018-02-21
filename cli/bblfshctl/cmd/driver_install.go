@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/bblfsh/bblfshd/daemon/protocol"
+	"gopkg.in/bblfsh/sdk.v1/manifest/discovery"
 
 	"github.com/briandowns/spinner"
 )
@@ -16,30 +18,66 @@ var (
 	// DefaultTransport is the default transport used when is missing on the
 	// image reference.
 	DefaultTransport = "docker://"
-	// OfficialDriver represents the list of all the official bblfsh drivers.
-	OfficialDriver = map[string]string{
-		"python":     "docker://bblfsh/python-driver:latest",
-		"java":       "docker://bblfsh/java-driver:latest",
-		"bash":       "docker://bblfsh/bash-driver:latest",
-		"php":        "docker://bblfsh/php-driver:latest",
-		"javascript": "docker://bblfsh/javascript-driver:latest",
-		"ruby":       "docker://bblfsh/ruby-driver:latest",
-		"typescript": "docker://bblfsh/typescript-driver:latest",
-	}
-	// RecommendedDriver is the list of drivers in beta state or better
-	RecommendedDriver = map[string]string{
-		"python":     "docker://bblfsh/python-driver:latest",
-		"java":       "docker://bblfsh/java-driver:latest",
-		"javascript": "docker://bblfsh/javascript-driver:latest",
-		"ruby":       "docker://bblfsh/ruby-driver:latest",
-		"php":        "docker://bblfsh/php-driver:latest",
-	}
 
 	SupportedTransports = map[string]bool{
 		"docker":        true,
 		"docker-daemon": true,
 	}
 )
+
+var (
+	drivers struct {
+		sync.Once
+		List []discovery.Driver
+	}
+)
+
+func getOfficialDrivers() []discovery.Driver {
+	drivers.Do(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		defer cancel()
+
+		list, err := discovery.OfficialDrivers(ctx, &discovery.Options{
+			NoMaintainers: true,
+		})
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error, %s\n", err)
+		} else {
+			drivers.List = list
+		}
+	})
+	return drivers.List
+}
+
+func driverImage(id string) string {
+	return fmt.Sprintf("docker://bblfsh/%s-driver:latest", id)
+}
+
+// allDrivers returns the list of all the official bblfsh drivers that are usable.
+func allDrivers() map[string]string {
+	list := getOfficialDrivers()
+	m := make(map[string]string, len(list))
+	for _, d := range list {
+		if d.InDevelopment() {
+			continue
+		}
+		m[d.Language] = driverImage(d.Language)
+	}
+	return m
+}
+
+// recommendedDrivers returns the list of drivers in beta state or better.
+func recommendedDrivers() map[string]string {
+	list := getOfficialDrivers()
+	m := make(map[string]string, len(list))
+	for _, d := range list {
+		if !d.IsRecommended() {
+			continue
+		}
+		m[d.Language] = driverImage(d.Language)
+	}
+	return m
+}
 
 const (
 	DriverInstallCommandDescription = "Installs a new driver for a given language"
@@ -75,13 +113,13 @@ func (c *DriverInstallCommand) Execute(args []string) error {
 	}
 
 	if c.All {
-		for lang, image := range OfficialDriver {
+		for lang, image := range allDrivers() {
 			if err := c.installDriver(lang, image); err != nil {
 				return err
 			}
 		}
 	} else if c.Recommended {
-		for lang, image := range RecommendedDriver {
+		for lang, image := range recommendedDrivers() {
 			if err := c.installDriver(lang, image); err != nil {
 				return err
 			}
