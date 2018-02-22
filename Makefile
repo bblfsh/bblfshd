@@ -12,8 +12,7 @@ $(DOCS_PATH)/Makefile.inc:
 PROJECT = bblfshd
 COMMANDS = bblfshd bblfshctl
 DEPENDENCIES = \
-	golang.org/x/tools/cmd/cover \
-	github.com/Masterminds/glide
+	golang.org/x/tools/cmd/cover
 NOVENDOR_PACKAGES := $(shell go list ./... | grep -v '/vendor/')
 
 # Environment
@@ -36,7 +35,8 @@ GO_BUILD = $(GO_CMD) build
 GO_CLEAN = $(GO_CMD) clean
 GO_GET = $(GO_CMD) get -v
 GO_TEST = $(GO_CMD) test -v
-GLIDE ?= $(GOPATH)/bin/glide
+DEP ?= $(GOPATH)/bin/dep
+DEP_VERSION = v0.4.1
 
 # Packages content
 PKG_OS_bblfshctl = darwin linux windows
@@ -95,10 +95,12 @@ all: clean test build
 dependencies: $(DEPENDENCIES) $(VENDOR_PATH) build-fixture
 
 $(DEPENDENCIES):
-	$(GO_GET) $@/...
+	$(GO_GET) $@/... && \
+	wget -O $(DEP) https://github.com/golang/dep/releases/download/$(DEP_VERSION)/dep-linux-amd64 && \
+	chmod +x $(DEP)
 
 $(VENDOR_PATH):
-	$(GLIDE) install; \
+	$(DEP) ensure --vendor-only; \
 	rm -rf vendor/github.com/Sirupsen/;
 
 docker-build:
