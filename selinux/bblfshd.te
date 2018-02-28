@@ -1,0 +1,11 @@
+
+module bblfshd 1.0;
+
+require {
+        type container_runtime_t;
+        type spc_t;
+        class fifo_file setattr;
+}
+
+#============= spc_t ==============
+allow spc_t container_runtime_t:fifo_file setattr;
