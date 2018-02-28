@@ -196,8 +196,8 @@ func Bootstrap() {
 		factory, _ := libcontainer.New("")
 		if err := factory.StartInitialization(); err != nil {
 			panic("error bootstraping container " +
-			      "(hint: if SELinux is enabled, compile and load the policy module " +
-				  "in the selinux/ directory in the bblfshd repo): " + err)
+				"(hint: if SELinux is enabled, compile and load the policy module " +
+				"in this repo's selinux/ directory): " + err)
 		}
 		panic("--this line should have never been executed, congratulations--")
 	}

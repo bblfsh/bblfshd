@@ -62,6 +62,36 @@ and an example contained in the docker image:
 docker exec -it bblfshd bblfshctl parse /opt/bblfsh/etc/examples/python.py
 ```
 
+## SELinux
+
+If your system has SELinux enabled (is the default in Fedora, Red Hat, CentOS
+and many others) you need to compile and load a policy module before running the
+bblfshd Docker image or running driver containers will fail with a `permission
+denied` message in the logs. 
+
+To do this, run these commands from the project root:
+
+```bash
+cd selinux/
+sh compile.sh
+semodule -i bblfshd.pp
+```
+
+If you were already running an instance of bblfshd, you will need to delete the
+container (`docker rm -f bblfshd`) and run it again (`docker run...`).
+
+Once the module has been loaded with `semodule` the change should persist even
+if you reboot. If you want to permanently remove this module run `semodule -d bblfshd`.
+
+Alternatively, you could set SELinux to permissive module with:
+
+```
+echo 1 > /sys/fs/selinux/enforce
+```
+
+(doing this on production systems which usually have SELinux enabled by default
+should be strongly discouraged).
+
 ## Development
 
 If you wish to work on *bblfshd* , you'll first need [Go](http://www.golang.org)
