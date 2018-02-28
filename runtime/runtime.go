@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"syscall"
 
 	"github.com/opencontainers/runc/libcontainer"
@@ -195,9 +196,13 @@ func Bootstrap() {
 		runtime.LockOSThread()
 		factory, _ := libcontainer.New("")
 		if err := factory.StartInitialization(); err != nil {
-			panic("error bootstraping container " +
-				"(hint: if SELinux is enabled, compile and load the policy module " +
-				"in this repo's selinux/ directory): " + err)
+			if strings.Contains(err.Error(), "permission denied") {
+				panic("error bootstraping container " +
+					"(hint: if SELinux is enabled, compile and load the policy module " +
+					"in this repo's selinux/ directory): " + err.Error())
+			} else {
+				panic(err)
+			}
 		}
 		panic("--this line should have never been executed, congratulations--")
 	}
