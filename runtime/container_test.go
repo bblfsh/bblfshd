@@ -114,7 +114,7 @@ func (s *ContainerSuite) TestContainer_StartWait() {
 	err = c.Wait()
 	require.NoError(err)
 
-	require.Equal("bin\ndev\netc\nhome\nopt\nproc\nroot\nsys\ntmp\nusr\nvar\n", out.String())
+	require.Equal("bin\ndev\netc\nhome\nopt\nproc\nroot\ntmp\nusr\nvar\n", out.String())
 }
 
 func (s *ContainerSuite) TestContainer_StartWaitExit1() {
