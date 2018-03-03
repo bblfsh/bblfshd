@@ -96,11 +96,10 @@ dependencies: $(DEPENDENCIES) $(VENDOR_PATH) build-fixture
 
 $(DEPENDENCIES):
 	$(GO_GET) $@/... && \
-	wget -O $(DEP) https://github.com/golang/dep/releases/download/$(DEP_VERSION)/dep-linux-amd64 && \
+	wget -qO $(DEP) https://github.com/golang/dep/releases/download/$(DEP_VERSION)/dep-linux-amd64 && \
 	chmod +x $(DEP)
 
 $(VENDOR_PATH):
-	$(DEP) ensure --vendor-only; \
 	rm -rf vendor/github.com/Sirupsen/;
 
 docker-build:
