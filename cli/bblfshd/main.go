@@ -38,7 +38,6 @@ var (
 
 	usrListener net.Listener
 	ctlListener net.Listener
-	wg          sync.WaitGroup
 )
 
 func init() {
@@ -68,16 +67,21 @@ func main() {
 	d := daemon.NewDaemon(version, r)
 	d.Options = buildGRPCOptions()
 
+	var wg sync.WaitGroup
 	wg.Add(2)
-	go listenUser(d)
-	go listenControl(d)
+	go func() {
+		defer wg.Done()
+		listenUser(d)
+	}()
+	go func() {
+		defer wg.Done()
+		listenControl(d)
+	}()
 	handleGracefullyShutdown(d)
 	wg.Wait()
 }
 
 func listenUser(d *daemon.Daemon) {
-	defer wg.Done()
-
 	var err error
 	usrListener, err = net.Listen(*network, *address)
 	if err != nil {
@@ -94,8 +98,6 @@ func listenUser(d *daemon.Daemon) {
 }
 
 func listenControl(d *daemon.Daemon) {
-	defer wg.Done()
-
 	var err error
 	ctlListener, err = net.Listen(*ctl.network, *ctl.address)
 	if err != nil {

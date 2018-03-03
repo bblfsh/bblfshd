@@ -55,8 +55,9 @@ type DriverPool struct {
 	// close channel will be used to synchronize Close() call with the
 	// scaling() goroutine. Once Close() starts, a struct{} will be sent to
 	// the close channel. And once scaling() finish it will close it.
-	close  chan struct{}
-	closed bool
+	close   chan struct{}
+	closed  bool
+	running bool
 	// stats hold different metrics about the state of the pool.
 	stats struct {
 		instances atomicInt // instances wanted
@@ -91,6 +92,7 @@ func (dp *DriverPool) Start() error {
 		_ = dp.setInstances(0)
 		return err
 	}
+	dp.running = true
 
 	go dp.scaling()
 	return nil
@@ -274,8 +276,11 @@ func (dp *DriverPool) State() *protocol.DriverPoolState {
 func (dp *DriverPool) Stop() error {
 	if dp.closed {
 		return ErrPoolClosed.New()
+	} else if !dp.running {
+		return nil
 	}
 
+	dp.running = false
 	dp.closed = true
 	dp.close <- struct{}{}
 	<-dp.close
