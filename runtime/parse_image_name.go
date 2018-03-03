@@ -4,12 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	_ "github.com/containers/image/directory"
-	_ "github.com/containers/image/docker"
-	_ "github.com/containers/image/docker/archive"
-	_ "github.com/containers/image/docker/daemon"
-	_ "github.com/containers/image/oci/layout"
-	_ "github.com/containers/image/ostree"
 	"github.com/containers/image/transports"
 	"github.com/containers/image/types"
 	"gopkg.in/src-d/go-errors.v1"
