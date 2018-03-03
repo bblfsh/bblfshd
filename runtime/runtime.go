@@ -103,12 +103,20 @@ func ContainerConfigFactory(containerID string) *configs.Config {
 	defaultMountFlags := syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
 
 	return &configs.Config{
+		Rootless: true,
 		Namespaces: configs.Namespaces([]configs.Namespace{
 			{Type: configs.NEWNS},
 			{Type: configs.NEWUTS},
 			{Type: configs.NEWIPC},
 			{Type: configs.NEWPID},
+			{Type: configs.NEWUSER},
 		}),
+		UidMappings: []configs.IDMap{
+			{ContainerID: 0, HostID: os.Getuid(), Size: 1},
+		},
+		GidMappings: []configs.IDMap{
+			{ContainerID: 0, HostID: os.Getgid(), Size: 1},
+		},
 		Cgroups: &configs.Cgroup{
 			Name:   containerID,
 			Parent: "system",
@@ -146,7 +154,7 @@ func ContainerConfigFactory(containerID string) *configs.Config {
 				Destination: "/dev/pts",
 				Device:      "devpts",
 				Flags:       syscall.MS_NOSUID | syscall.MS_NOEXEC,
-				Data:        "newinstance,ptmxmode=0666,mode=0620,gid=5",
+				Data:        "newinstance,ptmxmode=0666,mode=0620",
 			},
 			{
 				Source:      "mqueue",
@@ -154,12 +162,12 @@ func ContainerConfigFactory(containerID string) *configs.Config {
 				Device:      "mqueue",
 				Flags:       defaultMountFlags,
 			},
-			{
-				Source:      "sysfs",
-				Destination: "/sys",
-				Device:      "sysfs",
-				Flags:       defaultMountFlags | syscall.MS_RDONLY,
-			},
+			//{
+			//	Source:      "sysfs",
+			//	Destination: "/sys",
+			//	Device:      "sysfs",
+			//	Flags:       defaultMountFlags | syscall.MS_RDONLY,
+			//},
 			{
 				Source:      "/etc/localtime",
 				Destination: "/etc/localtime",
