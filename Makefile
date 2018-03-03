@@ -92,15 +92,15 @@ DOCKER_IMAGE_FIXTURE ?= $(DOCKER_IMAGE):fixture
 # Rules
 all: clean test build
 
-dependencies: $(DEPENDENCIES) $(VENDOR_PATH) build-fixture
+dependencies: build-fixture
 
-$(DEPENDENCIES):
-	$(GO_GET) $@/... && \
-	wget -qO $(DEP) https://github.com/golang/dep/releases/download/$(DEP_VERSION)/dep-linux-amd64 && \
-	chmod +x $(DEP)
+#$(DEPENDENCIES):
+#	$(GO_GET) $@/... && \
+#	wget -qO $(DEP) https://github.com/golang/dep/releases/download/$(DEP_VERSION)/dep-linux-amd64 && \
+#	chmod +x $(DEP)
 
-$(VENDOR_PATH):
-	rm -rf vendor/github.com/Sirupsen/;
+#$(VENDOR_PATH):
+#	rm -rf vendor/github.com/Sirupsen/;
 
 docker-build:
 	$(DOCKER_BUILD) -f Dockerfile.build -t $(DOCKER_BUILD_IMAGE) .
