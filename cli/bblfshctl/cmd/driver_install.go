@@ -84,8 +84,8 @@ const (
 	DriverInstallCommandHelp        = DriverInstallCommandDescription + "\n\n" +
 		"Using `--all` all the official bblfsh driver are install in the \n" +
 		"daemon. Using `--recommended` will only install the recommended, \n" +
-		"more developed. Using `--language` and `--image` arguments one single driver \n" +
-		"can be installed or updated.\n\n" +
+		"more developed. Using `language` and `image` positional arguments \n" +
+		"one single driver can be installed or updated.\n\n" +
 		"Image reference format should be `[transport]name[:tag]`.\n" +
 		"Defaults are 'docker://' for transport and 'latest' for tag."
 )
@@ -133,7 +133,7 @@ func (c *DriverInstallCommand) Execute(args []string) error {
 
 func (c *DriverInstallCommand) Validate() error {
 	if !c.All && !c.Recommended && (c.Args.Language == "" || c.Args.ImageReference == "") {
-		return fmt.Errorf("error --language and --image are mandatory")
+		return fmt.Errorf("error `language` and `image` positional arguments are mandatory")
 	}
 
 	if c.All && c.Recommended {
