@@ -1,3 +1,5 @@
+all: clean test build
+
 # Docsrv: configure the languages whose api-doc can be auto generated
 LANGUAGES = "go"
 # Docs: do not edit this
@@ -90,8 +92,6 @@ DOCKER_IMAGE_VERSIONED ?= $(call escape_docker_tag,$(DOCKER_IMAGE):$(VERSION))
 DOCKER_IMAGE_FIXTURE ?= $(DOCKER_IMAGE):fixture
 
 # Rules
-all: clean test build
-
 dependencies: build-fixture
 
 #$(DEPENDENCIES):
