@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"strings"
 	"time"
 
 	"gopkg.in/bblfsh/sdk.v1/protocol"
@@ -107,7 +108,7 @@ func InstallDriver(req *InstallDriverRequest) *Response {
 	}()
 
 	err := DefaultService.InstallDriver(
-		req.Language,
+		strings.ToLower(req.Language),
 		req.ImageReference,
 		req.Update,
 	)
@@ -133,7 +134,7 @@ func RemoveDriver(req *RemoveDriverRequest) *Response {
 		resp.Elapsed = time.Since(start)
 	}()
 
-	if err := DefaultService.RemoveDriver(req.Language); err != nil {
+	if err := DefaultService.RemoveDriver(strings.ToLower(req.Language)); err != nil {
 		resp.Errors = append(resp.Errors, err.Error())
 	}
 
