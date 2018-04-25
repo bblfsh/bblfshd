@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/bblfsh/bblfshd/cli/bblfshctl/cmd"
+	"github.com/bblfsh/bblfshd/cmd/bblfshctl/cmd"
 
 	"github.com/jessevdk/go-flags"
 )
