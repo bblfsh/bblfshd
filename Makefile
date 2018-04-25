@@ -21,7 +21,7 @@ NOVENDOR_PACKAGES := $(shell go list ./... | grep -v '/vendor/')
 BASE_PATH := $(shell pwd)
 VENDOR_PATH := $(BASE_PATH)/vendor
 BUILD_PATH := $(BASE_PATH)/build
-CMD_PATH := $(BASE_PATH)/cli
+CMD_PATH := $(BASE_PATH)/cmd
 
 # Build information
 BUILD ?= $(shell date -Iseconds)
