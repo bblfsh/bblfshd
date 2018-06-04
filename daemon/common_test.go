@@ -80,6 +80,12 @@ func (d *echoDriver) Version(
 	return &sdk.VersionResponse{}, nil
 }
 
+func (d *echoDriver) SupportedLanguages(
+	_ oldctx.Context, in *sdk.SupportedLanguagesRequest, opts ...grpc.CallOption) (*sdk.SupportedLanguagesResponse, error) {
+	drivers := []sdk.DriverManifest{sdk.DriverManifest{Name: "Python"}}
+	return &sdk.SupportedLanguagesResponse{Languages: drivers}, nil
+}
+
 func (d *echoDriver) Service() sdk.ProtocolServiceClient {
 	return d
 }

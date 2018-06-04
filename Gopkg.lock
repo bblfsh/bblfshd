@@ -538,8 +538,8 @@
     "uast",
     "uast/transformer"
   ]
-  revision = "9ec655062322ee4aaaac8c11c7660a7963905c1d"
-  version = "v1.13.0"
+  revision = "96e92bdde3785e655b8095a576addd52b96c6c61"
+  version = "v1.16.0"
 
 [[projects]]
   name = "gopkg.in/src-d/enry.v1"
@@ -571,6 +571,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "a12b719cdb75efa7b884199aefbbbdb782238afa37b12ce11671bdb41cfbe785"
+  inputs-digest = "9b748bf13546a7c3a93dd660b5ca5b8deb1e347729fa45ef9d3c3eca4a7ae30b"
   solver-name = "gps-cdcl"
   solver-version = 1

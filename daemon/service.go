@@ -57,12 +57,16 @@ func (d *Service) Parse(req *sdk.ParseRequest) *sdk.ParseResponse {
 }
 
 func (d *Service) logResponse(s sdk.Status, filename string, language string, size int, elapsed time.Duration) {
-	l := logrus.WithFields(logrus.Fields{
-		"filename": filename,
-		"language": language,
-		"elapsed":  elapsed,
-	})
+	fields := logrus.Fields{"elapsed": elapsed}
+	if filename != "" {
+		fields["filename"] = filename
+	}
 
+	if language != "" {
+		fields["language"] = language
+	}
+
+	l := logrus.WithFields(fields)
 	text := fmt.Sprintf("request processed content %d bytes, status %s", size, s)
 
 	switch s {
@@ -130,6 +134,29 @@ func (s *Service) selectPool(language, content, filename string) (string, *Drive
 
 func (d *Service) Version(req *sdk.VersionRequest) *sdk.VersionResponse {
 	return &sdk.VersionResponse{Version: d.daemon.version}
+}
+
+func (d *Service) SupportedLanguages(req *sdk.SupportedLanguagesRequest) *sdk.SupportedLanguagesResponse {
+	resp := &sdk.SupportedLanguagesResponse{}
+	start := time.Now()
+	defer func() {
+		resp.Elapsed = time.Since(start)
+		d.logResponse(resp.Status, "", "", 0, resp.Elapsed)
+	}()
+
+	drivers, err := d.daemon.runtime.ListDrivers()
+	if err != nil {
+		resp.Response = newResponseFromError(err)
+		return resp
+	}
+
+	driverRes := make([]sdk.DriverManifest, len(drivers))
+	for i, driver := range drivers {
+		driverRes[i] = sdk.NewDriverManifest(driver.Manifest)
+	}
+
+	resp.Languages = driverRes
+	return resp
 }
 
 type ControlService struct {
