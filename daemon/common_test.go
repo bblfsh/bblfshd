@@ -1,12 +1,20 @@
 package daemon
 
 import (
+	"encoding/hex"
+	"fmt"
+	"os"
+	"path/filepath"
+
 	"github.com/bblfsh/bblfshd/daemon/protocol"
 	"github.com/bblfsh/bblfshd/runtime"
 
+	"github.com/containers/image/types"
 	oldctx "golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"gopkg.in/bblfsh/sdk.v1/manifest"
 	sdk "gopkg.in/bblfsh/sdk.v1/protocol"
+	"gopkg.in/bblfsh/sdk.v1/sdk/driver"
 	"gopkg.in/bblfsh/sdk.v1/uast"
 )
 
@@ -88,4 +96,58 @@ func (d *echoDriver) SupportedLanguages(
 
 func (d *echoDriver) Service() sdk.ProtocolServiceClient {
 	return d
+}
+
+func newMockDriverImage(lang string) runtime.DriverImage {
+	return &mockDriverImage{lang: lang}
+}
+
+type mockDriverImage struct {
+	lang string
+}
+
+func (d *mockDriverImage) Name() string {
+	return d.lang
+}
+
+func (d *mockDriverImage) Digest() (runtime.Digest, error) {
+	return runtime.NewDigest(hex.EncodeToString([]byte(d.Name()))), nil
+}
+
+func (d *mockDriverImage) Inspect() (*types.ImageInspectInfo, error) {
+	return &types.ImageInspectInfo{}, nil
+}
+
+func (d *mockDriverImage) WriteTo(path string) error {
+	if err := writeManifest(d.Name(), path); err != nil {
+		return err
+	}
+
+	return writeImageConfig(d.Name(), path)
+}
+
+func writeManifest(language, path string) error {
+	manifest := manifest.Manifest{
+		Name: language,
+	}
+
+	manifestPath := filepath.Join(path, driver.ManifestLocation)
+	manifestBaseDir := filepath.Dir(manifestPath)
+	if err := os.MkdirAll(manifestBaseDir, 0755); err != nil {
+		return err
+	}
+
+	manifestFile, err := os.Create(manifestPath)
+	if err != nil {
+		return err
+	}
+	defer manifestFile.Close()
+
+	return manifest.Encode(manifestFile)
+}
+
+func writeImageConfig(language, path string) error {
+	return runtime.WriteImageConfig(&runtime.ImageConfig{
+		ImageRef: fmt.Sprintf("%s-driver", language),
+	}, path)
 }

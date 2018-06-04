@@ -71,3 +71,23 @@ func TestControlServiceDriverInstanceStates(t *testing.T) {
 	require.NoError(err)
 	require.Len(state, 1)
 }
+
+func TestService_SupportedLanguages(t *testing.T) {
+	require := require.New(t)
+
+	d, tmp := buildMockedDaemon(t, newMockDriverImage("language-1"), newMockDriverImage("language-2"))
+	defer os.RemoveAll(tmp)
+
+	s := NewService(d)
+	languages := s.SupportedLanguages(&protocol.SupportedLanguagesRequest{})
+	require.Len(languages.Errors, 0)
+	require.Len(languages.Languages, 2)
+
+	supportedLanguages := make([]string, 2)
+	for i, lang := range languages.Languages {
+		supportedLanguages[i] = lang.Name
+	}
+
+	require.Contains(supportedLanguages, "language-1")
+	require.Contains(supportedLanguages, "language-2")
+}
