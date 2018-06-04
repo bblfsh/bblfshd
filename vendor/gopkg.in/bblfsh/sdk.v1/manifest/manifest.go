@@ -81,7 +81,7 @@ const (
 func (os OS) AsImage() string {
 	switch os {
 	case Alpine:
-		return "alpine:3.6"
+		return "alpine:3.7"
 	case Debian:
 		return "debian:jessie-slim"
 	default:

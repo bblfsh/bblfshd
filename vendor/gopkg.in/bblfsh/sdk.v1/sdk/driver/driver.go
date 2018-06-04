@@ -54,6 +54,10 @@ func (d *Driver) Parse(req *protocol.ParseRequest) *protocol.ParseResponse {
 		r.Language = d.m.Language
 	}
 
+	if r.Filename == "" {
+		r.Filename = req.Filename
+	}
+
 	if r.Status == protocol.Fatal {
 		return r
 	}
@@ -148,4 +152,13 @@ func (d *Driver) Version(req *protocol.VersionRequest) *protocol.VersionResponse
 	}
 
 	return r
+}
+
+// SupportedLanguages handles a SupportedLanguagesRequest including information from the manifest.
+func (d *Driver) SupportedLanguages(req *protocol.SupportedLanguagesRequest) *protocol.SupportedLanguagesResponse {
+	return &protocol.SupportedLanguagesResponse{
+		Languages: []protocol.DriverManifest{
+			protocol.NewDriverManifest(d.m),
+		},
+	}
 }
