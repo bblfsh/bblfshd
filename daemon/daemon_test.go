@@ -10,12 +10,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"gopkg.in/bblfsh/sdk.v1/protocol"
 
 	"github.com/bblfsh/bblfshd/runtime"
-
-	"github.com/stretchr/testify/require"
 )
 
 func TestDaemonState(t *testing.T) {
@@ -79,7 +78,7 @@ func TestDaemonParse_MockedDriverParallelClients(t *testing.T) {
 
 }
 
-func buildMockedDaemon(t *testing.T) (*Daemon, string) {
+func buildMockedDaemon(t *testing.T, images ...runtime.DriverImage) (*Daemon, string) {
 	require := require.New(t)
 
 	dir, err := ioutil.TempDir(os.TempDir(), "bblfsh-runtime")
@@ -88,6 +87,14 @@ func buildMockedDaemon(t *testing.T) (*Daemon, string) {
 	r := runtime.NewRuntime(dir)
 	err = r.Init()
 	require.NoError(err)
+
+	if images != nil {
+		for _, image := range images {
+			status, err := r.InstallDriver(image, false)
+			require.NotNil(status)
+			require.NoError(err)
+		}
+	}
 
 	d := NewDaemon("foo", r)
 
