@@ -10,6 +10,17 @@ option (gogoproto.protosizer_all) = true;
 option (gogoproto.sizer_all) = false;
 option go_package = "protocol";
 
+// DriverManifest is the installed driver exported data
+message DriverManifest {
+	option (gogoproto.goproto_getters) = false;
+	option (gogoproto.typedecl) = false;
+	string name = 1;
+	string language = 2;
+	string version = 3;
+	string status = 4;
+	repeated string features = 5;
+}
+
 // NativeParseRequest is a request to parse a file and get its native AST.
 message NativeParseRequest {
 	option (gogoproto.goproto_getters) = false;
@@ -54,6 +65,23 @@ message ParseResponse {
 	google.protobuf.Duration elapsed = 3 [(gogoproto.nullable) = false, (gogoproto.stdduration) = true];
 	gopkg.in.bblfsh.sdk.v1.uast.Node uast = 4 [(gogoproto.customname) = "UAST"];
 	string language = 5;
+	string filename = 6;
+}
+
+// SupportedLanguagesRequest is a request to get the supported languages
+message SupportedLanguagesRequest {
+	option (gogoproto.goproto_getters) = false;
+	option (gogoproto.typedecl) = false;
+}
+
+// SupportedLanguagesResponse is the reply to SupportedLanguagesRequest
+message SupportedLanguagesResponse {
+	option (gogoproto.goproto_getters) = false;
+	option (gogoproto.typedecl) = false;
+	gopkg.in.bblfsh.sdk.v1.protocol.Status status = 1;
+	repeated string errors = 2;
+	google.protobuf.Duration elapsed = 3 [(gogoproto.nullable) = false, (gogoproto.stdduration) = true];
+	repeated gopkg.in.bblfsh.sdk.v1.protocol.DriverManifest languages = 4 [(gogoproto.nullable) = false];
 }
 
 // VersionRequest is a request to get server version
@@ -105,6 +133,8 @@ service ProtocolService {
 	rpc NativeParse (gopkg.in.bblfsh.sdk.v1.protocol.NativeParseRequest) returns (gopkg.in.bblfsh.sdk.v1.protocol.NativeParseResponse);
 	// Parse uses DefaultService to process the given parsing request to get the UAST.
 	rpc Parse (gopkg.in.bblfsh.sdk.v1.protocol.ParseRequest) returns (gopkg.in.bblfsh.sdk.v1.protocol.ParseResponse);
+	// SupportedLanguages uses DefaultService to process the given SupportedLanguagesRequest to get the supported drivers.
+	rpc SupportedLanguages (gopkg.in.bblfsh.sdk.v1.protocol.SupportedLanguagesRequest) returns (gopkg.in.bblfsh.sdk.v1.protocol.SupportedLanguagesResponse);
 	// Version uses DefaultVersioner to process the given version request to get the version.
 	rpc Version (gopkg.in.bblfsh.sdk.v1.protocol.VersionRequest) returns (gopkg.in.bblfsh.sdk.v1.protocol.VersionResponse);
 }
