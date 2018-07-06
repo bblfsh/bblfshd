@@ -6,7 +6,7 @@ too control the installed drivers and query the status of the daemon.
 
 Drivers are implemented as docker image that each have their own repository in
 [the `bblfsh` organization](https://github.com/search?q=topic%3Adriver+org%3Abblfsh&type=Repositories)
-on GitHub. For more information, see [bblfsh SDK documentation](https://doc.bblf.sh/driver/sdk.html).
+on GitHub. For more information, see [bblfsh SDK documentation](https://doc.bblf.sh/writing-a-driver/babelfish-sdk.html).
 
 ## Getting Started
 
