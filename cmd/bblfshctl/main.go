@@ -33,7 +33,10 @@ func main() {
 
 	c, _ := parser.AddCommand("driver",
 		cmd.DriverCommandDescription, cmd.DriverCommandHelp,
-		&cmd.DriverCommand{},
+		// go-flags won't propagate DriverCommand flags to sub-commands,
+		// so we will expect all flags to be passed to the sub-command itself (c1 c2 --x),
+		// and not to the parent (c1 --x c2)
+		&struct{}{},
 	)
 
 	c.AddCommand("list",
