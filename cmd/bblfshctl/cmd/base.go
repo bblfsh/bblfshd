@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"context"
+	"fmt"
 	"net"
 	"time"
 
@@ -41,7 +43,7 @@ func (c *UserCommand) Execute(args []string) error {
 }
 
 func dialGRPC(network, address string) (*grpc.ClientConn, error) {
-	return grpc.Dial(address,
+	conn, err := grpc.Dial(address,
 		grpc.WithDialer(func(addr string, t time.Duration) (net.Conn, error) {
 			return net.DialTimeout(network, address, t)
 		}),
@@ -49,4 +51,8 @@ func dialGRPC(network, address string) (*grpc.ClientConn, error) {
 		grpc.WithTimeout(5*time.Second),
 		grpc.WithInsecure(),
 	)
+	if err == context.DeadlineExceeded {
+		return nil, fmt.Errorf("failed to connect to %s (%s): timeout", address, network)
+	}
+	return conn, err
 }
