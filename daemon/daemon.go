@@ -89,6 +89,9 @@ func (d *Daemon) RemoveDriver(language string) error {
 	if err := d.runtime.RemoveDriver(img); err != nil {
 		return err
 	}
+	if err := d.removePool(language); err != nil {
+		return err
+	}
 
 	logrus.Infof("driver %s removed %q", language, img.Name())
 	return err
@@ -151,6 +154,20 @@ func (d *Daemon) newDriverPool(language string, image runtime.DriverImage) (*Dri
 
 	d.pool[language] = dp
 	return dp, dp.Start()
+}
+
+func (d *Daemon) removePool(language string) error {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+	dp, ok := d.pool[language]
+	if !ok {
+		return nil
+	}
+	if err := dp.Stop(); err != nil && !ErrPoolClosed.Is(err) {
+		return err
+	}
+	delete(d.pool, language)
+	return nil
 }
 
 // Current returns the current list of driver pools.
