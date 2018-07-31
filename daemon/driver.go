@@ -16,7 +16,8 @@ import (
 
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"google.golang.org/grpc"
-	sdk "gopkg.in/bblfsh/sdk.v1/protocol"
+	protocol1 "gopkg.in/bblfsh/sdk.v1/protocol"
+	protocol2 "gopkg.in/bblfsh/sdk.v2/protocol"
 )
 
 type Driver interface {
@@ -25,7 +26,8 @@ type Driver interface {
 	Stop() error
 	Status() (protocol.Status, error)
 	State() (*protocol.DriverInstanceState, error)
-	Service() sdk.ProtocolServiceClient
+	Service() protocol1.ProtocolServiceClient
+	ServiceV2() protocol2.DriverClient
 }
 
 // DriverInstance represents an instance of a driver.
@@ -37,7 +39,8 @@ type DriverInstance struct {
 
 	ctx  context.Context
 	conn *grpc.ClientConn
-	srv  sdk.ProtocolServiceClient
+	srv1 protocol1.ProtocolServiceClient
+	srv2 protocol2.DriverClient
 	tmp  string
 }
 
@@ -137,12 +140,13 @@ func (i *DriverInstance) dial() error {
 	)
 
 	i.conn = conn
-	i.srv = sdk.NewProtocolServiceClient(conn)
+	i.srv1 = protocol1.NewProtocolServiceClient(conn)
+	i.srv2 = protocol2.NewDriverClient(conn)
 	return err
 }
 
 func (i *DriverInstance) loadVersion() error {
-	_, err := i.srv.Version(context.Background(), &sdk.VersionRequest{})
+	_, err := i.srv1.Version(context.Background(), &protocol1.VersionRequest{})
 	if err != nil {
 		return err
 	}
@@ -188,8 +192,13 @@ func (i *DriverInstance) Stop() error {
 }
 
 // Service returns the client using the grpc connection.
-func (i *DriverInstance) Service() sdk.ProtocolServiceClient {
-	return i.srv
+func (i *DriverInstance) Service() protocol1.ProtocolServiceClient {
+	return i.srv1
+}
+
+// ServiceV2 returns the client using the grpc connection.
+func (i *DriverInstance) ServiceV2() protocol2.DriverClient {
+	return i.srv2
 }
 
 func logFields(containerID, language string) string {

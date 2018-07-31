@@ -13,9 +13,10 @@ import (
 	oldctx "golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"gopkg.in/bblfsh/sdk.v1/manifest"
-	sdk "gopkg.in/bblfsh/sdk.v1/protocol"
+	protocol1 "gopkg.in/bblfsh/sdk.v1/protocol"
 	"gopkg.in/bblfsh/sdk.v1/sdk/driver"
 	"gopkg.in/bblfsh/sdk.v1/uast"
+	protocol2 "gopkg.in/bblfsh/sdk.v2/protocol"
 )
 
 type mockDriver struct {
@@ -35,7 +36,11 @@ func (d *mockDriver) ID() string {
 	return d.MockID
 }
 
-func (d *mockDriver) Service() sdk.ProtocolServiceClient {
+func (d *mockDriver) Service() protocol1.ProtocolServiceClient {
+	return nil
+}
+
+func (d *mockDriver) ServiceV2() protocol2.DriverClient {
 	return nil
 }
 
@@ -68,15 +73,15 @@ type echoDriver struct {
 }
 
 func (d *echoDriver) NativeParse(
-	_ oldctx.Context, in *sdk.NativeParseRequest, opts ...grpc.CallOption) (*sdk.NativeParseResponse, error) {
-	return &sdk.NativeParseResponse{
+	_ oldctx.Context, in *protocol1.NativeParseRequest, opts ...grpc.CallOption) (*protocol1.NativeParseResponse, error) {
+	return &protocol1.NativeParseResponse{
 		AST: in.Content,
 	}, nil
 }
 
 func (d *echoDriver) Parse(
-	_ oldctx.Context, in *sdk.ParseRequest, opts ...grpc.CallOption) (*sdk.ParseResponse, error) {
-	return &sdk.ParseResponse{
+	_ oldctx.Context, in *protocol1.ParseRequest, opts ...grpc.CallOption) (*protocol1.ParseResponse, error) {
+	return &protocol1.ParseResponse{
 		UAST: &uast.Node{
 			Token: in.Content,
 		},
@@ -84,17 +89,17 @@ func (d *echoDriver) Parse(
 }
 
 func (d *echoDriver) Version(
-	_ oldctx.Context, in *sdk.VersionRequest, opts ...grpc.CallOption) (*sdk.VersionResponse, error) {
-	return &sdk.VersionResponse{}, nil
+	_ oldctx.Context, in *protocol1.VersionRequest, opts ...grpc.CallOption) (*protocol1.VersionResponse, error) {
+	return &protocol1.VersionResponse{}, nil
 }
 
 func (d *echoDriver) SupportedLanguages(
-	_ oldctx.Context, in *sdk.SupportedLanguagesRequest, opts ...grpc.CallOption) (*sdk.SupportedLanguagesResponse, error) {
-	drivers := []sdk.DriverManifest{sdk.DriverManifest{Name: "Python"}}
-	return &sdk.SupportedLanguagesResponse{Languages: drivers}, nil
+	_ oldctx.Context, in *protocol1.SupportedLanguagesRequest, opts ...grpc.CallOption) (*protocol1.SupportedLanguagesResponse, error) {
+	drivers := []protocol1.DriverManifest{protocol1.DriverManifest{Name: "Python"}}
+	return &protocol1.SupportedLanguagesResponse{Languages: drivers}, nil
 }
 
-func (d *echoDriver) Service() sdk.ProtocolServiceClient {
+func (d *echoDriver) Service() protocol1.ProtocolServiceClient {
 	return d
 }
 

@@ -10,6 +10,7 @@ import (
 
 	"github.com/bblfsh/bblfshd/daemon/protocol"
 
+	"context"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/bblfsh/sdk.v1/sdk/server"
 	"gopkg.in/src-d/go-errors.v1"
@@ -31,7 +32,7 @@ var (
 
 	ErrPoolClosed         = errors.NewKind("driver pool already closed")
 	ErrPoolTimeout        = errors.NewKind("timeout, all drivers are busy")
-	ErrInvalidPoolTimeout = errors.NewKind(fmt.Sprintf("invalid timeout, max. timeout allowed %s", MaxPoolTimeout))
+	ErrInvalidPoolTimeout = errors.NewKind(fmt.Sprintf("invalid timeout: %%v, max. timeout allowed %s", MaxPoolTimeout))
 	ErrNegativeInstances  = errors.NewKind("cannot set instances to negative number")
 )
 
@@ -189,16 +190,45 @@ func (dp *DriverPool) doScaling() {
 // Function is a function to be executed using a given driver.
 type Function func(d Driver) error
 
+// FunctionCtx is a function to be executed using a given driver.
+type FunctionCtx func(ctx context.Context, d Driver) error
+
 // Execute executes the given Function in the first available driver instance.
 // It gets a driver from the pool and forwards the request to it. If all drivers
 // are busy, it will return an error after the timeout passes. If the DriverPool
 // is closed, an error will be returned.
 func (dp *DriverPool) Execute(c Function, timeout time.Duration) error {
+	if timeout > MaxPoolTimeout {
+		return ErrInvalidPoolTimeout.New(timeout)
+	}
 	if timeout == 0 {
 		timeout = DefaultPoolTimeout
 	}
 
-	d, err := dp.getDriver(timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	return dp.ExecuteCtx(ctx, func(_ context.Context, d Driver) error {
+		return c(d)
+	})
+}
+
+// ExecuteCtx executes the given Function in the first available driver instance.
+// It gets a driver from the pool and forwards the request to it. If all drivers
+// are busy, it will return an error after the timeout passes. If the DriverPool
+// is closed, an error will be returned.
+func (dp *DriverPool) ExecuteCtx(ctx context.Context, c FunctionCtx) error {
+	if deadline, ok := ctx.Deadline(); !ok {
+		var cancel func()
+		ctx, cancel = context.WithTimeout(ctx, DefaultPoolTimeout)
+		defer cancel()
+	} else if timeout := time.Until(deadline); timeout > MaxPoolTimeout {
+		var cancel func()
+		ctx, cancel = context.WithTimeout(ctx, MaxPoolTimeout-time.Second/2)
+		defer cancel()
+	}
+
+	d, err := dp.getDriver(ctx)
 	if err != nil {
 		return err
 	}
@@ -217,11 +247,11 @@ func (dp *DriverPool) Execute(c Function, timeout time.Duration) error {
 			}
 		}()
 
-		return dp.Execute(c, timeout)
+		return dp.ExecuteCtx(ctx, c)
 	}
 
 	defer dp.queue.Put(d)
-	if err := c(d); err != nil {
+	if err := c(ctx, d); err != nil {
 		dp.stats.errors.Add(1)
 		return err
 	}
@@ -230,11 +260,11 @@ func (dp *DriverPool) Execute(c Function, timeout time.Duration) error {
 	return nil
 }
 
-func (dp *DriverPool) getDriver(timeout time.Duration) (Driver, error) {
+func (dp *DriverPool) getDriver(ctx context.Context) (Driver, error) {
 	dp.stats.waiting.Add(1)
 	defer dp.stats.waiting.Add(-1)
 
-	d, more, err := dp.queue.GetWithTimeout(timeout)
+	d, more, err := dp.queue.GetWithContext(ctx)
 	if err != nil {
 		dp.stats.errors.Add(1)
 		dp.Logger.Warningf("unable to allocate a driver instance: %s", err)
@@ -312,16 +342,18 @@ func (q *driverQueue) Get() (driver Driver, more bool) {
 	return d, more
 }
 
-func (q *driverQueue) GetWithTimeout(timeout time.Duration) (driver Driver, more bool, err error) {
-	if timeout > MaxPoolTimeout {
-		return nil, true, ErrInvalidPoolTimeout.New()
+func (q *driverQueue) GetWithContext(ctx context.Context) (driver Driver, more bool, err error) {
+	if deadline, ok := ctx.Deadline(); !ok {
+		return nil, true, ErrInvalidPoolTimeout.New(time.Duration(0))
+	} else if timeout := time.Until(deadline); timeout > MaxPoolTimeout {
+		return nil, true, ErrInvalidPoolTimeout.New(timeout)
 	}
 
 	select {
 	case d, more := <-q.c:
 		q.n.Add(-1)
 		return d, more, nil
-	case <-time.After(timeout):
+	case <-ctx.Done():
 		return nil, true, ErrPoolTimeout.New()
 	}
 }
