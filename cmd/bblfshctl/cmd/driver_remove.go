@@ -32,14 +32,11 @@ func (c *DriverRemoveCommand) Execute(args []string) error {
 	langs := []string{c.Args.Language}
 	if c.All {
 		r, err := c.srv.DriverStates(ctx, &protocol.DriverStatesRequest{})
-		if err != nil {
-			return err
-		}
-
 		if err != nil || len(r.Errors) > 0 {
 			for _, e := range r.Errors {
 				fmt.Fprintf(os.Stderr, "Error, %s\n", e)
 			}
+
 			return err
 		}
 
