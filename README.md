@@ -10,7 +10,7 @@ on GitHub. For more information, see [bblfsh SDK documentation](https://doc.bblf
 
 ## Getting Started
 
-See the [Getting Started](https://doc.bblf.sh/user/getting-started.html) guide.
+See the [Getting Started](https://doc.bblf.sh/using-babelfish/getting-started.html) guide.
 
 ### Quick start
 
