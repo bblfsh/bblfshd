@@ -64,8 +64,7 @@ func main() {
 	logrus.Infof("bblfshd version: %s (build: %s)", version, build)
 
 	r := buildRuntime()
-	d := daemon.NewDaemon(version, r)
-	d.Options = buildGRPCOptions()
+	d := daemon.NewDaemon(version, r, buildGRPCOptions()...)
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -91,7 +90,7 @@ func listenUser(d *daemon.Daemon) {
 
 	allowAnyoneInUnixSocket(*network, *address)
 	logrus.Infof("server listening in %s (%s)", *address, *network)
-	if err = d.Serve(usrListener); err != nil {
+	if err = d.UserServer.Serve(usrListener); err != nil {
 		logrus.Errorf("error starting server: %s", err)
 		os.Exit(1)
 	}

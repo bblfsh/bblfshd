@@ -36,7 +36,7 @@ func TestDaemonParse_MockedDriverParallelClients(t *testing.T) {
 
 	lis, err := net.Listen("tcp", "localhost:0")
 	require.NoError(err)
-	go d.Serve(lis)
+	go d.UserServer.Serve(lis)
 	defer func() {
 		err = d.Stop()
 		require.NoError(err)

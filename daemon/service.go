@@ -6,10 +6,89 @@ import (
 	"time"
 
 	"github.com/bblfsh/bblfshd/daemon/protocol"
-
 	"github.com/sirupsen/logrus"
-	sdk "gopkg.in/bblfsh/sdk.v1/protocol"
+	xcontext "golang.org/x/net/context"
+	protocol1 "gopkg.in/bblfsh/sdk.v1/protocol"
+	protocol2 "gopkg.in/bblfsh/sdk.v2/protocol"
 )
+
+var _ protocol2.DriverServer = (*ServiceV2)(nil)
+
+type ServiceV2 struct {
+	daemon *Daemon
+}
+
+func NewServiceV2(d *Daemon) *ServiceV2 {
+	return &ServiceV2{daemon: d}
+}
+
+func (s *ServiceV2) Parse(ctx xcontext.Context, req *protocol2.ParseRequest) (resp *protocol2.ParseResponse, gerr error) {
+	resp = &protocol2.ParseResponse{}
+	start := time.Now()
+	defer func() {
+		s.logResponse(gerr, req.Filename, req.Language, len(req.Content), time.Since(start))
+	}()
+
+	if req.Content == "" {
+		logrus.Debugf("empty request received, returning empty UAST")
+		return resp, nil
+	}
+
+	language, dp, err := s.selectPool(req.Language, req.Content, req.Filename)
+	if err != nil {
+		logrus.Errorf("error selecting pool: %s", err)
+		return nil, err
+	}
+
+	req.Language = language
+
+	err = dp.ExecuteCtx(ctx, func(ctx context.Context, driver Driver) error {
+		resp, err = driver.ServiceV2().Parse(ctx, req)
+		return err
+	})
+	resp.Language = language
+	return resp, err
+}
+
+func (s *ServiceV2) logResponse(err error, filename string, language string, size int, elapsed time.Duration) {
+	fields := logrus.Fields{"elapsed": elapsed}
+	if filename != "" {
+		fields["filename"] = filename
+	}
+
+	if language != "" {
+		fields["language"] = language
+	}
+
+	l := logrus.WithFields(fields)
+	text := fmt.Sprintf("request processed content %d bytes", size)
+
+	if err != nil {
+		text += " error: " + err.Error()
+		l.Error(text)
+	} else {
+		l.Debug(text)
+	}
+}
+
+func (s *ServiceV2) selectPool(language, content, filename string) (string, *DriverPool, error) {
+	if language == "" {
+		language = GetLanguage(filename, []byte(content))
+		if language == "" {
+			return language, nil, ErrLanguageDetection.New()
+		}
+		logrus.Debugf("detected language %q, filename %q", language, filename)
+	}
+
+	dp, err := s.daemon.DriverPool(language)
+	if err != nil {
+		return language, nil, ErrUnexpected.Wrap(err)
+	}
+
+	return language, dp, nil
+}
+
+var _ protocol1.Service = (*Service)(nil)
 
 type Service struct {
 	daemon *Daemon
@@ -19,8 +98,8 @@ func NewService(d *Daemon) *Service {
 	return &Service{daemon: d}
 }
 
-func (d *Service) Parse(req *sdk.ParseRequest) *sdk.ParseResponse {
-	resp := &sdk.ParseResponse{}
+func (d *Service) Parse(req *protocol1.ParseRequest) *protocol1.ParseResponse {
+	resp := &protocol1.ParseResponse{}
 	start := time.Now()
 	defer func() {
 		resp.Elapsed = time.Since(start)
@@ -48,7 +127,7 @@ func (d *Service) Parse(req *sdk.ParseRequest) *sdk.ParseResponse {
 	}, req.Timeout)
 
 	if err != nil {
-		resp = &sdk.ParseResponse{}
+		resp = &protocol1.ParseResponse{}
 		resp.Response = newResponseFromError(err)
 	}
 
@@ -56,7 +135,7 @@ func (d *Service) Parse(req *sdk.ParseRequest) *sdk.ParseResponse {
 	return resp
 }
 
-func (d *Service) logResponse(s sdk.Status, filename string, language string, size int, elapsed time.Duration) {
+func (d *Service) logResponse(s protocol1.Status, filename string, language string, size int, elapsed time.Duration) {
 	fields := logrus.Fields{"elapsed": elapsed}
 	if filename != "" {
 		fields["filename"] = filename
@@ -70,17 +149,17 @@ func (d *Service) logResponse(s sdk.Status, filename string, language string, si
 	text := fmt.Sprintf("request processed content %d bytes, status %s", size, s)
 
 	switch s {
-	case sdk.Ok:
+	case protocol1.Ok:
 		l.Debug(text)
-	case sdk.Error:
+	case protocol1.Error:
 		l.Warning(text)
-	case sdk.Fatal:
+	case protocol1.Fatal:
 		l.Error(text)
 	}
 }
 
-func (d *Service) NativeParse(req *sdk.NativeParseRequest) *sdk.NativeParseResponse {
-	resp := &sdk.NativeParseResponse{}
+func (d *Service) NativeParse(req *protocol1.NativeParseRequest) *protocol1.NativeParseResponse {
+	resp := &protocol1.NativeParseResponse{}
 	start := time.Now()
 	defer func() {
 		resp.Elapsed = time.Since(start)
@@ -107,7 +186,7 @@ func (d *Service) NativeParse(req *sdk.NativeParseRequest) *sdk.NativeParseRespo
 	}, req.Timeout)
 
 	if err != nil {
-		resp = &sdk.NativeParseResponse{}
+		resp = &protocol1.NativeParseResponse{}
 		resp.Response = newResponseFromError(err)
 	}
 
@@ -132,12 +211,12 @@ func (s *Service) selectPool(language, content, filename string) (string, *Drive
 	return language, dp, nil
 }
 
-func (d *Service) Version(req *sdk.VersionRequest) *sdk.VersionResponse {
-	return &sdk.VersionResponse{Version: d.daemon.version}
+func (d *Service) Version(req *protocol1.VersionRequest) *protocol1.VersionResponse {
+	return &protocol1.VersionResponse{Version: d.daemon.version}
 }
 
-func (d *Service) SupportedLanguages(req *sdk.SupportedLanguagesRequest) *sdk.SupportedLanguagesResponse {
-	resp := &sdk.SupportedLanguagesResponse{}
+func (d *Service) SupportedLanguages(req *protocol1.SupportedLanguagesRequest) *protocol1.SupportedLanguagesResponse {
+	resp := &protocol1.SupportedLanguagesResponse{}
 	start := time.Now()
 	defer func() {
 		resp.Elapsed = time.Since(start)
@@ -150,9 +229,9 @@ func (d *Service) SupportedLanguages(req *sdk.SupportedLanguagesRequest) *sdk.Su
 		return resp
 	}
 
-	driverRes := make([]sdk.DriverManifest, len(drivers))
+	driverRes := make([]protocol1.DriverManifest, len(drivers))
 	for i, driver := range drivers {
-		driverRes[i] = sdk.NewDriverManifest(driver.Manifest)
+		driverRes[i] = protocol1.NewDriverManifest(driver.Manifest)
 	}
 
 	resp.Languages = driverRes

@@ -60,7 +60,7 @@ func TestDriverPoolExecute_InvalidTimeout(t *testing.T) {
 	})
 
 	err := dp.Execute(nil, 100*time.Minute)
-	require.True(ErrInvalidPoolTimeout.Is(err))
+	require.True(ErrInvalidPoolTimeout.Is(err), "%T, %v", err, err)
 }
 
 func TestDriverPoolState(t *testing.T) {

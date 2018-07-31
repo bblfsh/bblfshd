@@ -8,8 +8,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
-	sdk "gopkg.in/bblfsh/sdk.v1/protocol"
-	"gopkg.in/bblfsh/sdk.v1/sdk/server"
+	protocol1 "gopkg.in/bblfsh/sdk.v1/protocol"
+	protocol2 "gopkg.in/bblfsh/sdk.v2/protocol"
 	"gopkg.in/src-d/go-errors.v1"
 )
 
@@ -23,7 +23,7 @@ var (
 
 // Daemon is a Babelfish server.
 type Daemon struct {
-	server.Server
+	UserServer    *grpc.Server
 	ControlServer *grpc.Server
 
 	version string
@@ -33,20 +33,23 @@ type Daemon struct {
 }
 
 // NewDaemon creates a new server based on the runtime with the given version.
-func NewDaemon(version string, r *runtime.Runtime) *Daemon {
+func NewDaemon(version string, r *runtime.Runtime, opts ...grpc.ServerOption) *Daemon {
 	d := &Daemon{
 		version:       version,
 		runtime:       r,
 		pool:          make(map[string]*DriverPool),
+		UserServer:    grpc.NewServer(opts...),
 		ControlServer: grpc.NewServer(),
 	}
-
 	registerGRPC(d)
 	return d
 }
 
 func registerGRPC(d *Daemon) {
-	sdk.DefaultService = NewService(d)
+	protocol1.DefaultService = NewService(d)
+	protocol1.RegisterProtocolServiceServer(d.UserServer, protocol1.NewProtocolServiceServer())
+
+	protocol2.RegisterDriverServer(d.UserServer, NewServiceV2(d))
 
 	protocol.DefaultService = NewControlService(d)
 	protocol.RegisterProtocolServiceServer(
@@ -219,9 +222,9 @@ func getDriverInstanceOptions() *Options {
 	return opts
 }
 
-func newResponseFromError(err error) sdk.Response {
-	return sdk.Response{
-		Status: sdk.Fatal,
+func newResponseFromError(err error) protocol1.Response {
+	return protocol1.Response{
+		Status: protocol1.Fatal,
 		Errors: []string{err.Error()},
 	}
 }

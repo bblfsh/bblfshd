@@ -2,10 +2,10 @@
 
 
 [[projects]]
-  branch = "master"
   name = "github.com/BurntSushi/toml"
   packages = ["."]
-  revision = "a368813c5e648fee92e5f6c30e3944ff9d5e8895"
+  revision = "b26d9c308763d68093482582cea63d69be07a0f0"
+  version = "v0.3.0"
 
 [[projects]]
   name = "github.com/Microsoft/go-winio"
@@ -197,7 +197,8 @@
     "sortkeys",
     "types"
   ]
-  revision = "dda3e8acadcc9affc16faf33fbb229db78399245"
+  revision = "636bf0302bc95575d69441b25a2603156ffdddf1"
+  version = "v1.1.1"
 
 [[projects]]
   name = "github.com/golang/protobuf"
@@ -208,7 +209,8 @@
     "ptypes/duration",
     "ptypes/timestamp"
   ]
-  revision = "0a4f71a498b7c4812f64969510bcb4eca251e33a"
+  revision = "b4deda0973fb4c70b50d226b1af49f3da59f5265"
+  version = "v1.1.0"
 
 [[projects]]
   branch = "master"
@@ -460,19 +462,21 @@
   revision = "81e90905daefcd6fd217b62423c0908922eadb30"
 
 [[projects]]
+  branch = "master"
   name = "golang.org/x/net"
   packages = [
     "context",
     "context/ctxhttp",
+    "http/httpguts",
     "http2",
     "http2/hpack",
     "idna",
+    "internal/socks",
     "internal/timeseries",
-    "lex/httplex",
     "proxy",
     "trace"
   ]
-  revision = "f01ecb60fe3835d80d9a0b7b2bf24b228c89260e"
+  revision = "49c15d80dfbc983ea25246ee959d970efe09ec09"
 
 [[projects]]
   name = "golang.org/x/sys"
@@ -507,24 +511,32 @@
   packages = [
     ".",
     "balancer",
+    "balancer/base",
+    "balancer/roundrobin",
     "codes",
     "connectivity",
     "credentials",
-    "grpclb/grpc_lb_v1/messages",
+    "encoding",
+    "encoding/proto",
     "grpclog",
     "internal",
+    "internal/backoff",
+    "internal/channelz",
+    "internal/grpcrand",
     "keepalive",
     "metadata",
     "naming",
     "peer",
     "resolver",
+    "resolver/dns",
+    "resolver/passthrough",
     "stats",
     "status",
     "tap",
     "transport"
   ]
-  revision = "5ffe3083946d5603a0578721101dc8165b1d5b5f"
-  version = "v1.7.2"
+  revision = "168a6198bcb0ef175f7dacec0b8691fc141dc9b8"
+  version = "v1.13.0"
 
 [[projects]]
   name = "gopkg.in/bblfsh/sdk.v1"
@@ -540,6 +552,22 @@
   ]
   revision = "96e92bdde3785e655b8095a576addd52b96c6c61"
   version = "v1.16.0"
+
+[[projects]]
+  branch = "v2"
+  name = "gopkg.in/bblfsh/sdk.v2"
+  packages = [
+    "driver",
+    "driver/manifest",
+    "protocol",
+    "uast",
+    "uast/nodes",
+    "uast/nodes/nodesproto",
+    "uast/nodes/nodesproto/pio",
+    "uast/role",
+    "uast/transformer"
+  ]
+  revision = "8f2480e5411bc92d9810b4dec2f7aa210109e47d"
 
 [[projects]]
   name = "gopkg.in/src-d/enry.v1"
@@ -571,6 +599,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "322bdf40af6b49274381a465cebd23c50676560a3595adda134758cee00ab4ce"
+  inputs-digest = "83b7f773f98d991117386ece16eb3b3cf5af845432bd4190415c12d4241a1757"
   solver-name = "gps-cdcl"
   solver-version = 1

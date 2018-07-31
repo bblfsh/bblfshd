@@ -43,7 +43,11 @@
 
 [[constraint]]
   name = "gopkg.in/bblfsh/sdk.v1"
-  version = "1.16.0"
+  version = "1.16.x"
+
+[[constraint]]
+  name = "gopkg.in/bblfsh/sdk.v2"
+  branch = "v2"
 
 [[constraint]]
   name = "gopkg.in/src-d/enry.v1"
