@@ -56,6 +56,21 @@ func registerGRPC(d *Daemon) {
 }
 
 func (d *Daemon) InstallDriver(language string, image string, update bool) error {
+	img, err := runtime.NewDriverImage(image)
+	if err != nil {
+		return ErrRuntime.Wrap(err)
+	}
+	if language == "" {
+		info, err := img.Inspect()
+		if err != nil {
+			return err
+		}
+		if lang, ok := info.Labels["bblfsh.language"]; ok {
+			language = lang
+		} else {
+			return ErrLanguageDetection.New()
+		}
+	}
 	if !update {
 		s, err := d.getDriverImage(language)
 		switch {
@@ -64,11 +79,6 @@ func (d *Daemon) InstallDriver(language string, image string, update bool) error
 		case !ErrMissingDriver.Is(err):
 			return ErrRuntime.Wrap(err)
 		}
-	}
-
-	img, err := runtime.NewDriverImage(image)
-	if err != nil {
-		return ErrRuntime.Wrap(err)
 	}
 
 	_, err = d.runtime.InstallDriver(img, update)

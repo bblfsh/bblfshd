@@ -92,7 +92,7 @@ const (
 
 type DriverInstallCommand struct {
 	Args struct {
-		Language       string `positional-arg-name:"language" description:"language supported by the driver"`
+		Language       string `positional-arg-name:"language" description:"language supported by the driver (optional)"`
 		ImageReference string `positional-arg-name:"image" description:"driver's image reference"`
 	} `positional-args:"yes"`
 
@@ -125,6 +125,10 @@ func (c *DriverInstallCommand) Execute(args []string) error {
 			}
 		}
 	} else {
+		if c.Args.ImageReference == "" {
+			// TODO: go-flags does not support optional arguments in first positions
+			c.Args.Language, c.Args.ImageReference = "", c.Args.Language
+		}
 		return c.installDriver(c.Args.Language, c.Args.ImageReference)
 	}
 
@@ -132,7 +136,7 @@ func (c *DriverInstallCommand) Execute(args []string) error {
 }
 
 func (c *DriverInstallCommand) Validate() error {
-	if !c.All && !c.Recommended && (c.Args.Language == "" || c.Args.ImageReference == "") {
+	if !c.All && !c.Recommended && (c.Args.Language == "") {
 		return fmt.Errorf("error `language` and `image` positional arguments are mandatory")
 	}
 
@@ -144,7 +148,11 @@ func (c *DriverInstallCommand) Validate() error {
 }
 
 func (c *DriverInstallCommand) installDriver(lang, ref string) error {
-	fmt.Printf("Installing %s language driver from %q... ", lang, ref)
+	ltext := ""
+	if lang != "" {
+		ltext = fmt.Sprintf("%s language ", lang)
+	}
+	fmt.Printf("Installing %sdriver from %q... ", ltext, ref)
 	s := spinner.New(spinner.CharSets[9], 100*time.Millisecond) // Build our new spinner
 	s.Start()
 
