@@ -46,7 +46,9 @@ func (s *ServiceV2) Parse(ctx xcontext.Context, req *protocol2.ParseRequest) (re
 		resp, err = driver.ServiceV2().Parse(ctx, req)
 		return err
 	})
-	resp.Language = language
+	if resp != nil {
+		resp.Language = language
+	}
 	return resp, err
 }
 
