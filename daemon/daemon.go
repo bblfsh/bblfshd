@@ -74,13 +74,16 @@ func (d *Daemon) InstallDriver(language string, image string, update bool) error
 			return ErrLanguageDetection.New()
 		}
 	}
-	if !update {
-		s, err := d.getDriverImage(language)
-		switch {
-		case err == nil:
-			return ErrAlreadyInstalled.New(language, s.Name())
-		case !ErrMissingDriver.Is(err):
-			return ErrRuntime.Wrap(err)
+
+	s, err := d.getDriverImage(language)
+	if !ErrMissingDriver.Is(err) && !update {
+		return ErrRuntime.Wrap(err)
+	}
+	if err == nil && update {
+		// TODO: the old driver should be removed only after a successful install of the new one
+		err = d.runtime.RemoveDriver(s)
+		if err != nil {
+			return err
 		}
 	}
 
