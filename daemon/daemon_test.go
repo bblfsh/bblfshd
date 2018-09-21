@@ -28,6 +28,20 @@ func TestDaemonState(t *testing.T) {
 	require.NotNil(pool["python"])
 }
 
+func TestDaemonInstallDriver(t *testing.T) {
+	require := require.New(t)
+
+	s, tmp := buildMockedDaemon(t)
+	defer os.RemoveAll(tmp)
+
+	err := s.InstallDriver("go", "docker://bblfsh/go-driver:latest", false)
+	require.Nil(err)
+	err = s.InstallDriver("go", "docker://bblfsh/go-driver:latest", false)
+	require.True(ErrAlreadyInstalled.Is(err))
+	err = s.InstallDriver("go", "docker://bblfsh/go-driver:latest", true)
+	require.Nil(err)
+}
+
 func TestDaemonParse_MockedDriverParallelClients(t *testing.T) {
 	require := require.New(t)
 
