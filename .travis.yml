@@ -31,6 +31,7 @@ after_success:
 before_deploy:
   - make push
   - make packages
+  - make push-drivers
 
 deploy:
   provider: releases
