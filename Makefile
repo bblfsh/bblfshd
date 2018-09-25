@@ -12,6 +12,7 @@ $(DOCS_PATH)/Makefile.inc:
 
 # Package configuration
 PROJECT = bblfshd
+GO_PKG = github.com/bblfsh/$(PROJECT)
 COMMANDS = bblfshd bblfshctl
 DEPENDENCIES = \
 	golang.org/x/tools/cmd/cover
@@ -33,12 +34,8 @@ VERSION ?= $(DEV_PREFIX)-$(GIT_COMMIT)$(GIT_DIRTY)
 
 # Go parameters
 GO_CMD = go
-GO_BUILD = $(GO_CMD) build -tags ostree
-GO_CLEAN = $(GO_CMD) clean
 GO_GET = $(GO_CMD) get -v
 GO_TEST = $(GO_CMD) test -v
-DEP ?= $(GOPATH)/bin/dep
-DEP_VERSION = v0.4.1
 
 # Packages content
 PKG_OS_bblfshctl = darwin linux windows
@@ -54,13 +51,10 @@ ifneq ($(origin TRAVIS_TAG), undefined)
 	VERSION := $(TRAVIS_TAG)
 endif
 
-# Build
-LDFLAGS = -X main.version=$(VERSION) -X main.build=$(BUILD)
-
 # Docker
 DOCKER_CMD = docker
-DOCKER_BUILD = $(DOCKER_CMD) build
-DOCKER_RUN = $(DOCKER_CMD) run --rm -e VERSION=$(VERSION) -e BUILD=$(BUILD)
+DOCKER_BUILD = $(DOCKER_CMD) build --build-arg BBLFSHD_VERSION=$(VERSION) --build-arg BBLFSHD_BUILD=$(BUILD)
+DOCKER_RUN = $(DOCKER_CMD) run --rm
 DOCKER_BUILD_IMAGE = bblfshd-build
 DOCKER_TAG ?= $(DOCKER_CMD) tag
 DOCKER_PUSH ?= $(DOCKER_CMD) push
@@ -94,57 +88,39 @@ DOCKER_IMAGE_FIXTURE ?= $(DOCKER_IMAGE):fixture
 # Rules
 dependencies: build-fixture
 
-#$(DEPENDENCIES):
-#	$(GO_GET) $@/... && \
-#	wget -qO $(DEP) https://github.com/golang/dep/releases/download/$(DEP_VERSION)/dep-linux-amd64 && \
-#	chmod +x $(DEP)
-
-#$(VENDOR_PATH):
-#	rm -rf vendor/github.com/Sirupsen/;
-
 docker-build:
-	$(DOCKER_BUILD) -f Dockerfile.build -t $(DOCKER_BUILD_IMAGE) .
+	$(DOCKER_BUILD) --target=builder -t $(DOCKER_BUILD_IMAGE) .
 
 test: dependencies docker-build
-	$(DOCKER_RUN) --privileged  -v /var/run/docker.sock:/var/run/docker.sock -v $(GOPATH):/go $(DOCKER_BUILD_IMAGE) make test-internal
-
-test-internal:
-	export TEST_NETWORKING=1; \
-	$(GO_TEST) $(NOVENDOR_PACKAGES)
+	$(DOCKER_RUN) --privileged  -v /var/run/docker.sock:/var/run/docker.sock -v $(GOPATH)/src/$(GO_PKG):/go/src/$(GO_PKG) -e TEST_NETWORKING=1 $(DOCKER_BUILD_IMAGE) $(GO_TEST) ./...
 
 test-coverage: dependencies docker-build
-	$(DOCKER_RUN) --privileged -v /var/run/docker.sock:/var/run/docker.sock -v $(GOPATH):/go $(DOCKER_BUILD_IMAGE) make test-coverage-internal
+	mkdir -p reports
+	$(DOCKER_RUN) --privileged -v /var/run/docker.sock:/var/run/docker.sock -v $(GOPATH)/src/$(GO_PKG)/reports:/go/src/$(GO_PKG)/reports $(DOCKER_BUILD_IMAGE) make test-coverage-internal
+	mv ./reports/* ./ && rm -rf reports
 
 test-coverage-internal:
 	export TEST_NETWORKING=1; \
-	echo "" > $(COVERAGE_REPORT); \
+	echo "" > reports/$(COVERAGE_REPORT); \
 	for dir in $(NOVENDOR_PACKAGES); do \
-		$(GO_TEST) $$dir -coverprofile=$(COVERAGE_PROFILE) -covermode=$(COVERAGE_MODE); \
+		$(GO_TEST) $$dir -coverprofile=reports/$(COVERAGE_PROFILE) -covermode=$(COVERAGE_MODE); \
 		if [ $$? != 0 ]; then \
 			exit 2; \
 		fi; \
-		if [ -f $(COVERAGE_PROFILE) ]; then \
-			cat $(COVERAGE_PROFILE) >> $(COVERAGE_REPORT); \
-			rm $(COVERAGE_PROFILE); \
+		if [ -f reports/$(COVERAGE_PROFILE) ]; then \
+			cat reports/$(COVERAGE_PROFILE) >> reports/$(COVERAGE_REPORT); \
+			rm reports/$(COVERAGE_PROFILE); \
 		fi; \
 	done;
 
 build: dependencies docker-build
-	$(DOCKER_RUN) -v $(GOPATH):/go $(DOCKER_BUILD_IMAGE) make build-internal
-
-build-internal:
-	mkdir -p $(BUILD_PATH); \
-	for cmd in $(COMMANDS); do \
-        cd $(CMD_PATH)/$${cmd}; \
-		$(GO_BUILD) --ldflags '$(LDFLAGS)' -o $(BUILD_PATH)/bin/$${cmd} .; \
-	done;
+	$(DOCKER_BUILD) -t $(call unescape_docker_tag,$(DOCKER_IMAGE_VERSIONED)) .
 
 build-fixture:
 	cd $(BASE_PATH)/runtime/fixture/; \
 	$(DOCKER_BUILD) -t $(DOCKER_IMAGE_FIXTURE) .
 
 docker-image-build: build
-	$(DOCKER_BUILD) -t $(call unescape_docker_tag,$(DOCKER_IMAGE_VERSIONED)) .
 
 clean:
 	rm -rf $(BUILD_PATH); \
