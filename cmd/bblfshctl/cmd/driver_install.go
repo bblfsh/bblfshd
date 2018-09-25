@@ -173,6 +173,9 @@ func (c *DriverInstallCommand) installDriver(lang, ref string) error {
 	for _, e := range r.Errors {
 		fmt.Fprintf(os.Stderr, "Error, %s\n", e)
 	}
+	if err == nil {
+		err = fmt.Errorf("%v", r.Errors)
+	}
 
 	return err
 }
