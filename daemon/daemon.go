@@ -81,7 +81,7 @@ func (d *Daemon) InstallDriver(language string, image string, update bool) error
 	}
 	if err == nil {
 		if !update {
-			return ErrAlreadyInstalled.Wrap(err)
+			return ErrAlreadyInstalled.Wrap(err, language, image)
 		}
 		// TODO: the old driver should be removed only after a successful install of the new one
 		if err := d.runtime.RemoveDriver(s); err != nil {
