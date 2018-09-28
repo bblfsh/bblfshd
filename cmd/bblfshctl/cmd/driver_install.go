@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -122,28 +123,27 @@ func (c *DriverInstallCommand) Execute(args []string) error {
 			// TODO: go-flags does not support optional arguments in first positions
 			c.Args.Language, c.Args.ImageReference = "", c.Args.Language
 		}
-		return c.installDriver(c.Args.Language, c.Args.ImageReference)
+		return c.installSingleDriver(driverRef{Lang: c.Args.Language, Ref: c.Args.ImageReference})
 	}
 
 	var (
-		list map[string]string
-		err  error
+		m   map[string]string
+		err error
 	)
 	if c.Recommended {
-		list, err = recommendedDrivers()
+		m, err = recommendedDrivers()
 	} else {
-		list, err = allDrivers()
+		m, err = allDrivers()
 	}
 	if err != nil {
 		return err
 	}
 
-	for lang, image := range list {
-		if err := c.installDriver(lang, image); err != nil {
-			return err
-		}
+	list := make([]driverRef, 0, len(m))
+	for lang, image := range m {
+		list = append(list, driverRef{Lang: lang, Ref: image})
 	}
-	return nil
+	return c.installDrivers(list)
 }
 
 func (c *DriverInstallCommand) Validate() error {
@@ -158,36 +158,162 @@ func (c *DriverInstallCommand) Validate() error {
 	return nil
 }
 
-func (c *DriverInstallCommand) installDriver(lang, ref string) error {
+type driverRef struct {
+	Lang string
+	Ref  string
+}
+
+func (c *DriverInstallCommand) installDrivers(refs []driverRef) error {
+	if len(refs) == 0 {
+		return nil
+	} else if len(refs) == 1 {
+		return c.installSingleDriver(refs[0])
+	}
+	ctx := context.Background()
+	const workers = 3
+	type resp struct {
+		Ref string
+		Err error
+	}
+	var (
+		wg   sync.WaitGroup
+		last error
+		errs []error
+		jobs = make(chan driverRef)
+		out  = make(chan resp, len(refs))
+	)
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			for ref := range jobs {
+				err := c.installDriver(ctx, ref)
+				out <- resp{
+					Ref: ref.Ref, Err: err,
+				}
+			}
+		}()
+	}
+
+	mref := make(map[string]driverRef, len(refs))
+	for _, ref := range refs {
+		mref[ref.Ref] = ref
+	}
+	status := make(map[string]string, len(refs))
+
+	spin := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
+	clist := make([][3]string, 0, len(mref))
+	todo := len(refs)
+	done := 0
+
+	accept := func(r resp) {
+		todo--
+		str := " + "
+		if r.Err != nil {
+			last = r.Err
+			errs = append(errs, r.Err)
+			str = "ERR"
+		} else {
+			done++
+		}
+		status[r.Ref] = str
+	}
+
+	draining := false
+
+install:
+	for todo >= 0 {
+		clist = clist[:0]
+		for _, ref := range mref {
+			clist = append(clist, [3]string{ref.Lang, status[ref.Ref], ref.Ref})
+		}
+		sort.Slice(clist, func(i, j int) bool {
+			return clist[i][0] < clist[j][0]
+		})
+
+		if todo == 0 {
+			fmt.Printf("\nInstalled %d/%d drivers:\n", done, len(clist))
+		} else {
+			fmt.Printf("\nInstalling %d/%d drivers:\n", todo, len(clist))
+		}
+		for _, cols := range clist {
+			fmt.Printf("%12s %3s %s\n", cols[0], cols[1], cols[2])
+		}
+		if todo == 0 {
+			break
+		}
+		fmt.Print("Please wait  ")
+		spin.Start()
+
+		if !draining {
+			if len(refs) != 0 {
+				cur := refs[0]
+				// send jobs and receive responses
+				select {
+				case jobs <- cur:
+					refs = refs[1:]
+					status[cur.Ref] = "..."
+				case r := <-out:
+					accept(r)
+				}
+				spin.Stop()
+				fmt.Println()
+				continue install
+			}
+			// no jobs left
+			close(jobs)
+			draining = true
+		}
+
+		// drain responses
+		r := <-out
+		spin.Stop()
+		fmt.Println()
+		accept(r)
+	}
+	fmt.Println()
+	if len(errs) != 0 {
+		for _, err := range errs {
+			fmt.Fprintln(os.Stderr, "error:", err)
+		}
+	}
+	return last
+}
+
+func (c *DriverInstallCommand) installDriver(ctx context.Context, ref driverRef) error {
+	ref.Ref = c.getImageReference(ref.Ref)
+	r, err := c.srv.InstallDriver(ctx, &protocol.InstallDriverRequest{
+		Language:       ref.Lang,
+		ImageReference: ref.Ref,
+		Update:         c.Update,
+	})
+	if err == nil && len(r.Errors) == 0 {
+		return nil
+	}
+	if err == nil {
+		err = fmt.Errorf("%v", r.Errors)
+	}
+	return err
+}
+
+func (c *DriverInstallCommand) installSingleDriver(ref driverRef) error {
 	ltext := ""
-	if lang != "" {
-		ltext = fmt.Sprintf("%s language ", lang)
+	if ref.Lang != "" {
+		ltext = fmt.Sprintf("%s language ", ref.Lang)
 	}
 	fmt.Printf("Installing %sdriver from %q... ", ltext, ref)
 	s := spinner.New(spinner.CharSets[9], 100*time.Millisecond) // Build our new spinner
 	s.Start()
 
-	ref = c.getImageReference(ref)
-	r, err := c.srv.InstallDriver(context.Background(), &protocol.InstallDriverRequest{
-		Language:       lang,
-		ImageReference: ref,
-		Update:         c.Update,
-	})
+	err := c.installDriver(context.Background(), ref)
 
 	s.Stop()
-	if err == nil && len(r.Errors) == 0 {
+	if err == nil {
 		fmt.Println("Done")
 		return nil
 	}
-
-	fmt.Println("Error")
-	for _, e := range r.Errors {
-		fmt.Fprintf(os.Stderr, "Error, %s\n", e)
-	}
-	if err == nil {
-		err = fmt.Errorf("%v", r.Errors)
-	}
-
+	fmt.Fprintf(os.Stderr, "Error: %s\n", err)
 	return err
 }
 
