@@ -51,6 +51,9 @@ ifneq ($(origin TRAVIS_TAG), undefined)
 	VERSION := $(TRAVIS_TAG)
 endif
 
+# Build
+LDFLAGS = -X main.version=$(VERSION) -X main.build=$(BUILD)
+
 # Docker
 DOCKER_CMD = docker
 DOCKER_BUILD = $(DOCKER_CMD) build --build-arg BBLFSHD_VERSION=$(VERSION) --build-arg BBLFSHD_BUILD=$(BUILD)
