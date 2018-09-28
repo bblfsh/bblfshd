@@ -213,10 +213,10 @@
   version = "v1.1.0"
 
 [[projects]]
-  branch = "master"
   name = "github.com/google/go-github"
   packages = ["github"]
-  revision = "632a2caf6d3d380753dc7e422748202982ad18a3"
+  revision = "e48060a28fac52d0f1cb758bc8b87c07bac4a87d"
+  version = "v15.0.0"
 
 [[projects]]
   branch = "master"
@@ -542,7 +542,6 @@
   name = "gopkg.in/bblfsh/sdk.v1"
   packages = [
     "manifest",
-    "manifest/discovery",
     "protocol",
     "sdk/driver",
     "sdk/jsonlines",
@@ -554,11 +553,11 @@
   version = "v1.16.0"
 
 [[projects]]
-  branch = "v2"
   name = "gopkg.in/bblfsh/sdk.v2"
   packages = [
     "driver",
     "driver/manifest",
+    "driver/manifest/discovery",
     "protocol",
     "uast",
     "uast/nodes",
@@ -567,7 +566,8 @@
     "uast/role",
     "uast/transformer"
   ]
-  revision = "8f2480e5411bc92d9810b4dec2f7aa210109e47d"
+  revision = "85fd47713ba40fc3bffe4214090a552074841431"
+  version = "v2.2.3"
 
 [[projects]]
   name = "gopkg.in/src-d/enry.v1"
@@ -599,6 +599,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "83b7f773f98d991117386ece16eb3b3cf5af845432bd4190415c12d4241a1757"
+  inputs-digest = "0ce593b44932fe3a3e2e6891a7bf8c343416bad0ac01f84e5ad1e7a74c056d01"
   solver-name = "gps-cdcl"
   solver-version = 1

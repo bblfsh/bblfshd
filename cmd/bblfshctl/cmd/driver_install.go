@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/bblfsh/bblfshd/daemon/protocol"
-	"gopkg.in/bblfsh/sdk.v1/manifest/discovery"
+	"gopkg.in/bblfsh/sdk.v2/driver/manifest/discovery"
 
 	"github.com/briandowns/spinner"
 )
@@ -32,21 +32,20 @@ var (
 	}
 )
 
-func getOfficialDrivers() []discovery.Driver {
+func getOfficialDrivers() ([]discovery.Driver, error) {
+	var err error
 	drivers.Do(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()
 
-		list, err := discovery.OfficialDrivers(ctx, &discovery.Options{
+		drivers.List, err = discovery.OfficialDrivers(ctx, &discovery.Options{
 			NoMaintainers: true,
 		})
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error, %s\n", err)
-		} else {
-			drivers.List = list
 		}
 	})
-	return drivers.List
+	return drivers.List, err
 }
 
 func driverImage(id string) string {
@@ -54,8 +53,11 @@ func driverImage(id string) string {
 }
 
 // allDrivers returns the list of all the official bblfsh drivers that are usable.
-func allDrivers() map[string]string {
-	list := getOfficialDrivers()
+func allDrivers() (map[string]string, error) {
+	list, err := getOfficialDrivers()
+	if err != nil {
+		return nil, err
+	}
 	m := make(map[string]string, len(list))
 	for _, d := range list {
 		if d.InDevelopment() {
@@ -63,12 +65,15 @@ func allDrivers() map[string]string {
 		}
 		m[d.Language] = driverImage(d.Language)
 	}
-	return m
+	return m, nil
 }
 
 // recommendedDrivers returns the list of drivers in beta state or better.
-func recommendedDrivers() map[string]string {
-	list := getOfficialDrivers()
+func recommendedDrivers() (map[string]string, error) {
+	list, err := getOfficialDrivers()
+	if err != nil {
+		return nil, err
+	}
 	m := make(map[string]string, len(list))
 	for _, d := range list {
 		if !d.IsRecommended() {
@@ -76,7 +81,7 @@ func recommendedDrivers() map[string]string {
 		}
 		m[d.Language] = driverImage(d.Language)
 	}
-	return m
+	return m, nil
 }
 
 const (
@@ -112,19 +117,7 @@ func (c *DriverInstallCommand) Execute(args []string) error {
 		return err
 	}
 
-	if c.All {
-		for lang, image := range allDrivers() {
-			if err := c.installDriver(lang, image); err != nil {
-				return err
-			}
-		}
-	} else if c.Recommended {
-		for lang, image := range recommendedDrivers() {
-			if err := c.installDriver(lang, image); err != nil {
-				return err
-			}
-		}
-	} else {
+	if !c.All && !c.Recommended {
 		if c.Args.ImageReference == "" {
 			// TODO: go-flags does not support optional arguments in first positions
 			c.Args.Language, c.Args.ImageReference = "", c.Args.Language
@@ -132,6 +125,24 @@ func (c *DriverInstallCommand) Execute(args []string) error {
 		return c.installDriver(c.Args.Language, c.Args.ImageReference)
 	}
 
+	var (
+		list map[string]string
+		err  error
+	)
+	if c.Recommended {
+		list, err = recommendedDrivers()
+	} else {
+		list, err = allDrivers()
+	}
+	if err != nil {
+		return err
+	}
+
+	for lang, image := range list {
+		if err := c.installDriver(lang, image); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
