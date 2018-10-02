@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"flag"
+	"fmt"
 	"net"
 	"os"
 	"os/signal"
@@ -14,6 +16,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"gopkg.in/bblfsh/sdk.v1/sdk/server"
+	"gopkg.in/bblfsh/sdk.v2/driver/manifest/discovery"
 )
 
 var (
@@ -35,13 +38,14 @@ var (
 		format *string
 		fields *string
 	}
+	cmd *flag.FlagSet
 
 	usrListener net.Listener
 	ctlListener net.Listener
 )
 
 func init() {
-	cmd := flag.NewFlagSet("server", flag.ExitOnError)
+	cmd = flag.NewFlagSet("bblfshd", flag.ExitOnError)
 	network = cmd.String("network", "tcp", "network type: tcp, tcp4, tcp6, unix or unixpacket.")
 	address = cmd.String("address", "0.0.0.0:9432", "address to listen.")
 	storage = cmd.String("storage", "/var/lib/bblfshd", "path where all the runtime information is stored.")
@@ -60,11 +64,45 @@ func init() {
 	runtime.Bootstrap()
 }
 
+func driverImage(id string) string {
+	return fmt.Sprintf("docker://bblfsh/%s-driver:latest", id)
+}
+
+func installRecommended(d *daemon.Daemon) error {
+	ctx := context.Background()
+	list, err := discovery.OfficialDrivers(ctx, &discovery.Options{
+		NoMaintainers: true,
+	})
+	if err != nil {
+		return err
+	}
+	for _, dr := range list {
+		if !dr.IsRecommended() {
+			continue
+		}
+		image := driverImage(dr.Language)
+		logrus.Infof("installing driver for %s (%s)", dr.Language, image)
+		err = d.InstallDriver(dr.Language, image, false)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func main() {
 	logrus.Infof("bblfshd version: %s (build: %s)", version, build)
 
 	r := buildRuntime()
 	d := daemon.NewDaemon(version, r, buildGRPCOptions()...)
+	if args := cmd.Args(); len(args) == 2 && args[0] == "install" && args[1] == "recommended" {
+		err := installRecommended(d)
+		if err != nil {
+			logrus.Errorf("error listing drivers: %s", err)
+			os.Exit(1)
+		}
+		return
+	}
 
 	var wg sync.WaitGroup
 	wg.Add(2)
