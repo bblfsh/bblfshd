@@ -50,12 +50,7 @@ func registerGRPC(d *Daemon) {
 	protocol1.RegisterProtocolServiceServer(d.UserServer, protocol1.NewProtocolServiceServer())
 
 	protocol2.RegisterDriverServer(d.UserServer, NewServiceV2(d))
-
-	protocol.DefaultService = NewControlService(d)
-	protocol.RegisterProtocolServiceServer(
-		d.ControlServer,
-		protocol.NewProtocolServiceServer(),
-	)
+	protocol.RegisterService(d.ControlServer, NewControlService(d))
 }
 
 func (d *Daemon) InstallDriver(language string, image string, update bool) error {

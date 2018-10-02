@@ -4,11 +4,11 @@ import (
 	"strings"
 	"time"
 
+	xcontext "golang.org/x/net/context"
+	"google.golang.org/grpc"
+
 	"gopkg.in/bblfsh/sdk.v1/protocol"
 )
-
-// DefaultService is the default service used to process requests.
-var DefaultService Service
 
 type Service interface {
 	InstallDriver(language string, image string, update bool) error
@@ -18,34 +18,23 @@ type Service interface {
 	DriverInstanceStates() ([]*DriverInstanceState, error)
 }
 
-//proteus:generate
-type DriverPoolStatesResponse struct {
-	protocol.Response
-	// State represent the state of each pool in the daemon.
-	State map[string]*DriverPoolState
+func RegisterService(srv *grpc.Server, s Service) {
+	RegisterProtocolServiceServer(srv, &protocolServiceServer{s})
 }
 
-//proteus:generate
-func DriverPoolStates() *DriverPoolStatesResponse {
-	resp := &DriverPoolStatesResponse{}
-	start := time.Now()
-	defer func() {
-		resp.Elapsed = time.Since(start)
-	}()
-
-	resp.State = DefaultService.DriverPoolStates()
-	return resp
+type protocolServiceServer struct {
+	s Service
 }
 
-//proteus:generate
+type Response protocol.Response
+
 type DriverInstanceStatesResponse struct {
 	protocol.Response
 	// State represent the state of each driver instance in the daemon.
 	State []*DriverInstanceState
 }
 
-//proteus:generate
-func DriverInstanceStates() *DriverInstanceStatesResponse {
+func (s *protocolServiceServer) DriverInstanceStates(ctx xcontext.Context, _ *DriverInstanceStatesRequest) (*DriverInstanceStatesResponse, error) {
 	resp := &DriverInstanceStatesResponse{}
 	start := time.Now()
 	defer func() {
@@ -53,23 +42,38 @@ func DriverInstanceStates() *DriverInstanceStatesResponse {
 	}()
 
 	var err error
-	resp.State, err = DefaultService.DriverInstanceStates()
+	resp.State, err = s.s.DriverInstanceStates()
 	if err != nil {
-		resp.Errors = append(resp.Errors, err.Error())
+		return nil, err
 	}
 
-	return resp
+	return resp, nil
 }
 
-//proteus:generate
+type DriverPoolStatesResponse struct {
+	protocol.Response
+	// State represent the state of each pool in the daemon.
+	State map[string]*DriverPoolState
+}
+
+func (s *protocolServiceServer) DriverPoolStates(ctx xcontext.Context, _ *DriverPoolStatesRequest) (*DriverPoolStatesResponse, error) {
+	resp := &DriverPoolStatesResponse{}
+	start := time.Now()
+	defer func() {
+		resp.Elapsed = time.Since(start)
+	}()
+
+	resp.State = s.s.DriverPoolStates()
+	return resp, nil
+}
+
 type DriverStatesResponse struct {
 	protocol.Response
 	// State represent the state of each driver in the storage.
 	State []*DriverImageState
 }
 
-//proteus:generate
-func DriverStates() *DriverStatesResponse {
+func (s *protocolServiceServer) DriverStates(ctx xcontext.Context, in *DriverStatesRequest) (*DriverStatesResponse, error) {
 	resp := &DriverStatesResponse{}
 	start := time.Now()
 	defer func() {
@@ -77,15 +81,13 @@ func DriverStates() *DriverStatesResponse {
 	}()
 
 	var err error
-	resp.State, err = DefaultService.DriverStates()
+	resp.State, err = s.s.DriverStates()
 	if err != nil {
-		resp.Errors = append(resp.Errors, err.Error())
+		return nil, err
 	}
-
-	return resp
+	return resp, nil
 }
 
-//proteus:generate
 type InstallDriverRequest struct {
 	// Language supported by the driver being installed.
 	Language string
@@ -97,46 +99,39 @@ type InstallDriverRequest struct {
 	Update bool
 }
 
-type Response protocol.Response
-
-//proteus:generate
-func InstallDriver(req *InstallDriverRequest) *Response {
+func (s *protocolServiceServer) InstallDriver(ctx xcontext.Context, req *InstallDriverRequest) (*Response, error) {
 	resp := &Response{}
 	start := time.Now()
 	defer func() {
 		resp.Elapsed = time.Since(start)
 	}()
 
-	err := DefaultService.InstallDriver(
+	err := s.s.InstallDriver(
 		strings.ToLower(req.Language),
 		req.ImageReference,
 		req.Update,
 	)
 
 	if err != nil {
-		resp.Errors = append(resp.Errors, err.Error())
+		return nil, err
 	}
-
-	return resp
+	return resp, nil
 }
 
-//proteus:generate
 type RemoveDriverRequest struct {
 	// Language supported by the driver to be deleted.
 	Language string
 }
 
-//proteus:generate
-func RemoveDriver(req *RemoveDriverRequest) *Response {
+func (s *protocolServiceServer) RemoveDriver(ctx xcontext.Context, req *RemoveDriverRequest) (result *Response, err error) {
 	resp := &Response{}
 	start := time.Now()
 	defer func() {
 		resp.Elapsed = time.Since(start)
 	}()
 
-	if err := DefaultService.RemoveDriver(strings.ToLower(req.Language)); err != nil {
-		resp.Errors = append(resp.Errors, err.Error())
+	if err := s.s.RemoveDriver(strings.ToLower(req.Language)); err != nil {
+		return nil, err
 	}
-
-	return resp
+	return resp, nil
 }
