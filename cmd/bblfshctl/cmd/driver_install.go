@@ -9,6 +9,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bblfsh/bblfshd/daemon"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"github.com/bblfsh/bblfshd/daemon/protocol"
 	"gopkg.in/bblfsh/sdk.v2/driver/manifest/discovery"
 
@@ -105,6 +109,7 @@ type DriverInstallCommand struct {
 	Update      bool `long:"update" description:"replace the current image for the language if any"`
 	All         bool `long:"all" description:"installs all the official drivers"`
 	Recommended bool `long:"recommended" description:"install the recommended official drivers"`
+	Force       bool `short:"f" long:"force" description:"ignore already installed errors"`
 
 	DriverCommand
 }
@@ -123,7 +128,7 @@ func (c *DriverInstallCommand) Execute(args []string) error {
 			// TODO: go-flags does not support optional arguments in first positions
 			c.Args.Language, c.Args.ImageReference = "", c.Args.Language
 		}
-		return c.installSingleDriver(driverRef{Lang: c.Args.Language, Ref: c.Args.ImageReference})
+		return c.installDrivers([]driverRef{{Lang: c.Args.Language, Ref: c.Args.ImageReference}})
 	}
 
 	var (
@@ -211,9 +216,13 @@ func (c *DriverInstallCommand) installDrivers(refs []driverRef) error {
 		todo--
 		str := " + "
 		if r.Err != nil {
-			last = r.Err
-			errs = append(errs, r.Err)
-			str = "ERR"
+			if daemon.ErrAlreadyInstalled.Is(r.Err) && c.Force {
+				done++
+			} else {
+				last = r.Err
+				errs = append(errs, r.Err)
+				str = "ERR"
+			}
 		} else {
 			done++
 		}
@@ -288,7 +297,9 @@ func (c *DriverInstallCommand) installDriver(ctx context.Context, ref driverRef)
 		ImageReference: ref.Ref,
 		Update:         c.Update,
 	})
-	if err == nil && len(r.Errors) == 0 {
+	if st, ok := status.FromError(err); ok && st.Code() == codes.AlreadyExists {
+		return daemon.ErrAlreadyInstalled.New(ref.Lang, ref.Ref)
+	} else if err == nil && len(r.Errors) == 0 {
 		return nil
 	}
 	if err == nil {
@@ -302,7 +313,7 @@ func (c *DriverInstallCommand) installSingleDriver(ref driverRef) error {
 	if ref.Lang != "" {
 		ltext = fmt.Sprintf("%s language ", ref.Lang)
 	}
-	fmt.Printf("Installing %sdriver from %q... ", ltext, ref)
+	fmt.Printf("Installing %sdriver from %q... ", ltext, ref.Ref)
 	s := spinner.New(spinner.CharSets[9], 100*time.Millisecond) // Build our new spinner
 	s.Start()
 
@@ -311,6 +322,10 @@ func (c *DriverInstallCommand) installSingleDriver(ref driverRef) error {
 	s.Stop()
 	if err == nil {
 		fmt.Println("Done")
+		return nil
+	}
+	if daemon.ErrAlreadyInstalled.Is(err) && c.Force {
+		fmt.Fprintf(os.Stderr, "Warning: %s\n", err)
 		return nil
 	}
 	fmt.Fprintf(os.Stderr, "Error: %s\n", err)

@@ -6,8 +6,15 @@ import (
 
 	xcontext "golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"gopkg.in/src-d/go-errors.v1"
 
 	"gopkg.in/bblfsh/sdk.v1/protocol"
+)
+
+var (
+	ErrAlreadyInstalled = errors.NewKind("driver already installed: %s (image reference: %s)")
 )
 
 type Service interface {
@@ -112,7 +119,9 @@ func (s *protocolServiceServer) InstallDriver(ctx xcontext.Context, req *Install
 		req.Update,
 	)
 
-	if err != nil {
+	if ErrAlreadyInstalled.Is(err) {
+		return nil, status.New(codes.AlreadyExists, err.Error()).Err()
+	} else if err != nil {
 		return nil, err
 	}
 	return resp, nil
