@@ -17,7 +17,7 @@ var (
 	ErrUnexpected        = errors.NewKind("unexpected error")
 	ErrMissingDriver     = errors.NewKind("missing driver for language %q")
 	ErrRuntime           = errors.NewKind("runtime failure")
-	ErrAlreadyInstalled  = errors.NewKind("driver already installed: %s (image reference: %s)")
+	ErrAlreadyInstalled  = protocol.ErrAlreadyInstalled
 	ErrLanguageDetection = errors.NewKind("could not autodetect language")
 )
 
