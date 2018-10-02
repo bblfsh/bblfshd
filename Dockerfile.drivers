@@ -1,4 +1,4 @@
 ARG TAG
 FROM bblfsh/bblfshd:${TAG}
 
-RUN bblfshd & bblfshctl driver install --recommended
+RUN bblfshd install recommended
