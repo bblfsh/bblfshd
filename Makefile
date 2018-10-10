@@ -161,6 +161,7 @@ push-drivers: build-drivers
 	fi;
 
 packages: dependencies docker-build
+	$(if $(pushdisabled),$(error $(pushdisabled)))
 	$(DOCKER_RUN) -v $(BUILD_PATH):/go/src/$(GO_PKG)/build \
 	                -e TRAVIS_BRANCH=$(TRAVIS_BRANCH) \
 	                -e TRAVIS_TAG=$(TRAVIS_TAG) \
