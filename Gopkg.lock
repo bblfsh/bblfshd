@@ -564,10 +564,11 @@
     "uast/nodes/nodesproto",
     "uast/nodes/nodesproto/pio",
     "uast/role",
-    "uast/transformer"
+    "uast/transformer",
+    "uast/yaml"
   ]
-  revision = "85fd47713ba40fc3bffe4214090a552074841431"
-  version = "v2.2.3"
+  revision = "fab3b62f674a6845167c004dcc11f9143209da2a"
+  version = "v2.2.4"
 
 [[projects]]
   name = "gopkg.in/src-d/enry.v1"
@@ -594,11 +595,12 @@
 [[projects]]
   name = "gopkg.in/yaml.v2"
   packages = ["."]
-  revision = "1be3d31502d6eabc0dd7ce5b0daab022e14a5538"
+  revision = "5420a8b6744d3b0345ab293f6fcba19c978f1183"
+  version = "v2.2.1"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "0ce593b44932fe3a3e2e6891a7bf8c343416bad0ac01f84e5ad1e7a74c056d01"
+  inputs-digest = "05d4c9004aa4807d42e1f2d95d62478507cb32552d6a212de87cfe5d59e17e8e"
   solver-name = "gps-cdcl"
   solver-version = 1

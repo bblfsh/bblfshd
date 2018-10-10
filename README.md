@@ -17,13 +17,13 @@ See the [Getting Started](https://doc.bblf.sh/using-babelfish/getting-started.ht
 The recommended way to run *bblfshd* is using *docker*:
 
 ```sh
-docker run -d --name bblfshd --privileged -p 9432:9432 -v /var/lib/bblfshd:/var/lib/bblfshd bblfsh/bblfshd
+docker run -d --name bblfshd --privileged -p 9432:9432 -p 9480:9480 -v /var/lib/bblfshd:/var/lib/bblfshd bblfsh/bblfshd
 ```
 
 On macOS, use this command instead to use a docker volume:
 
 ```sh
-docker run -d --name bblfshd --privileged -p 9432:9432 -v bblfsh-storage:/var/lib/bblfshd bblfsh/bblfshd
+docker run -d --name bblfshd --privileged -p 9432:9432 -p 9480:9480 -v bblfsh-storage:/var/lib/bblfshd bblfsh/bblfshd
 ```
 
 
@@ -38,7 +38,7 @@ Now you need to install the driver images into the daemon, you can install
 the official images just running the command:
 
 ```sh
-docker exec -it bblfshd bblfshctl driver install --all
+docker exec -it bblfshd bblfshctl driver install --recommended
 ```
 
 You can check the installed versions executing:
@@ -60,6 +60,11 @@ and an example contained in the docker image:
 
 ```sh
 docker exec -it bblfshd bblfshctl parse /opt/bblfsh/etc/examples/python.py
+```
+
+Parse request can also be sent as an HTTP POST:
+```sh
+curl --data-binary @./cmd/bblfshd/main.go -H 'Accept: application/json' 'http://localhost:9480/api/v1/parse?lang=go'
 ```
 
 ## SELinux

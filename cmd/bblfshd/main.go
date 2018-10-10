@@ -2,21 +2,32 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/bblfsh/bblfshd/daemon"
 	"github.com/bblfsh/bblfshd/runtime"
 
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	protocol1 "gopkg.in/bblfsh/sdk.v1/protocol"
 	"gopkg.in/bblfsh/sdk.v1/sdk/server"
+	"gopkg.in/bblfsh/sdk.v2/driver"
 	"gopkg.in/bblfsh/sdk.v2/driver/manifest/discovery"
+	protocol2 "gopkg.in/bblfsh/sdk.v2/protocol"
+	"gopkg.in/bblfsh/sdk.v2/uast/yaml"
 )
 
 var (
@@ -25,6 +36,7 @@ var (
 
 	network        *string
 	address        *string
+	addressHTTP    *string
 	storage        *string
 	transport      *string
 	maxMessageSize *int
@@ -40,14 +52,19 @@ var (
 	}
 	cmd *flag.FlagSet
 
-	usrListener net.Listener
-	ctlListener net.Listener
+	usrListener  net.Listener
+	ctlListener  net.Listener
+	httpListener net.Listener
+
+	srv1 *daemon.Service
+	srv2 *daemon.ServiceV2
 )
 
 func init() {
 	cmd = flag.NewFlagSet("bblfshd", flag.ExitOnError)
 	network = cmd.String("network", "tcp", "network type: tcp, tcp4, tcp6, unix or unixpacket.")
 	address = cmd.String("address", "0.0.0.0:9432", "address to listen.")
+	addressHTTP = cmd.String("http", "0.0.0.0:9480", "address to listen (http)")
 	storage = cmd.String("storage", "/var/lib/bblfshd", "path where all the runtime information is stored.")
 	transport = cmd.String("transport", "docker", "default transport to fetch driver images: docker or docker-daemon)")
 	maxMessageSize = cmd.Int("grpc-max-message-size", 100, "max. message size to send/receive to/from clients (in MB)")
@@ -114,6 +131,13 @@ func main() {
 		defer wg.Done()
 		listenControl(d)
 	}()
+	if *addressHTTP != "" {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			listenHTTP(d)
+		}()
+	}
 	handleGracefullyShutdown(d)
 	wg.Wait()
 }
@@ -147,6 +171,161 @@ func listenControl(d *daemon.Daemon) {
 	if err = d.ControlServer.Serve(ctlListener); err != nil {
 		logrus.Errorf("error starting control server: %s", err)
 		os.Exit(1)
+	}
+}
+
+func listenHTTP(d *daemon.Daemon) {
+	var err error
+	httpListener, err = net.Listen("tcp", *addressHTTP)
+	if err != nil {
+		logrus.Errorf("error creating http listener: %s", err)
+		os.Exit(1)
+	}
+	srv1 = daemon.NewService(d)
+	srv2 = daemon.NewServiceV2(d)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v1/version", handleVersion)
+	mux.HandleFunc("/api/v1/languages", handleLanguages)
+	mux.HandleFunc("/api/v1/parse", handleParse)
+
+	hs := &http.Server{
+		Handler: mux,
+	}
+
+	logrus.Infof("http server listening on http://%s", *addressHTTP)
+	if err = hs.Serve(httpListener); err != nil {
+		logrus.Errorf("error starting http server: %s", err)
+		os.Exit(1)
+	}
+}
+
+func jsonError(w http.ResponseWriter, code int, err error) {
+	if code == 0 {
+		code = http.StatusInternalServerError
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"error": err.Error(),
+	})
+}
+
+func handleVersion(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	resp := srv1.Version(&protocol1.VersionRequest{})
+	if len(resp.Errors) != 0 || resp.Status != protocol1.Ok {
+		var errs []string
+		for _, e := range resp.Errors {
+			errs = append(errs, e)
+		}
+		jsonError(w, 0, errors.New(strings.Join(errs, "\n")))
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	build := ""
+	if !resp.Build.IsZero() {
+		build = resp.Build.Format(time.RFC3339)
+	}
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"version": resp.Version,
+		"build":   build,
+	})
+}
+
+func handleLanguages(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	resp := srv1.SupportedLanguages(&protocol1.SupportedLanguagesRequest{})
+	if len(resp.Errors) != 0 || resp.Status != protocol1.Ok {
+		var errs []string
+		for _, e := range resp.Errors {
+			errs = append(errs, e)
+		}
+		jsonError(w, 0, errors.New(strings.Join(errs, "\n")))
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp.Languages)
+}
+
+func handleParse(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	if r.Method != "POST" {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	q := r.URL.Query()
+
+	lang := q.Get("lang")
+	file := q.Get("file")
+
+	var mode = driver.ModeDefault
+	if smode := q.Get("mode"); smode != "" {
+		var err error
+		mode, err = driver.ParseMode(smode)
+		if err != nil {
+			jsonError(w, http.StatusBadRequest, err)
+			return
+		}
+	}
+
+	maxSize := *maxMessageSize * 1024 * 1024
+	data, err := ioutil.ReadAll(io.LimitReader(r.Body, int64(maxSize+1)))
+	if err != nil {
+		jsonError(w, http.StatusBadRequest, err)
+		return
+	} else if len(data) > maxSize {
+		jsonError(w, http.StatusBadRequest, fmt.Errorf("content is too large"))
+		return
+	}
+
+	resp, err := srv2.Parse(r.Context(), &protocol2.ParseRequest{
+		Content:  string(data),
+		Language: lang,
+		Filename: file,
+		Mode:     protocol2.Mode(mode),
+	})
+	if err != nil {
+		jsonError(w, 0, err)
+		return
+	} else if len(resp.Errors) != 0 {
+		var errs []string
+		for _, e := range resp.Errors {
+			errs = append(errs, e.Text)
+		}
+		jsonError(w, 0, errors.New(strings.Join(errs, "\n")))
+		return
+	}
+
+	switch out := r.Header.Get("Accept"); out {
+	case "application/json":
+		nodes, err := resp.Nodes()
+		if err != nil {
+			jsonError(w, 0, err)
+			return
+		}
+		w.Header().Set("Content-Type", out)
+		json.NewEncoder(w).Encode(nodes)
+	case "text/yaml", "text/x-yaml", "application/x-yaml", "text/vnd.yaml":
+		nodes, err := resp.Nodes()
+		if err != nil {
+			jsonError(w, 0, err)
+			return
+		}
+		w.Header().Set("Content-Type", out)
+		uastyml.NewEncoder(w).Encode(nodes)
+	default:
+		fallthrough
+	case "application/octet-stream":
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Write(resp.Uast)
 	}
 }
 
@@ -218,7 +397,10 @@ func waitForStop(ch <-chan os.Signal, d *daemon.Daemon) {
 		logrus.Errorf("error stopping server: %s", err)
 	}
 
-	for _, l := range []net.Listener{ctlListener, usrListener} {
+	for _, l := range []net.Listener{ctlListener, usrListener, httpListener} {
+		if l == nil {
+			continue
+		}
 		if err := l.Close(); err != nil {
 			logrus.Errorf("error closing listener: %s", err)
 		}
