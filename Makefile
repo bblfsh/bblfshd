@@ -34,6 +34,7 @@ VERSION ?= $(DEV_PREFIX)-$(GIT_COMMIT)$(GIT_DIRTY)
 
 # Go parameters
 GO_CMD = go
+GO_BUILD = $(GO_CMD) build -tags ostree
 GO_GET = $(GO_CMD) get -v
 GO_TEST = $(GO_CMD) test -v
 
@@ -160,8 +161,11 @@ push-drivers: build-drivers
 	fi;
 
 packages: dependencies docker-build
-	$(if $(pushdisabled),$(error $(pushdisabled)))
-	$(DOCKER_RUN) -v $(GOPATH):/go $(DOCKER_BUILD_IMAGE) make packages-internal
+	$(DOCKER_RUN) -v $(BUILD_PATH):/go/src/$(GO_PKG)/build \
+	                -e TRAVIS_BRANCH=$(TRAVIS_BRANCH) \
+	                -e TRAVIS_TAG=$(TRAVIS_TAG) \
+	                -e TRAVIS_PULL_REQUEST=$(TRAVIS_PULL_REQUEST) \
+	                $(DOCKER_BUILD_IMAGE) make packages-internal
 
 packages-internal: $(COMMANDS)
 
