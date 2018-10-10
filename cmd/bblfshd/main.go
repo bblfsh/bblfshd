@@ -27,6 +27,10 @@ import (
 	"gopkg.in/bblfsh/sdk.v2/driver"
 	"gopkg.in/bblfsh/sdk.v2/driver/manifest/discovery"
 	protocol2 "gopkg.in/bblfsh/sdk.v2/protocol"
+	"gopkg.in/bblfsh/sdk.v2/uast/nodes"
+	"gopkg.in/bblfsh/sdk.v2/uast/nodes/nodesproto"
+	"gopkg.in/bblfsh/sdk.v2/uast/query"
+	"gopkg.in/bblfsh/sdk.v2/uast/query/xpath"
 	"gopkg.in/bblfsh/sdk.v2/uast/yaml"
 )
 
@@ -254,6 +258,14 @@ func handleLanguages(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp.Languages)
 }
 
+var httpTypes = map[string]string{
+	"application/json":   "json",
+	"text/yaml":          "yaml",
+	"text/x-yaml":        "yaml",
+	"application/x-yaml": "yaml",
+	"text/vnd.yaml":      "yaml",
+}
+
 func handleParse(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
@@ -270,6 +282,16 @@ func handleParse(w http.ResponseWriter, r *http.Request) {
 	if smode := q.Get("mode"); smode != "" {
 		var err error
 		mode, err = driver.ParseMode(smode)
+		if err != nil {
+			jsonError(w, http.StatusBadRequest, err)
+			return
+		}
+	}
+
+	var qu query.Query
+	if query := q.Get("query"); query != "" {
+		var err error
+		qu, err = xpath.New().Prepare(query)
 		if err != nil {
 			jsonError(w, http.StatusBadRequest, err)
 			return
@@ -303,29 +325,45 @@ func handleParse(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, 0, errors.New(strings.Join(errs, "\n")))
 		return
 	}
-
-	switch out := r.Header.Get("Accept"); out {
-	case "application/json":
-		nodes, err := resp.Nodes()
-		if err != nil {
-			jsonError(w, 0, err)
-			return
-		}
-		w.Header().Set("Content-Type", out)
-		json.NewEncoder(w).Encode(nodes)
-	case "text/yaml", "text/x-yaml", "application/x-yaml", "text/vnd.yaml":
-		nodes, err := resp.Nodes()
-		if err != nil {
-			jsonError(w, 0, err)
-			return
-		}
-		w.Header().Set("Content-Type", out)
-		uastyml.NewEncoder(w).Encode(nodes)
-	default:
-		fallthrough
-	case "application/octet-stream":
+	typ := httpTypes[r.Header.Get("Accept")]
+	if typ == "" && qu == nil {
 		w.Header().Set("Content-Type", "application/octet-stream")
 		w.Write(resp.Uast)
+		return
+	}
+	uast, err := resp.Nodes()
+	if err != nil {
+		jsonError(w, 0, err)
+		return
+	}
+	if qu != nil {
+		it, err := qu.Execute(uast)
+		if err != nil {
+			jsonError(w, 0, err)
+			return
+		}
+		var arr nodes.Array
+		for it.Next() {
+			n, ok := it.Node().(nodes.Node)
+			if !ok {
+				jsonError(w, 0, fmt.Errorf("ensupported node type: %T", it.Node()))
+				return
+			}
+			arr = append(arr, n)
+		}
+		uast = arr
+	}
+
+	switch typ {
+	case "json":
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(uast)
+	case "yaml":
+		w.Header().Set("Content-Type", r.Header.Get("Accept"))
+		uastyml.NewEncoder(w).Encode(uast)
+	default:
+		w.Header().Set("Content-Type", "application/octet-stream")
+		nodesproto.WriteTo(w, uast)
 	}
 }
 

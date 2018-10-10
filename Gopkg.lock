@@ -15,6 +15,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/antchfx/xpath"
+  packages = ["."]
+  revision = "3de91f3991a1af6e495d49c9218318b5544b20e3"
+
+[[projects]]
+  branch = "master"
   name = "github.com/beorn7/perks"
   packages = ["quantile"]
   revision = "4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9"
@@ -563,6 +569,8 @@
     "uast/nodes",
     "uast/nodes/nodesproto",
     "uast/nodes/nodesproto/pio",
+    "uast/query",
+    "uast/query/xpath",
     "uast/role",
     "uast/transformer",
     "uast/yaml"
@@ -601,6 +609,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "05d4c9004aa4807d42e1f2d95d62478507cb32552d6a212de87cfe5d59e17e8e"
+  inputs-digest = "5ecca5a2ca180937b6adf20445a3c54895f3690f18b5241c579d71a904bbeeaf"
   solver-name = "gps-cdcl"
   solver-version = 1
