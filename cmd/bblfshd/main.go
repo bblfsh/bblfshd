@@ -304,7 +304,7 @@ func handleParse(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, http.StatusBadRequest, err)
 		return
 	} else if len(data) > maxSize {
-		jsonError(w, http.StatusBadRequest, fmt.Errorf("content is too large"))
+		jsonError(w, http.StatusBadRequest, fmt.Errorf("content is too large (> %d MB)", *maxMessageSize))
 		return
 	}
 
