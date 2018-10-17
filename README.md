@@ -2,10 +2,10 @@
 
 This repository contains bblfsh daemon (*bblfshd*), which includes the
 runtime that runs the driver in *containers* and the bblfshctl, a cli tool used
-too control the installed drivers and query the status of the daemon.
+to control the installed drivers and query the status of the daemon.
 
-Drivers are implemented as docker image that each have their own repository in
-[the `bblfsh` organization](https://github.com/search?q=topic%3Adriver+org%3Abblfsh&type=Repositories)
+Drivers are implemented as Docker images, each having their own repository in the 
+[`bblfsh` organization](https://github.com/search?q=topic%3Adriver+org%3Abblfsh&type=Repositories)
 on GitHub. For more information, see [bblfsh SDK documentation](https://doc.bblf.sh/writing-a-driver/babelfish-sdk.html).
 
 ## Getting Started
@@ -14,23 +14,23 @@ See the [Getting Started](https://doc.bblf.sh/using-babelfish/getting-started.ht
 
 ### Quick start
 
-The recommended way to run *bblfshd* is using *docker*:
+The recommended way to run *bblfshd* is using Docker:
 
 ```sh
 docker run -d --name bblfshd --privileged -p 9432:9432 -v /var/lib/bblfshd:/var/lib/bblfshd bblfsh/bblfshd
 ```
 
-On macOS, use this command instead to use a docker volume:
+On macOS, use this command instead to use a Docker volume:
 
 ```sh
 docker run -d --name bblfshd --privileged -p 9432:9432 -v bblfsh-storage:/var/lib/bblfshd bblfsh/bblfshd
 ```
 
 
-The container should be executed with the `--privileged` flag since *bblfshd* it's
+The container should be executed with the `--privileged` flag since *bblfshd* is
 based on [container technology](https://github.com/opencontainers/runc/tree/master/libcontainer)
-and interacts with the kernel at a low level. *bblfshd*, expose a gRPC server at
-the port `9432` by default, this gRPC will be used by the [clients](https://github.com/search?q=topic%3Aclient+org%3Abblfsh&type=Repositories)
+and interacts with the kernel at a low level. *bblfshd* exposes a gRPC server at
+the port `9432` by default which is used by the [clients](https://github.com/search?q=topic%3Aclient+org%3Abblfsh&type=Repositories)
 to interact with the server. Also, we mount the path `/var/lib/bblfshd/` where
 all the driver images and container instances will be stored.
 
@@ -41,7 +41,7 @@ the official images just running the command:
 docker exec -it bblfshd bblfshctl driver install --all
 ```
 
-You can check the installed versions executing:
+You can check the installed versions by executing:
 ```
 docker exec -it bblfshd bblfshctl driver list
 ```
@@ -55,8 +55,8 @@ docker exec -it bblfshd bblfshctl driver list
 +----------+-------------------------------+---------+--------+---------+--------+-----+-------------+
 ```
 
-To test the driver you can executed a parse request to the server with the `bblfshctl parse` command,
-and an example contained in the docker image:
+To test the driver you can execute a parse request to the server with the `bblfshctl parse` command,
+and an example contained in the Docker image:
 
 ```sh
 docker exec -it bblfshd bblfshctl parse /opt/bblfsh/etc/examples/python.py
@@ -64,8 +64,8 @@ docker exec -it bblfshd bblfshctl parse /opt/bblfsh/etc/examples/python.py
 
 ## SELinux
 
-If your system has SELinux enabled (is the default in Fedora, Red Hat, CentOS
-and many others) you need to compile and load a policy module before running the
+If your system has SELinux enabled (which is the default in Fedora, Red Hat, CentOS
+and many others) you'll need to compile and load a policy module before running the
 bblfshd Docker image or running driver containers will fail with a `permission
 denied` message in the logs. 
 
@@ -77,7 +77,7 @@ sh compile.sh
 semodule -i bblfshd.pp
 ```
 
-If you were already running an instance of bblfshd, you will need to delete the
+If you were already running an instance of *bblfshd*, you will need to delete the
 container (`docker rm -f bblfshd`) and run it again (`docker run...`).
 
 Once the module has been loaded with `semodule` the change should persist even
@@ -95,10 +95,10 @@ should be strongly discouraged).
 ## Development
 
 If you wish to work on *bblfshd* , you'll first need [Go](http://www.golang.org)
-installed on your machine (version 1.10+ is *required*) and [Docker](https://docs.docker.com/engine/installation/),
-docker is used to build and run the test in an isolated environment.
+installed on your machine (version 1.10+ is *required*) and [Docker](https://docs.docker.com/engine/installation/).
+Docker is used to build and run tests in an isolated environment.
 
-For local development of bblfshd, first make sure Go is properly installed and
+For local development of *bblfshd*, first make sure Go is properly installed and
 that a [GOPATH](http://golang.org/doc/code.html#GOPATH) has been set. You will
  also need to add `$GOPATH/bin` to your `$PATH`.
 
