@@ -1,3 +1,5 @@
+// +build linux,cgo
+
 package daemon
 
 import (
@@ -10,15 +12,6 @@ import (
 	"google.golang.org/grpc"
 	protocol1 "gopkg.in/bblfsh/sdk.v1/protocol"
 	protocol2 "gopkg.in/bblfsh/sdk.v2/protocol"
-	"gopkg.in/src-d/go-errors.v1"
-)
-
-var (
-	ErrUnexpected        = errors.NewKind("unexpected error")
-	ErrMissingDriver     = errors.NewKind("missing driver for language %q")
-	ErrRuntime           = errors.NewKind("runtime failure")
-	ErrAlreadyInstalled  = protocol.ErrAlreadyInstalled
-	ErrLanguageDetection = errors.NewKind("could not autodetect language")
 )
 
 // Daemon is a Babelfish server.
