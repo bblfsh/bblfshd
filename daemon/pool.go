@@ -1,3 +1,5 @@
+// +build linux,cgo
+
 package daemon
 
 import (
@@ -11,6 +13,7 @@ import (
 	"github.com/bblfsh/bblfshd/daemon/protocol"
 
 	"context"
+
 	"github.com/sirupsen/logrus"
 	"gopkg.in/bblfsh/sdk.v1/sdk/server"
 	"gopkg.in/src-d/go-errors.v1"
