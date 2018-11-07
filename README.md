@@ -14,7 +14,11 @@ See the [Getting Started](https://doc.bblf.sh/using-babelfish/getting-started.ht
 
 ### Quick start
 
-The recommended way to run *bblfshd* is using Docker:
+This project is now part of [source{d} Engine](https://sourced.tech/engine),
+which provides the simplest way to get started with a single command.
+Visit [sourced.tech/engine](https://sourced.tech/engine) for more information.
+
+The recommended way to run *bblfshd* by itself is using Docker:
 
 ```sh
 docker run -d --name bblfshd --privileged -p 9432:9432 -v /var/lib/bblfshd:/var/lib/bblfshd bblfsh/bblfshd
