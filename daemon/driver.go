@@ -22,13 +22,20 @@ import (
 	protocol2 "gopkg.in/bblfsh/sdk.v2/protocol"
 )
 
+type ServiceV1 interface {
+	// SupportedLanguages uses DefaultService to process the given SupportedLanguagesRequest to get the supported drivers.
+	SupportedLanguages(ctx context.Context, in *protocol1.SupportedLanguagesRequest, opts ...grpc.CallOption) (*protocol1.SupportedLanguagesResponse, error)
+	// Version uses DefaultVersioner to process the given version request to get the version.
+	Version(ctx context.Context, in *protocol1.VersionRequest, opts ...grpc.CallOption) (*protocol1.VersionResponse, error)
+}
+
 type Driver interface {
 	ID() string
 	Start() error
 	Stop() error
 	Status() (protocol.Status, error)
 	State() (*protocol.DriverInstanceState, error)
-	Service() protocol1.ProtocolServiceClient
+	Service() ServiceV1
 	ServiceV2() protocol2.DriverClient
 }
 
@@ -194,7 +201,7 @@ func (i *DriverInstance) Stop() error {
 }
 
 // Service returns the client using the grpc connection.
-func (i *DriverInstance) Service() protocol1.ProtocolServiceClient {
+func (i *DriverInstance) Service() ServiceV1 {
 	return i.srv1
 }
 

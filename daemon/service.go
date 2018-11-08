@@ -103,40 +103,10 @@ func NewService(d *Daemon) *Service {
 }
 
 func (d *Service) Parse(req *protocol1.ParseRequest) *protocol1.ParseResponse {
-	resp := &protocol1.ParseResponse{}
-	start := time.Now()
-	defer func() {
-		resp.Elapsed = time.Since(start)
-		d.logResponse(resp.Status, req.Filename, req.Language, len(req.Content), resp.Elapsed)
-	}()
-
-	if req.Content == "" {
-		logrus.Debugf("empty request received, returning empty UAST")
-		return resp
-	}
-
-	language, dp, err := d.selectPool(req.Language, req.Content, req.Filename)
-	if err != nil {
-		logrus.Errorf("error selecting pool: %s", err)
-		resp.Response = newResponseFromError(err)
-		resp.Language = language
-		return resp
-	}
-
-	req.Language = language
-
-	err = dp.Execute(func(driver Driver) error {
-		resp, err = driver.Service().Parse(context.Background(), req)
-		return err
-	}, req.Timeout)
-
-	if err != nil {
-		resp = &protocol1.ParseResponse{}
-		resp.Response = newResponseFromError(err)
-	}
-
-	resp.Language = language
-	return resp
+	var resp protocol1.ParseResponse
+	resp.Status = protocol1.Fatal
+	resp.Errors = []string{"v1 parsing protocol deprecated"}
+	return &resp
 }
 
 func (d *Service) logResponse(s protocol1.Status, filename string, language string, size int, elapsed time.Duration) {
@@ -163,39 +133,10 @@ func (d *Service) logResponse(s protocol1.Status, filename string, language stri
 }
 
 func (d *Service) NativeParse(req *protocol1.NativeParseRequest) *protocol1.NativeParseResponse {
-	resp := &protocol1.NativeParseResponse{}
-	start := time.Now()
-	defer func() {
-		resp.Elapsed = time.Since(start)
-		d.logResponse(resp.Status, req.Language, req.Language, len(req.Content), resp.Elapsed)
-	}()
-
-	if req.Content == "" {
-		logrus.Debugf("empty request received, returning empty AST")
-		return resp
-	}
-
-	language, dp, err := d.selectPool(req.Language, req.Content, req.Filename)
-	if err != nil {
-		logrus.Errorf("error selecting pool: %s", err)
-		resp.Response = newResponseFromError(err)
-		return resp
-	}
-
-	req.Language = language
-
-	err = dp.Execute(func(driver Driver) error {
-		resp, err = driver.Service().NativeParse(context.Background(), req)
-		return err
-	}, req.Timeout)
-
-	if err != nil {
-		resp = &protocol1.NativeParseResponse{}
-		resp.Response = newResponseFromError(err)
-	}
-
-	resp.Language = language
-	return resp
+	var resp protocol1.NativeParseResponse
+	resp.Status = protocol1.Fatal
+	resp.Errors = []string{"v1 parsing protocol deprecated"}
+	return &resp
 }
 
 func (s *Service) selectPool(language, content, filename string) (string, *DriverPool, error) {

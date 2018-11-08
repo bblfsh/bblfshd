@@ -12,9 +12,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
-	"gopkg.in/bblfsh/sdk.v1/protocol"
 
 	"github.com/bblfsh/bblfshd/runtime"
+	protocol2 "gopkg.in/bblfsh/sdk.v2/protocol"
+	"gopkg.in/bblfsh/sdk.v2/uast"
+	"gopkg.in/bblfsh/sdk.v2/uast/nodes"
 )
 
 func TestDaemonState(t *testing.T) {
@@ -58,6 +60,7 @@ func TestDaemonParse_MockedDriverParallelClients(t *testing.T) {
 
 	var wg sync.WaitGroup
 	for i := 0; i < 20; i++ {
+		i := i // copy fo the goroutine
 		wg.Add(1)
 		conn, err := grpc.Dial(lis.Addr().String(),
 			grpc.WithBlock(),
@@ -66,26 +69,30 @@ func TestDaemonParse_MockedDriverParallelClients(t *testing.T) {
 		)
 
 		require.NoError(err)
-		go func(i int, conn *grpc.ClientConn) {
-			client := protocol.NewProtocolServiceClient(conn)
+		go func() {
+			defer wg.Done()
+			client := protocol2.NewDriverClient(conn)
 			var iwg sync.WaitGroup
 			for j := 0; j < 50; j++ {
+				j := j // copy for the goroutine
 				iwg.Add(1)
-				go func(i, j int) {
+				go func() {
+					defer iwg.Done()
 					content := fmt.Sprintf("# -*- python -*-\nimport foo%d_%d", i, j)
-					resp, err := client.Parse(context.TODO(), &protocol.ParseRequest{Content: content})
+					resp, err := client.Parse(context.TODO(), &protocol2.ParseRequest{Content: content})
 					require.NoError(err)
-					require.Equal(protocol.Ok, resp.Status)
-					require.Equal(content, resp.UAST.Token)
-					iwg.Done()
-				}(i, j)
+					ast, err := resp.Nodes()
+					require.NoError(err)
+					obj, ok := ast.(nodes.Object)
+					require.True(ok)
+					require.Equal(content, uast.TokenOf(obj))
+				}()
 			}
 			iwg.Wait()
 
 			err = conn.Close()
 			require.NoError(err)
-			wg.Done()
-		}(i, conn)
+		}()
 	}
 
 	wg.Wait()
