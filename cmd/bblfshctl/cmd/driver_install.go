@@ -153,7 +153,7 @@ func (c *DriverInstallCommand) Execute(args []string) error {
 
 func (c *DriverInstallCommand) Validate() error {
 	if !c.All && !c.Recommended && (c.Args.Language == "") {
-		return fmt.Errorf("error `language` and `image` positional arguments are mandatory")
+		return fmt.Errorf("error `image` positional argument is mandatory")
 	}
 
 	if c.All && c.Recommended {
