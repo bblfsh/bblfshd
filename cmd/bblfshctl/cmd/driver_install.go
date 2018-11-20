@@ -174,6 +174,7 @@ func (c *DriverInstallCommand) installDrivers(refs []driverRef) error {
 	} else if len(refs) == 1 {
 		return c.installSingleDriver(refs[0])
 	}
+	refNum := len(refs)
 	ctx := context.Background()
 	const workers = 3
 	type resp struct {
@@ -230,7 +231,7 @@ func (c *DriverInstallCommand) installDrivers(refs []driverRef) error {
 	}
 
 	draining := false
-
+	first := true
 install:
 	for todo >= 0 {
 		clist = clist[:0]
@@ -240,6 +241,13 @@ install:
 		sort.Slice(clist, func(i, j int) bool {
 			return clist[i][0] < clist[j][0]
 		})
+
+		if first {
+			first = false
+		} else {
+			fmt.Print(fmt.Sprintf("\033[%dA", refNum+3)) //delete previous N lines in terminal
+			fmt.Print("\033[J")
+		}
 
 		if todo == 0 {
 			fmt.Printf("\nInstalled %d/%d drivers:\n", done, len(clist))
@@ -286,6 +294,8 @@ install:
 		for _, err := range errs {
 			fmt.Fprintln(os.Stderr, "error:", err)
 		}
+	} else {
+		fmt.Println("Done")
 	}
 	return last
 }
