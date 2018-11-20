@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -28,7 +29,7 @@ func TestDaemonState(t *testing.T) {
 	require.NotNil(pool["python"])
 }
 
-func TestDaemonInstallDriver(t *testing.T) {
+func TestDaemon_InstallDriver(t *testing.T) {
 	require := require.New(t)
 
 	s, tmp := buildMockedDaemon(t)
@@ -40,6 +41,16 @@ func TestDaemonInstallDriver(t *testing.T) {
 	require.True(ErrAlreadyInstalled.Is(err))
 	err = s.InstallDriver("go", "docker://bblfsh/go-driver:latest", true)
 	require.Nil(err)
+}
+
+func TestDaemon_InstallNonexistentDriver(t *testing.T) {
+	require := require.New(t)
+	s, tmp := buildMockedDaemon(t)
+	defer os.RemoveAll(tmp)
+
+	err := s.InstallDriver("", "docker://list", false)
+	require.Error(err, "An error was expected")
+	require.Equal("errcode.Errors", reflect.TypeOf(err).String())
 }
 
 func TestDaemonParse_MockedDriverParallelClients(t *testing.T) {
