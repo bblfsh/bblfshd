@@ -309,7 +309,7 @@ func (c *DriverInstallCommand) installDriver(ctx context.Context, ref driverRef)
 	})
 	if st, ok := status.FromError(err); ok && st.Code() == codes.AlreadyExists {
 		return daemon.ErrAlreadyInstalled.New(ref.Lang, ref.Ref)
-	} else if st, ok := status.FromError(err); ok && st.Code() == codes.Unauthenticated {
+	} else if ok && st.Code() == codes.Unauthenticated {
 		return daemon.ErrUnauthorized.New(ref.Lang, ref.Ref)
 	} else if err == nil && len(r.Errors) == 0 {
 		return nil
