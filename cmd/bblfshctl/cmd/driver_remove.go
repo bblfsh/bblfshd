@@ -48,12 +48,13 @@ func (c *DriverRemoveCommand) Execute(args []string) error {
 
 	for _, lang := range langs {
 		r, err := c.srv.RemoveDriver(ctx, &protocol.RemoveDriverRequest{Language: lang})
-		if err != nil || len(r.Errors) > 0 {
+		if err != nil {
+			return err
+		} else if len(r.Errors) != 0 {
 			for _, e := range r.Errors {
 				fmt.Fprintf(os.Stderr, "Error, %s\n", e)
 			}
-
-			return err
+			return fmt.Errorf("driver remove failed: %v", r.Errors)
 		}
 	}
 	return nil
