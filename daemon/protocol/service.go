@@ -123,11 +123,12 @@ func (s *protocolServiceServer) InstallDriver(ctx xcontext.Context, req *Install
 		return nil, status.New(codes.AlreadyExists, err.Error()).Err()
 	} else if errs, ok := err.(errcode.Errors); ok { //docker err codes analysis
 		for _, erro := range errs {
-			if strings.HasPrefix(erro.Error(), "unauthorized:") {
+			if strings.HasPrefix(erro.Error(), "unauthorized") {
 				return nil, status.New(codes.Unauthenticated, err.Error()).Err()
 			}
 		}
-	} else if err != nil {
+	}
+	if err != nil {
 		return nil, err
 	}
 	return resp, nil
