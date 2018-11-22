@@ -42,7 +42,10 @@ type mockedServiceUnauthorizedErr struct {
 }
 
 func (s *mockedServiceUnauthorizedErr) InstallDriver(language string, image string, update bool) error {
-	var errors errcode.Errors = []error{errcode.ErrorCodeDenied, errcode.ErrorCodeUnauthorized}
+	var errors errcode.Errors = []error{
+		errcode.Error{Code: errcode.ErrorCodeDenied},
+		errcode.Error{Code: errcode.ErrorCodeUnauthorized},
+	}
 	return errors
 }
 
