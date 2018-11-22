@@ -18,8 +18,7 @@ type mockedServiceAnyOtherErr struct {
 }
 
 func (s *mockedServiceAnyOtherErr) InstallDriver(language string, image string, update bool) error {
-	var errors errcode.Errors = []error{errors.New("any other error")}
-	return errors
+	return errcode.Errors{errors.New("any other error")}
 }
 
 func TestServiceMockDaemon_InstallDriverFails(t *testing.T) {
@@ -42,11 +41,10 @@ type mockedServiceUnauthorizedErr struct {
 }
 
 func (s *mockedServiceUnauthorizedErr) InstallDriver(language string, image string, update bool) error {
-	var errors errcode.Errors = []error{
+	return errcode.Errors{
 		errcode.Error{Code: errcode.ErrorCodeDenied},
 		errcode.Error{Code: errcode.ErrorCodeUnauthorized},
 	}
-	return errors
 }
 
 func TestServiceMockDaemon_InstallNonexistentDriver(t *testing.T) {
