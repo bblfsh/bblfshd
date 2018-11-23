@@ -50,7 +50,7 @@ func init() {
 	address = cmd.String("address", "0.0.0.0:9432", "address to listen.")
 	storage = cmd.String("storage", "/var/lib/bblfshd", "path where all the runtime information is stored.")
 	transport = cmd.String("transport", "docker", "default transport to fetch driver images: docker or docker-daemon)")
-	maxMessageSize = cmdutil.MaxSendRecvMsgSizeMB(cmd)
+	maxMessageSize = cmdutil.FlagMaxGRPCMsgSizeMB(cmd)
 
 	ctl.network = cmd.String("ctl-network", "unix", "control server network type: tcp, tcp4, tcp6, unix or unixpacket.")
 	ctl.address = cmd.String("ctl-address", "/var/run/bblfshctl.sock", "control server address to listen.")
@@ -96,7 +96,8 @@ func main() {
 	r := buildRuntime()
 	grpcOpts, err := cmdutil.GRPCSizeOptions(*maxMessageSize)
 	if err != nil {
-		logrus.Warnln(err)
+		logrus.Errorln(err)
+		os.Exit(1)
 	}
 
 	d := daemon.NewDaemon(version, r, grpcOpts...)
