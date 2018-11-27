@@ -14,8 +14,8 @@ import (
 	"github.com/bblfsh/bblfshd/runtime"
 
 	"github.com/sirupsen/logrus"
-	"google.golang.org/grpc"
 	"gopkg.in/bblfsh/sdk.v1/sdk/server"
+	cmdutil "gopkg.in/bblfsh/sdk.v2/cmd"
 	"gopkg.in/bblfsh/sdk.v2/driver/manifest/discovery"
 )
 
@@ -50,7 +50,7 @@ func init() {
 	address = cmd.String("address", "0.0.0.0:9432", "address to listen.")
 	storage = cmd.String("storage", "/var/lib/bblfshd", "path where all the runtime information is stored.")
 	transport = cmd.String("transport", "docker", "default transport to fetch driver images: docker or docker-daemon)")
-	maxMessageSize = cmd.Int("grpc-max-message-size", 100, "max. message size to send/receive to/from clients (in MB)")
+	maxMessageSize = cmdutil.FlagMaxGRPCMsgSizeMB(cmd)
 
 	ctl.network = cmd.String("ctl-network", "unix", "control server network type: tcp, tcp4, tcp6, unix or unixpacket.")
 	ctl.address = cmd.String("ctl-address", "/var/run/bblfshctl.sock", "control server address to listen.")
@@ -94,7 +94,13 @@ func main() {
 	logrus.Infof("bblfshd version: %s (build: %s)", version, build)
 
 	r := buildRuntime()
-	d := daemon.NewDaemon(version, r, buildGRPCOptions()...)
+	grpcOpts, err := cmdutil.GRPCSizeOptions(*maxMessageSize)
+	if err != nil {
+		logrus.Errorln(err)
+		os.Exit(1)
+	}
+
+	d := daemon.NewDaemon(version, r, grpcOpts...)
 	if args := cmd.Args(); len(args) == 2 && args[0] == "install" && args[1] == "recommended" {
 		err := installRecommended(d)
 		if err != nil {
@@ -184,23 +190,6 @@ func buildRuntime() *runtime.Runtime {
 	}
 
 	return r
-}
-
-func buildGRPCOptions() []grpc.ServerOption {
-	size := *maxMessageSize
-	if size >= 2048 {
-		// Setting the hard limit of message size to less than 2GB since
-		// it may overflow an int value, and it should be big enough
-		logrus.Errorf("max-message-size too big (limit is 2047MB): %d", size)
-		os.Exit(1)
-	}
-
-	size = size * 1024 * 1024
-
-	return []grpc.ServerOption{
-		grpc.MaxRecvMsgSize(size),
-		grpc.MaxSendMsgSize(size),
-	}
 }
 
 func handleGracefullyShutdown(d *daemon.Daemon) {
