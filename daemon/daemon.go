@@ -26,8 +26,9 @@ type Daemon struct {
 	version   string
 	runtime   *runtime.Runtime
 	driverEnv []string
-	pool      map[string]*DriverPool
-	mutex     sync.Mutex
+
+	mu   sync.Mutex
+	pool map[string]*DriverPool
 }
 
 // NewDaemon creates a new server based on the runtime with the given version.
@@ -127,8 +128,8 @@ func (d *Daemon) RemoveDriver(language string) error {
 }
 
 func (d *Daemon) DriverPool(ctx context.Context, language string) (*DriverPool, error) {
-	d.mutex.Lock()
-	defer d.mutex.Unlock()
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
 	if dp, ok := d.pool[language]; ok {
 		return dp, nil
@@ -192,8 +193,8 @@ func (d *Daemon) newDriverPool(rctx context.Context, language string, image runt
 }
 
 func (d *Daemon) removePool(language string) error {
-	d.mutex.Lock()
-	defer d.mutex.Unlock()
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	dp, ok := d.pool[language]
 	if !ok {
 		return nil
@@ -207,8 +208,8 @@ func (d *Daemon) removePool(language string) error {
 
 // Current returns the current list of driver pools.
 func (d *Daemon) Current() map[string]*DriverPool {
-	d.mutex.Lock()
-	defer d.mutex.Unlock()
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
 	out := make(map[string]*DriverPool, len(d.pool))
 	for k, pool := range d.pool {
