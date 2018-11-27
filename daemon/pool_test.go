@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"context"
 	"fmt"
 	"runtime"
 	"sync"
@@ -104,7 +105,7 @@ func TestDriverPoolExecute_Recovery(t *testing.T) {
 	require.NoError(err)
 
 	for i := 0; i < 100; i++ {
-		err := dp.Execute(func(d Driver) error {
+		err := dp.Execute(func(_ context.Context, d Driver) error {
 			require.NotNil(d)
 
 			if i%10 == 0 {
@@ -134,7 +135,7 @@ func TestDriverPoolExecute_Sequential(t *testing.T) {
 	require.NoError(err)
 
 	for i := 0; i < 100; i++ {
-		err := dp.Execute(func(d Driver) error {
+		err := dp.Execute(func(_ context.Context, d Driver) error {
 			require.NotNil(d)
 			return nil
 		}, 0)
@@ -159,7 +160,7 @@ func TestDriverPoolExecute_Parallel(t *testing.T) {
 	wg.Add(100)
 	for i := 0; i < 100; i++ {
 		go func() {
-			err := dp.Execute(func(Driver) error {
+			err := dp.Execute(func(_ context.Context, _ Driver) error {
 				defer wg.Done()
 				time.Sleep(50 * time.Millisecond)
 				return nil

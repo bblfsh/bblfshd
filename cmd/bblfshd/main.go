@@ -14,6 +14,8 @@ import (
 	"github.com/bblfsh/bblfshd/runtime"
 
 	"github.com/sirupsen/logrus"
+	jaegercfg "github.com/uber/jaeger-client-go/config"
+
 	"gopkg.in/bblfsh/sdk.v1/sdk/server"
 	cmdutil "gopkg.in/bblfsh/sdk.v2/cmd"
 	"gopkg.in/bblfsh/sdk.v2/driver/manifest/discovery"
@@ -92,6 +94,18 @@ func installRecommended(d *daemon.Daemon) error {
 
 func main() {
 	logrus.Infof("bblfshd version: %s (build: %s)", version, build)
+
+	c, err := jaegercfg.FromEnv()
+	if err != nil {
+		logrus.Errorf("error configuring tracer: %s", err)
+		os.Exit(1)
+	}
+	closer, err := c.InitGlobalTracer("bblfshd")
+	if err != nil {
+		logrus.Errorf("error configuring tracer: %s", err)
+		os.Exit(1)
+	}
+	defer closer.Close()
 
 	r := buildRuntime()
 	grpcOpts, err := cmdutil.GRPCSizeOptions(*maxMessageSize)

@@ -3,11 +3,15 @@
 package daemon
 
 import (
+	"context"
+	"os"
+	"strings"
 	"sync"
 
 	"github.com/bblfsh/bblfshd/daemon/protocol"
 	"github.com/bblfsh/bblfshd/runtime"
 
+	"github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	protocol1 "gopkg.in/bblfsh/sdk.v1/protocol"
@@ -19,22 +23,41 @@ type Daemon struct {
 	UserServer    *grpc.Server
 	ControlServer *grpc.Server
 
-	version string
-	runtime *runtime.Runtime
-	pool    map[string]*DriverPool
-	mutex   sync.Mutex
+	version   string
+	runtime   *runtime.Runtime
+	driverEnv []string
+	pool      map[string]*DriverPool
+	mutex     sync.Mutex
 }
 
 // NewDaemon creates a new server based on the runtime with the given version.
 func NewDaemon(version string, r *runtime.Runtime, opts ...grpc.ServerOption) *Daemon {
+	commonOpt := protocol2.ServerOptions()
+	opts = append(opts, commonOpt...)
+
 	d := &Daemon{
 		version:       version,
 		runtime:       r,
 		pool:          make(map[string]*DriverPool),
 		UserServer:    grpc.NewServer(opts...),
-		ControlServer: grpc.NewServer(),
+		ControlServer: grpc.NewServer(commonOpt...),
 	}
 	registerGRPC(d)
+	// pass tracing options to each driver
+	for _, env := range os.Environ() {
+		if !strings.HasPrefix(env, "JAEGER_") {
+			continue
+		}
+		const traceHost = "JAEGER_AGENT_HOST="
+		if strings.HasPrefix(traceHost, "JAEGER_") {
+			// drivers cannot use Docker DNS as bblfshd does,
+			// so we need to remap an address manually
+			if addr := os.Getenv("JAEGER_PORT_6831_UDP_ADDR"); addr != "" {
+				env = traceHost + addr
+			}
+		}
+		d.driverEnv = append(d.driverEnv, env)
+	}
 	return d
 }
 
@@ -63,7 +86,7 @@ func (d *Daemon) InstallDriver(language string, image string, update bool) error
 		}
 	}
 
-	s, err := d.getDriverImage(language)
+	s, err := d.getDriverImage(context.TODO(), language)
 	if err != nil && !ErrMissingDriver.Is(err) {
 		return ErrRuntime.Wrap(err)
 	}
@@ -87,7 +110,7 @@ func (d *Daemon) InstallDriver(language string, image string, update bool) error
 }
 
 func (d *Daemon) RemoveDriver(language string) error {
-	img, err := d.getDriverImage(language)
+	img, err := d.getDriverImage(context.TODO(), language)
 	if err != nil {
 		return ErrRuntime.Wrap(err)
 	}
@@ -103,7 +126,7 @@ func (d *Daemon) RemoveDriver(language string) error {
 	return err
 }
 
-func (d *Daemon) DriverPool(language string) (*DriverPool, error) {
+func (d *Daemon) DriverPool(ctx context.Context, language string) (*DriverPool, error) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
@@ -111,15 +134,18 @@ func (d *Daemon) DriverPool(language string) (*DriverPool, error) {
 		return dp, nil
 	}
 
-	image, err := d.getDriverImage(language)
+	image, err := d.getDriverImage(ctx, language)
 	if err != nil {
 		return nil, ErrRuntime.Wrap(err)
 	}
 
-	return d.newDriverPool(language, image)
+	return d.newDriverPool(ctx, language, image)
 }
 
-func (d *Daemon) getDriverImage(language string) (runtime.DriverImage, error) {
+func (d *Daemon) getDriverImage(rctx context.Context, language string) (runtime.DriverImage, error) {
+	sp, _ := opentracing.StartSpanFromContext(rctx, "bblfshd.runtime.ListDrivers")
+	defer sp.Finish()
+
 	list, err := d.runtime.ListDrivers()
 	if err != nil {
 		return nil, err
@@ -136,11 +162,14 @@ func (d *Daemon) getDriverImage(language string) (runtime.DriverImage, error) {
 
 // newDriverPool, instance a new driver pool for the given language and image
 // and should be called under a lock.
-func (d *Daemon) newDriverPool(language string, image runtime.DriverImage) (*DriverPool, error) {
+func (d *Daemon) newDriverPool(rctx context.Context, language string, image runtime.DriverImage) (*DriverPool, error) {
+	sp, _ := opentracing.StartSpanFromContext(rctx, "bblfshd.pool.newDriverPool")
+	defer sp.Finish()
+
 	dp := NewDriverPool(func() (Driver, error) {
 		logrus.Debugf("spawning driver instance %q ...", image.Name())
 
-		opts := getDriverInstanceOptions()
+		opts := d.getDriverInstanceOptions()
 		driver, err := NewDriverInstance(d.runtime, language, image, opts)
 		if err != nil {
 			return nil, err
@@ -201,10 +230,10 @@ func (d *Daemon) Stop() error {
 	return err
 }
 
-func getDriverInstanceOptions() *Options {
+func (d *Daemon) getDriverInstanceOptions() *Options {
 	l := logrus.StandardLogger()
 
-	opts := &Options{}
+	opts := &Options{Env: d.driverEnv}
 	opts.LogLevel = l.Level.String()
 	opts.LogFormat = "text"
 

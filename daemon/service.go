@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/bblfsh/bblfshd/daemon/protocol"
+	"github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
+
+	"github.com/bblfsh/bblfshd/daemon/protocol"
 	xcontext "golang.org/x/net/context"
 	protocol1 "gopkg.in/bblfsh/sdk.v1/protocol"
 	protocol2 "gopkg.in/bblfsh/sdk.v2/protocol"
@@ -24,7 +26,10 @@ func NewServiceV2(d *Daemon) *ServiceV2 {
 	return &ServiceV2{daemon: d}
 }
 
-func (s *ServiceV2) Parse(ctx xcontext.Context, req *protocol2.ParseRequest) (resp *protocol2.ParseResponse, gerr error) {
+func (s *ServiceV2) Parse(rctx xcontext.Context, req *protocol2.ParseRequest) (resp *protocol2.ParseResponse, gerr error) {
+	sp, ctx := opentracing.StartSpanFromContext(rctx, "bblfshd.v2.Parse")
+	defer sp.Finish()
+
 	resp = &protocol2.ParseResponse{}
 	start := time.Now()
 	defer func() {
@@ -36,7 +41,7 @@ func (s *ServiceV2) Parse(ctx xcontext.Context, req *protocol2.ParseRequest) (re
 		return resp, nil
 	}
 
-	language, dp, err := s.selectPool(req.Language, req.Content, req.Filename)
+	language, dp, err := s.selectPool(ctx, req.Language, req.Content, req.Filename)
 	if err != nil {
 		logrus.Errorf("error selecting pool: %s", err)
 		return nil, err
@@ -75,16 +80,31 @@ func (s *ServiceV2) logResponse(err error, filename string, language string, siz
 	}
 }
 
-func (s *ServiceV2) selectPool(language, content, filename string) (string, *DriverPool, error) {
+func (s *ServiceV2) detectLanguage(rctx context.Context, content, filename string) (string, error) {
+	sp, _ := opentracing.StartSpanFromContext(rctx, "bblfshd.detectLanguage")
+	defer sp.Finish()
+
+	language := GetLanguage(filename, []byte(content))
 	if language == "" {
-		language = GetLanguage(filename, []byte(content))
-		if language == "" {
-			return language, nil, ErrLanguageDetection.New()
+		return "", ErrLanguageDetection.New()
+	}
+	logrus.Debugf("detected language %q, filename %q", language, filename)
+	return language, nil
+}
+
+func (s *ServiceV2) selectPool(rctx context.Context, language, content, filename string) (string, *DriverPool, error) {
+	sp, ctx := opentracing.StartSpanFromContext(rctx, "bblfshd.pool.select")
+	defer sp.Finish()
+
+	if language == "" {
+		lang, err := s.detectLanguage(ctx, content, filename)
+		if err != nil {
+			return "", nil, err
 		}
-		logrus.Debugf("detected language %q, filename %q", language, filename)
+		language = lang
 	}
 
-	dp, err := s.daemon.DriverPool(language)
+	dp, err := s.daemon.DriverPool(ctx, language)
 	if err != nil {
 		return language, nil, ErrUnexpected.Wrap(err)
 	}
@@ -115,7 +135,7 @@ func (d *Service) Parse(req *protocol1.ParseRequest) *protocol1.ParseResponse {
 		return resp
 	}
 
-	language, dp, err := d.selectPool(req.Language, req.Content, req.Filename)
+	language, dp, err := d.selectPool(context.TODO(), req.Language, req.Content, req.Filename)
 	if err != nil {
 		logrus.Errorf("error selecting pool: %s", err)
 		resp.Response = newResponseFromError(err)
@@ -125,8 +145,8 @@ func (d *Service) Parse(req *protocol1.ParseRequest) *protocol1.ParseResponse {
 
 	req.Language = language
 
-	err = dp.Execute(func(driver Driver) error {
-		resp, err = driver.Service().Parse(context.Background(), req)
+	err = dp.Execute(func(ctx context.Context, driver Driver) error {
+		resp, err = driver.Service().Parse(ctx, req)
 		return err
 	}, req.Timeout)
 
@@ -175,7 +195,7 @@ func (d *Service) NativeParse(req *protocol1.NativeParseRequest) *protocol1.Nati
 		return resp
 	}
 
-	language, dp, err := d.selectPool(req.Language, req.Content, req.Filename)
+	language, dp, err := d.selectPool(context.TODO(), req.Language, req.Content, req.Filename)
 	if err != nil {
 		logrus.Errorf("error selecting pool: %s", err)
 		resp.Response = newResponseFromError(err)
@@ -184,8 +204,8 @@ func (d *Service) NativeParse(req *protocol1.NativeParseRequest) *protocol1.Nati
 
 	req.Language = language
 
-	err = dp.Execute(func(driver Driver) error {
-		resp, err = driver.Service().NativeParse(context.Background(), req)
+	err = dp.Execute(func(ctx context.Context, driver Driver) error {
+		resp, err = driver.Service().NativeParse(ctx, req)
 		return err
 	}, req.Timeout)
 
@@ -198,7 +218,7 @@ func (d *Service) NativeParse(req *protocol1.NativeParseRequest) *protocol1.Nati
 	return resp
 }
 
-func (s *Service) selectPool(language, content, filename string) (string, *DriverPool, error) {
+func (s *Service) selectPool(ctx context.Context, language, content, filename string) (string, *DriverPool, error) {
 	if language == "" {
 		language = GetLanguage(filename, []byte(content))
 		if language == "" {
@@ -207,7 +227,7 @@ func (s *Service) selectPool(language, content, filename string) (string, *Drive
 		logrus.Debugf("detected language %q, filename %q", language, filename)
 	}
 
-	dp, err := s.daemon.DriverPool(language)
+	dp, err := s.daemon.DriverPool(ctx, language)
 	if err != nil {
 		return language, nil, ErrUnexpected.Wrap(err)
 	}
