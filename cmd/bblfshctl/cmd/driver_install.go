@@ -153,7 +153,7 @@ func (c *DriverInstallCommand) Execute(args []string) error {
 
 func (c *DriverInstallCommand) Validate() error {
 	if !c.All && !c.Recommended && (c.Args.Language == "") {
-		return fmt.Errorf("error `language` and `image` positional arguments are mandatory")
+		return fmt.Errorf("error `image` positional argument is mandatory")
 	}
 
 	if c.All && c.Recommended {
@@ -309,6 +309,8 @@ func (c *DriverInstallCommand) installDriver(ctx context.Context, ref driverRef)
 	})
 	if st, ok := status.FromError(err); ok && st.Code() == codes.AlreadyExists {
 		return daemon.ErrAlreadyInstalled.New(ref.Lang, ref.Ref)
+	} else if ok && st.Code() == codes.Unauthenticated {
+		return daemon.ErrUnauthorized.New(ref.Lang, ref.Ref)
 	} else if err == nil && len(r.Errors) == 0 {
 		return nil
 	}
@@ -338,7 +340,13 @@ func (c *DriverInstallCommand) installSingleDriver(ref driverRef) error {
 		fmt.Fprintf(os.Stderr, "Warning: %s\n", err)
 		return nil
 	}
-	fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+	if daemon.ErrUnauthorized.Is(err) {
+		if strings.Contains(ref.Ref, "://bblfsh") {
+			return fmt.Errorf("driver does not exist")
+		} else {
+			return fmt.Errorf("driver does not exist or is private")
+		}
+	}
 	return err
 }
 

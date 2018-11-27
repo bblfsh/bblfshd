@@ -4,13 +4,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/distribution/registry/api/errcode"
 	xcontext "golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"gopkg.in/src-d/go-errors.v1"
-
 	"gopkg.in/bblfsh/sdk.v1/protocol"
+	"gopkg.in/src-d/go-errors.v1"
 )
 
 var (
@@ -121,7 +121,14 @@ func (s *protocolServiceServer) InstallDriver(ctx xcontext.Context, req *Install
 
 	if ErrAlreadyInstalled.Is(err) {
 		return nil, status.New(codes.AlreadyExists, err.Error()).Err()
-	} else if err != nil {
+	} else if errs, ok := err.(errcode.Errors); ok { //docker err codes analysis
+		for _, erro := range errs {
+			if errc, ok := erro.(errcode.Error); ok && errc.ErrorCode() == errcode.ErrorCodeUnauthorized {
+				return nil, status.New(codes.Unauthenticated, err.Error()).Err()
+			}
+		}
+	}
+	if err != nil {
 		return nil, err
 	}
 	return resp, nil

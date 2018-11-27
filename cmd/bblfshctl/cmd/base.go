@@ -13,7 +13,7 @@ import (
 )
 
 type ControlCommand struct {
-	Network string `long:"ctl-endpoint" default:"unix" description:"control server network type"`
+	Network string `long:"ctl-network" default:"unix" description:"control server network type"`
 	Address string `long:"ctl-address" default:"/var/run/bblfshctl.sock" description:"control server address to connect"`
 
 	conn *grpc.ClientConn

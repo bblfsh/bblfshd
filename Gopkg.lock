@@ -523,10 +523,19 @@
   version = "v1.0.3"
 
 [[projects]]
-  digest = "1:0051206a97cebb56bf910f66602d2517b2471fdc27ccba0abaaabf8ed5a58640"
+  digest = "1:ac83cf90d08b63ad5f7e020ef480d319ae890c208f8524622a2f3136e2686b02"
+  name = "github.com/stretchr/objx"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "477a77ecc69700c7cdeb1fa9e129548e1c1c393c"
+  version = "v0.1.1"
+
+[[projects]]
+  digest = "1:eae13290cdbd5aceae82e14a96f79a9b152c9a945fd465b77d70758e4da59fd9"
   name = "github.com/stretchr/testify"
   packages = [
     "assert",
+    "mock",
     "require",
     "suite",
   ]
@@ -755,6 +764,7 @@
     "github.com/containers/image/ostree",
     "github.com/containers/image/transports",
     "github.com/containers/image/types",
+    "github.com/docker/distribution/registry/api/errcode",
     "github.com/docker/go-units",
     "github.com/gogo/protobuf/gogoproto",
     "github.com/gogo/protobuf/types",
@@ -769,6 +779,7 @@
     "github.com/opencontainers/runc/libcontainer/nsenter",
     "github.com/pkg/errors",
     "github.com/sirupsen/logrus",
+    "github.com/stretchr/testify/mock",
     "github.com/stretchr/testify/require",
     "github.com/stretchr/testify/suite",
     "golang.org/x/net/context",
