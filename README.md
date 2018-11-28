@@ -151,6 +151,40 @@ Run tests with:
 $ make test
 ```
 
+### Enable tracing
+
+Bblfshd supports [OpenTracing](https://opentracing.io/) that can be used to profile request on a high level or trace
+individual requests to bblfshd and/or language drivers.
+
+To enable it, you can use [Jaeger](https://www.jaegertracing.io/docs/1.8/getting-started/).
+The easiest way is to start all-in-one Jaeger image:
+```
+docker run -d --name jaeger \
+  -e COLLECTOR_ZIPKIN_HTTP_PORT=9411 \
+  -p 5775:5775/udp \
+  -p 6831:6831/udp \
+  -p 6832:6832/udp \
+  -p 5778:5778 \
+  -p 16686:16686 \
+  -p 14268:14268 \
+  -p 9411:9411 \
+  jaegertracing/all-in-one:1.8
+```
+
+For Docker installation of bblfshd add the following flags:
+```
+--link jaeger:jaeger -e JAEGER_AGENT_HOST=jaeger -e JAEGER_AGENT_PORT=6831 -e JAEGER_SAMPLER_TYPE=const -e JAEGER_SAMPLER_PARAM=1
+```
+
+For bblfshd running locally, set following environment variables:
+```
+JAEGER_AGENT_HOST=localhost JAEGER_AGENT_PORT=6831 JAEGER_SAMPLER_TYPE=const JAEGER_SAMPLER_PARAM=1
+```
+
+Run few requests, and check traces at http://localhost:16686.
+
+For enabling tracing in production, consult [Jaeger documentation](https://www.jaegertracing.io/docs/1.8).
+
 ## License
 
 GPLv3, see [LICENSE](LICENSE)
