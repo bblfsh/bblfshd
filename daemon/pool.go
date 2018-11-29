@@ -3,6 +3,7 @@
 package daemon
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"runtime"
@@ -10,11 +11,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/bblfsh/bblfshd/daemon/protocol"
-
-	"context"
-
+	"github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
+
+	"github.com/bblfsh/bblfshd/daemon/protocol"
 	"gopkg.in/bblfsh/sdk.v1/sdk/server"
 	"gopkg.in/src-d/go-errors.v1"
 )
@@ -190,9 +190,6 @@ func (dp *DriverPool) doScaling() {
 	}
 }
 
-// Function is a function to be executed using a given driver.
-type Function func(d Driver) error
-
 // FunctionCtx is a function to be executed using a given driver.
 type FunctionCtx func(ctx context.Context, d Driver) error
 
@@ -200,7 +197,7 @@ type FunctionCtx func(ctx context.Context, d Driver) error
 // It gets a driver from the pool and forwards the request to it. If all drivers
 // are busy, it will return an error after the timeout passes. If the DriverPool
 // is closed, an error will be returned.
-func (dp *DriverPool) Execute(c Function, timeout time.Duration) error {
+func (dp *DriverPool) Execute(c FunctionCtx, timeout time.Duration) error {
 	if timeout > MaxPoolTimeout {
 		return ErrInvalidPoolTimeout.New(timeout)
 	}
@@ -211,16 +208,17 @@ func (dp *DriverPool) Execute(c Function, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	return dp.ExecuteCtx(ctx, func(_ context.Context, d Driver) error {
-		return c(d)
-	})
+	return dp.ExecuteCtx(ctx, c)
 }
 
 // ExecuteCtx executes the given Function in the first available driver instance.
 // It gets a driver from the pool and forwards the request to it. If all drivers
 // are busy, it will return an error after the timeout passes. If the DriverPool
 // is closed, an error will be returned.
-func (dp *DriverPool) ExecuteCtx(ctx context.Context, c FunctionCtx) error {
+func (dp *DriverPool) ExecuteCtx(rctx context.Context, c FunctionCtx) error {
+	sp, ctx := opentracing.StartSpanFromContext(rctx, "bblfshd.pool.Execute")
+	defer sp.Finish()
+
 	if deadline, ok := ctx.Deadline(); !ok {
 		var cancel func()
 		ctx, cancel = context.WithTimeout(ctx, DefaultPoolTimeout)
@@ -263,7 +261,10 @@ func (dp *DriverPool) ExecuteCtx(ctx context.Context, c FunctionCtx) error {
 	return nil
 }
 
-func (dp *DriverPool) getDriver(ctx context.Context) (Driver, error) {
+func (dp *DriverPool) getDriver(rctx context.Context) (Driver, error) {
+	sp, ctx := opentracing.StartSpanFromContext(rctx, "bblfshd.pool.getDriver")
+	defer sp.Finish()
+
 	dp.stats.waiting.Add(1)
 	defer dp.stats.waiting.Add(-1)
 

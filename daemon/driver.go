@@ -56,6 +56,7 @@ const (
 type Options struct {
 	LogLevel  string
 	LogFormat string
+	Env       []string
 }
 
 // NewDriverInstance represents a running Driver in the runtime. Its holds the
@@ -71,6 +72,7 @@ func NewDriverInstance(r *runtime.Runtime, lang string, i runtime.DriverImage, o
 			"--network", "unix",
 			"--address", fmt.Sprintf(TmpPathPattern, GRPCSocket),
 		},
+		Env:    o.Env,
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
 	}
@@ -132,14 +134,17 @@ func (i *DriverInstance) Start() error {
 
 func (i *DriverInstance) dial() error {
 	addr := filepath.Join(i.tmp, GRPCSocket)
-	conn, err := grpc.Dial(addr,
+
+	opts := []grpc.DialOption{
 		grpc.WithDialer(func(addr string, t time.Duration) (net.Conn, error) {
 			return net.DialTimeout("unix", addr, t)
 		}),
 		grpc.WithBlock(),
 		grpc.WithTimeout(ConnectionTimeout),
 		grpc.WithInsecure(),
-	)
+	}
+	opts = append(opts, protocol2.DialOptions()...)
+	conn, err := grpc.Dial(addr, opts...)
 
 	i.conn = conn
 	i.srv1 = protocol1.NewProtocolServiceClient(conn)
