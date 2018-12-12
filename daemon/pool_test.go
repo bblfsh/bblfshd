@@ -49,19 +49,7 @@ func TestDriverPoolExecute_Timeout(t *testing.T) {
 	})
 
 	err := dp.Execute(nil, time.Nanosecond)
-	require.True(ErrPoolTimeout.Is(err))
-}
-
-func TestDriverPoolExecute_InvalidTimeout(t *testing.T) {
-	require := require.New(t)
-
-	dp := NewDriverPool(func() (Driver, error) {
-		time.Sleep(time.Millisecond)
-		return newMockDriver()
-	})
-
-	err := dp.Execute(nil, 100*time.Minute)
-	require.True(ErrInvalidPoolTimeout.Is(err), "%T, %v", err, err)
+	require.True(err == context.DeadlineExceeded)
 }
 
 func TestDriverPoolState(t *testing.T) {

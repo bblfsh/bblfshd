@@ -4,7 +4,6 @@ package daemon
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"runtime"
 	"sync"
@@ -23,8 +22,6 @@ const (
 	// DefaultPoolTimeout is the time a request to the DriverPool can wait
 	// before getting a driver assigned.
 	DefaultPoolTimeout = 5 * time.Second
-	// MaxPoolTimeout maximum time allowed to wait for a driver be assigned.
-	MaxPoolTimeout = 5 * time.Minute
 )
 
 var (
@@ -34,8 +31,7 @@ var (
 	DefaultMaxInstancesPerDriver = runtime.NumCPU()
 
 	ErrPoolClosed         = errors.NewKind("driver pool already closed")
-	ErrPoolTimeout        = errors.NewKind("timeout, all drivers are busy")
-	ErrInvalidPoolTimeout = errors.NewKind(fmt.Sprintf("invalid timeout: %%v, max. timeout allowed %s", MaxPoolTimeout))
+	ErrInvalidPoolTimeout = errors.NewKind("invalid timeout: %v")
 	ErrNegativeInstances  = errors.NewKind("cannot set instances to negative number")
 )
 
@@ -45,8 +41,6 @@ var (
 type DriverPool struct {
 	// ScalingPolicy scaling policy used to scale up the instances.
 	ScalingPolicy ScalingPolicy
-	// Timeout time for wait until a driver instance is available.
-	Timeout time.Duration
 	// Logger used during the live of the driver pool.
 	Logger server.Logger
 
@@ -80,7 +74,6 @@ type FactoryFunction func() (Driver, error)
 func NewDriverPool(factory FactoryFunction) *DriverPool {
 	return &DriverPool{
 		ScalingPolicy: DefaultScalingPolicy(),
-		Timeout:       DefaultPoolTimeout,
 		Logger:        logrus.New(),
 
 		factory: factory,
@@ -198,9 +191,6 @@ type FunctionCtx func(ctx context.Context, d Driver) error
 // are busy, it will return an error after the timeout passes. If the DriverPool
 // is closed, an error will be returned.
 func (dp *DriverPool) Execute(c FunctionCtx, timeout time.Duration) error {
-	if timeout > MaxPoolTimeout {
-		return ErrInvalidPoolTimeout.New(timeout)
-	}
 	if timeout == 0 {
 		timeout = DefaultPoolTimeout
 	}
@@ -219,13 +209,9 @@ func (dp *DriverPool) ExecuteCtx(rctx context.Context, c FunctionCtx) error {
 	sp, ctx := opentracing.StartSpanFromContext(rctx, "bblfshd.pool.Execute")
 	defer sp.Finish()
 
-	if deadline, ok := ctx.Deadline(); !ok {
+	if _, ok := ctx.Deadline(); !ok {
 		var cancel func()
 		ctx, cancel = context.WithTimeout(ctx, DefaultPoolTimeout)
-		defer cancel()
-	} else if timeout := time.Until(deadline); timeout > MaxPoolTimeout {
-		var cancel func()
-		ctx, cancel = context.WithTimeout(ctx, MaxPoolTimeout-time.Second/2)
 		defer cancel()
 	}
 
@@ -347,10 +333,8 @@ func (q *driverQueue) Get() (driver Driver, more bool) {
 }
 
 func (q *driverQueue) GetWithContext(ctx context.Context) (driver Driver, more bool, err error) {
-	if deadline, ok := ctx.Deadline(); !ok {
+	if _, ok := ctx.Deadline(); !ok {
 		return nil, true, ErrInvalidPoolTimeout.New(time.Duration(0))
-	} else if timeout := time.Until(deadline); timeout > MaxPoolTimeout {
-		return nil, true, ErrInvalidPoolTimeout.New(timeout)
 	}
 
 	select {
@@ -358,7 +342,7 @@ func (q *driverQueue) GetWithContext(ctx context.Context) (driver Driver, more b
 		q.n.Add(-1)
 		return d, more, nil
 	case <-ctx.Done():
-		return nil, true, ErrPoolTimeout.New()
+		return nil, true, ctx.Err()
 	}
 }
 
