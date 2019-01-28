@@ -121,7 +121,9 @@ func buildMockedDaemon(t *testing.T, images ...runtime.DriverImage) (*Daemon, st
 		}
 	}
 
-	d := NewDaemon("foo", r)
+	bdate, err := time.Parse(time.RFC3339, "2019-01-28T16:49:06+01:00")
+	require.NoError(err)
+	d := NewDaemon("foo", bdate, r)
 
 	dp := NewDriverPool(func() (Driver, error) {
 		return newEchoDriver(), nil

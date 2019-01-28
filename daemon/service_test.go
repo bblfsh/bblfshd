@@ -3,6 +3,7 @@ package daemon
 import (
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"gopkg.in/bblfsh/sdk.v1/protocol"
@@ -46,6 +47,10 @@ func TestServiceVersion(t *testing.T) {
 	resp := s.Version(&protocol.VersionRequest{})
 	require.Len(resp.Errors, 0)
 	require.Equal(resp.Version, "foo")
+
+	bdate, err := time.Parse(time.RFC3339, "2019-01-28T16:49:06+01:00")
+	require.NoError(err)
+	require.Equal(resp.Build, bdate)
 }
 
 func TestControlServiceDriverPoolStates(t *testing.T) {

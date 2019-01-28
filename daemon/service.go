@@ -236,7 +236,7 @@ func (s *Service) selectPool(ctx context.Context, language, content, filename st
 }
 
 func (d *Service) Version(req *protocol1.VersionRequest) *protocol1.VersionResponse {
-	return &protocol1.VersionResponse{Version: d.daemon.version}
+	return &protocol1.VersionResponse{Version: d.daemon.version, Build: d.daemon.build}
 }
 
 func (d *Service) SupportedLanguages(req *protocol1.SupportedLanguagesRequest) *protocol1.SupportedLanguagesResponse {
