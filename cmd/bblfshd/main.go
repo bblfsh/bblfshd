@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/bblfsh/bblfshd/daemon"
 	"github.com/bblfsh/bblfshd/runtime"
@@ -114,7 +115,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	d := daemon.NewDaemon(version, r, grpcOpts...)
+	parsedBuild, err := time.Parse(time.RFC3339, build)
+	if err != nil {
+		logrus.Errorf("wrong date format for build: %s", err)
+		os.Exit(1)
+	}
+	d := daemon.NewDaemon(version, parsedBuild, r, grpcOpts...)
 	if args := cmd.Args(); len(args) == 2 && args[0] == "install" && args[1] == "recommended" {
 		err := installRecommended(d)
 		if err != nil {

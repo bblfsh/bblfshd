@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/bblfsh/bblfshd/daemon/protocol"
 	"github.com/bblfsh/bblfshd/runtime"
@@ -24,6 +25,7 @@ type Daemon struct {
 	ControlServer *grpc.Server
 
 	version   string
+	build     time.Time
 	runtime   *runtime.Runtime
 	driverEnv []string
 
@@ -32,12 +34,13 @@ type Daemon struct {
 }
 
 // NewDaemon creates a new server based on the runtime with the given version.
-func NewDaemon(version string, r *runtime.Runtime, opts ...grpc.ServerOption) *Daemon {
+func NewDaemon(version string, build time.Time, r *runtime.Runtime, opts ...grpc.ServerOption) *Daemon {
 	commonOpt := protocol2.ServerOptions()
 	opts = append(opts, commonOpt...)
 
 	d := &Daemon{
 		version:       version,
+		build:         build,
 		runtime:       r,
 		pool:          make(map[string]*DriverPool),
 		UserServer:    grpc.NewServer(opts...),

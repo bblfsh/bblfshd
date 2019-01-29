@@ -236,7 +236,13 @@ func (s *Service) selectPool(ctx context.Context, language, content, filename st
 }
 
 func (d *Service) Version(req *protocol1.VersionRequest) *protocol1.VersionResponse {
-	return &protocol1.VersionResponse{Version: d.daemon.version}
+	resp := &protocol1.VersionResponse{Version: d.daemon.version, Build: d.daemon.build}
+	start := time.Now()
+	defer func() {
+		resp.Elapsed = time.Since(start)
+		d.logResponse(resp.Status, "", "", 0, resp.Elapsed)
+	}()
+	return resp
 }
 
 func (d *Service) SupportedLanguages(req *protocol1.SupportedLanguagesRequest) *protocol1.SupportedLanguagesResponse {
