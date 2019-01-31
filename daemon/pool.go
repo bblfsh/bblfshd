@@ -18,12 +18,6 @@ import (
 	"gopkg.in/src-d/go-errors.v1"
 )
 
-const (
-	// DefaultPoolTimeout is the time a request to the DriverPool can wait
-	// before getting a driver assigned.
-	DefaultPoolTimeout = 5 * time.Second
-)
-
 var (
 	// DefaultMaxInstancesPerDriver is the maximum number of instances of
 	// the same driver which can be launched following the default
@@ -190,9 +184,11 @@ type FunctionCtx func(ctx context.Context, d Driver) error
 // It gets a driver from the pool and forwards the request to it. If all drivers
 // are busy, it will return an error after the timeout passes. If the DriverPool
 // is closed, an error will be returned.
+//
+// Deprecated: use ExecuteCtx instead.
 func (dp *DriverPool) Execute(c FunctionCtx, timeout time.Duration) error {
 	if timeout == 0 {
-		timeout = DefaultPoolTimeout
+		timeout = 5 * time.Second
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -208,12 +204,6 @@ func (dp *DriverPool) Execute(c FunctionCtx, timeout time.Duration) error {
 func (dp *DriverPool) ExecuteCtx(rctx context.Context, c FunctionCtx) error {
 	sp, ctx := opentracing.StartSpanFromContext(rctx, "bblfshd.pool.Execute")
 	defer sp.Finish()
-
-	if _, ok := ctx.Deadline(); !ok {
-		var cancel func()
-		ctx, cancel = context.WithTimeout(ctx, DefaultPoolTimeout)
-		defer cancel()
-	}
 
 	d, err := dp.getDriver(ctx)
 	if err != nil {
@@ -333,10 +323,6 @@ func (q *driverQueue) Get() (driver Driver, more bool) {
 }
 
 func (q *driverQueue) GetWithContext(ctx context.Context) (driver Driver, more bool, err error) {
-	if _, ok := ctx.Deadline(); !ok {
-		return nil, true, ErrInvalidPoolTimeout.New(time.Duration(0))
-	}
-
 	select {
 	case d, more := <-q.c:
 		q.n.Add(-1)
