@@ -25,7 +25,7 @@ BUILD_PATH := $(BASE_PATH)/build
 CMD_PATH := $(BASE_PATH)/cmd
 
 # Build information
-BUILD ?= $(shell date -Iseconds)
+BUILD ?= $(shell date +%FT%X%z)
 GIT_COMMIT=$(shell git rev-parse HEAD | cut -c1-7)
 GIT_DIRTY=$(shell test -n "`git status --porcelain`" && echo "-dirty" || true)
 DEV_PREFIX := dev
@@ -57,7 +57,7 @@ LDFLAGS = -X main.version=$(VERSION) -X main.build=$(BUILD)
 
 # Docker
 DOCKER_CMD = docker
-DOCKER_BUILD = $(DOCKER_CMD) build --build-arg BBLFSHD_VERSION=$(VERSION) --build-arg BBLFSHD_BUILD=$(BUILD)
+DOCKER_BUILD = $(DOCKER_CMD) build --build-arg BBLFSHD_VERSION=$(VERSION) --build-arg BBLFSHD_BUILD="$(BUILD)"
 DOCKER_RUN = $(DOCKER_CMD) run --rm
 DOCKER_BUILD_IMAGE = bblfshd-build
 DOCKER_TAG ?= $(DOCKER_CMD) tag
