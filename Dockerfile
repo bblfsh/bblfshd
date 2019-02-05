@@ -22,10 +22,10 @@ RUN mkdir /build
 ARG BBLFSHD_VERSION=dev
 ARG BBLFSHD_BUILD=unknown
 
-ENV GO_LDFLAGS="-X main.version=${BBLFSHD_VERSION} -X main.build='${BBLFSHD_BUILD}'"
+ENV GO_LDFLAGS="-X 'main.version=${BBLFSHD_VERSION}' -X 'main.build=${BBLFSHD_BUILD}'"
 
-RUN go build  -tags ostree --ldflags "'${GO_LDFLAGS}'" -o /build/bblfshd ./cmd/bblfshd/
-RUN go build --ldflags "'${GO_LDFLAGS}'" -o /build/bblfshctl ./cmd/bblfshctl/
+RUN go build  -tags ostree --ldflags "${GO_LDFLAGS}" -o /build/bblfshd ./cmd/bblfshd/
+RUN go build --ldflags "${GO_LDFLAGS}" -o /build/bblfshctl ./cmd/bblfshctl/
 
 
 # Final image for bblfshd
