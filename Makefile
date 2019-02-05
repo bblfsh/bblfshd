@@ -25,7 +25,7 @@ BUILD_PATH := $(BASE_PATH)/build
 CMD_PATH := $(BASE_PATH)/cmd
 
 # Build information
-BUILD ?= $(shell date +%FT%X%z)
+BUILD ?= $(shell date +%FT%H:%M:%S%z)
 GIT_COMMIT=$(shell git rev-parse HEAD | cut -c1-7)
 GIT_DIRTY=$(shell test -n "`git status --porcelain`" && echo "-dirty" || true)
 DEV_PREFIX := dev
