@@ -19,6 +19,8 @@ import (
 	protocol2 "gopkg.in/bblfsh/sdk.v2/protocol"
 )
 
+const BuildDateFormat = "2006-01-02T15:04:05-0700"
+
 // Daemon is a Babelfish server.
 type Daemon struct {
 	UserServer    *grpc.Server

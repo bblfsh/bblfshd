@@ -115,7 +115,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	parsedBuild, err := time.Parse("2006-01-02T15:04:05-0700", build)
+	parsedBuild, err := time.Parse(daemon.BuildDateFormat, build)
 	if err != nil {
 		logrus.Errorf("wrong date format for build: %s", err)
 		os.Exit(1)

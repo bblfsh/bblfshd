@@ -121,7 +121,7 @@ func buildMockedDaemon(t *testing.T, images ...runtime.DriverImage) (*Daemon, st
 		}
 	}
 
-	bdate, err := time.Parse(time.RFC3339, "2019-01-28T16:49:06+01:00")
+	bdate, err := time.Parse(BuildDateFormat, "2019-01-28T16:49:06+0100")
 	require.NoError(err)
 	d := NewDaemon("foo", bdate, r)
 
