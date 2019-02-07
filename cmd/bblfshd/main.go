@@ -119,11 +119,12 @@ func main() {
 
 	parsedBuild, err := time.Parse(daemon.BuildDateFormat, build)
 	if err != nil {
-		logrus.Errorf("wrong date format for this build: %s", err)
 		if build == defaultBuild {
-			build = time.Now().Format(daemon.BuildDateFormat)
-			logrus.Infof("using start time instead in this dev build: %s", build)
+			parsedBuild = time.Now()
+			logrus.Infof("using start time instead in this dev build: %s",
+				parsedBuild.Format(daemon.BuildDateFormat))
 		} else {
+			logrus.Errorf("wrong date format for this build: %s", err)
 			os.Exit(1)
 		}
 	}
