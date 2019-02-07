@@ -53,7 +53,7 @@ ifneq ($(origin TRAVIS_TAG), undefined)
 endif
 
 # Build
-LDFLAGS = -X main.version=$(VERSION) -X main.build="$(BUILD)"
+LDFLAGS = -X main.version=$(VERSION) -X main.build=$(BUILD)
 
 # Docker
 DOCKER_CMD = docker
