@@ -22,9 +22,14 @@ import (
 	"gopkg.in/bblfsh/sdk.v2/driver/manifest/discovery"
 )
 
+const (
+	defaultBuild    = "undefined"
+	buildDateFormat = "2006-01-02T15:04:05-0700"
+)
+
 var (
 	version = "undefined"
-	build   = "undefined"
+	build   = defaultBuild
 
 	network        *string
 	address        *string
@@ -115,10 +120,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	parsedBuild, err := time.Parse("2006-01-02T15:04:05-0700", build)
+	parsedBuild, err := time.Parse(buildDateFormat, build)
 	if err != nil {
-		logrus.Errorf("wrong date format for build: %s", err)
-		os.Exit(1)
+		if build == defaultBuild {
+			parsedBuild = time.Now()
+			logrus.Infof("using start time instead in this dev build: %s",
+				parsedBuild.Format(buildDateFormat))
+		} else {
+			logrus.Errorf("wrong date format for this build: %s", err)
+			os.Exit(1)
+		}
 	}
 	d := daemon.NewDaemon(version, parsedBuild, r, grpcOpts...)
 	if args := cmd.Args(); len(args) == 2 && args[0] == "install" && args[1] == "recommended" {

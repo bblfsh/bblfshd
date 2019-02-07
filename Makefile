@@ -53,7 +53,7 @@ ifneq ($(origin TRAVIS_TAG), undefined)
 endif
 
 # Build
-LDFLAGS = -X main.version=$(VERSION) -X main.build="$(BUILD)"
+LDFLAGS = -X main.version=$(VERSION) -X main.build=$(BUILD)
 
 # Docker
 DOCKER_CMD = docker
@@ -176,7 +176,7 @@ $(COMMANDS):
 			echo ; \
 			echo "$${os} - $@"; \
 			GOOS=$${os} GOARCH=$${arch}  $(GO_BUILD) $$([ $${os} = "linux" ] && echo -tags ostree) \
-				--ldflags '$(LDFLAGS)' \
+				--ldflags "$(LDFLAGS)" \
 				-o "$(BUILD_PATH)/$@_$${os}_$${arch}/$@" \
 				$(CMD_PATH)/$@/main.go; \
 			cd $(BUILD_PATH); \
