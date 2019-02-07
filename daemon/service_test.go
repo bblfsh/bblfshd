@@ -48,7 +48,7 @@ func TestServiceVersion(t *testing.T) {
 	require.Len(resp.Errors, 0)
 	require.Equal(resp.Version, "foo")
 
-	bdate, err := time.Parse(time.RFC3339, "2019-01-28T16:49:06+01:00")
+	bdate, err := time.Parse(time.RFC3339, testBuildDate)
 	require.NoError(err)
 	require.Equal(resp.Build, bdate)
 }

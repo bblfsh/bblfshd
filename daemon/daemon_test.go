@@ -18,6 +18,9 @@ import (
 	"github.com/bblfsh/bblfshd/runtime"
 )
 
+// actual date format used in bblfshd is different
+const testBuildDate = "2019-01-28T16:49:06+01:00"
+
 func TestDaemonState(t *testing.T) {
 	require := require.New(t)
 
@@ -121,9 +124,8 @@ func buildMockedDaemon(t *testing.T, images ...runtime.DriverImage) (*Daemon, st
 		}
 	}
 
-	bdate, err := time.Parse(BuildDateFormat, "2019-01-28T16:49:06+0100")
-	require.NoError(err)
-	d := NewDaemon("foo", bdate, r)
+	parsedBuild, err := time.Parse(time.RFC3339, testBuildDate)
+	d := NewDaemon("foo", parsedBuild, r)
 
 	dp := NewDriverPool(func() (Driver, error) {
 		return newEchoDriver(), nil
