@@ -191,8 +191,12 @@ func (d *Daemon) newDriverPool(rctx context.Context, language string, image runt
 		"language": language,
 	})
 
+	if err := dp.Start(); err != nil {
+		return nil, err
+	}
+
 	d.pool[language] = dp
-	return dp, dp.Start()
+	return dp, nil
 }
 
 func (d *Daemon) removePool(language string) error {
