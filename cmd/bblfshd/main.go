@@ -5,11 +5,14 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 	"time"
+
+	_ "net/http/pprof"
 
 	"github.com/bblfsh/bblfshd/daemon"
 	"github.com/bblfsh/bblfshd/runtime"
@@ -46,6 +49,10 @@ var (
 		format *string
 		fields *string
 	}
+	pprof struct {
+		enabled *bool
+		address *string
+	}
 	cmd *flag.FlagSet
 
 	usrListener net.Listener
@@ -66,6 +73,8 @@ func init() {
 	log.level = cmd.String("log-level", "info", "log level: panic, fatal, error, warning, info, debug.")
 	log.format = cmd.String("log-format", "text", "format of the logs: text or json.")
 	log.fields = cmd.String("log-fields", "", "extra fields to add to every log line in json format.")
+	pprof.enabled = cmd.Bool("profiler", false, "run profiler http endpoint (pprof).")
+	pprof.address = cmd.String("profiler-address", ":6060", "profiler address to listen on.")
 	cmd.Parse(os.Args[1:])
 
 	buildLogger()
@@ -100,6 +109,15 @@ func installRecommended(d *daemon.Daemon) error {
 
 func main() {
 	logrus.Infof("bblfshd version: %s (build: %s)", version, build)
+
+	if *pprof.enabled {
+		logrus.Infof("running pprof on %s", *pprof.address)
+		go func() {
+			if err := http.ListenAndServe(*pprof.address, nil); err != nil {
+				logrus.Errorf("cannot start pprof: %v", err)
+			}
+		}()
+	}
 
 	c, err := jaegercfg.FromEnv()
 	if err != nil {
