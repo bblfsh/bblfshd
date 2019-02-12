@@ -92,8 +92,10 @@ func TestDriverPoolExecute_Recovery(t *testing.T) {
 	err := dp.Start()
 	require.NoError(err)
 
+	ctx := context.Background()
+
 	for i := 0; i < 100; i++ {
-		err := dp.Execute(func(_ context.Context, d Driver) error {
+		err := dp.ExecuteCtx(ctx, func(_ context.Context, d Driver) error {
 			require.NotNil(d)
 
 			if i%10 == 0 {
@@ -101,7 +103,7 @@ func TestDriverPoolExecute_Recovery(t *testing.T) {
 			}
 
 			return nil
-		}, 0)
+		})
 
 		require.Nil(err)
 		require.Len(dp.Current(), 1)
