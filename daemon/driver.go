@@ -24,7 +24,7 @@ import (
 
 type Driver interface {
 	ID() string
-	Start() error
+	Start(ctx context.Context) error
 	Stop() error
 	Status() (protocol.Status, error)
 	State() (*protocol.DriverInstanceState, error)
@@ -47,10 +47,9 @@ type DriverInstance struct {
 }
 
 const (
-	DriverBinary      = "/opt/driver/bin/driver"
-	GRPCSocket        = "rpc.sock"
-	TmpPathPattern    = "/tmp/%s"
-	ConnectionTimeout = 5 * time.Second
+	DriverBinary   = "/opt/driver/bin/driver"
+	GRPCSocket     = "rpc.sock"
+	TmpPathPattern = "/tmp/%s"
 )
 
 type Options struct {
@@ -116,12 +115,13 @@ func (i *DriverInstance) ID() string {
 }
 
 // Start starts a container and connects to it.
-func (i *DriverInstance) Start() error {
+func (i *DriverInstance) Start(ctx context.Context) error {
 	if err := i.Container.Start(); err != nil {
 		return err
 	}
 
-	if err := i.dial(); err != nil {
+	if err := i.dial(ctx); err != nil {
+		_ = i.Container.Stop()
 		return err
 	}
 
@@ -132,19 +132,24 @@ func (i *DriverInstance) Start() error {
 	return nil
 }
 
-func (i *DriverInstance) dial() error {
+func (i *DriverInstance) dial(ctx context.Context) error {
 	addr := filepath.Join(i.tmp, GRPCSocket)
 
 	opts := []grpc.DialOption{
 		grpc.WithDialer(func(addr string, t time.Duration) (net.Conn, error) {
 			return net.DialTimeout("unix", addr, t)
 		}),
+		// always wait for the connection to become active
 		grpc.WithBlock(),
-		grpc.WithTimeout(ConnectionTimeout),
+		// we want to know sooner rather than later
+		// TODO(dennwc): sometimes the initialization of the container takes >5 sec
+		//               meaning that the time between Container.Start and the actual
+		//               execution of a Go server (not the native driver) takes this long
+		grpc.WithBackoffMaxDelay(time.Second),
 		grpc.WithInsecure(),
 	}
 	opts = append(opts, protocol2.DialOptions()...)
-	conn, err := grpc.Dial(addr, opts...)
+	conn, err := grpc.DialContext(ctx, addr, opts...)
 
 	i.conn = conn
 	i.srv1 = protocol1.NewProtocolServiceClient(conn)

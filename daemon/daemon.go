@@ -179,7 +179,7 @@ func (d *Daemon) newDriverPool(rctx context.Context, language string, image runt
 			return nil, err
 		}
 
-		if err := driver.Start(); err != nil {
+		if err := driver.Start(rctx); err != nil {
 			return nil, err
 		}
 

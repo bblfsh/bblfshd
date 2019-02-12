@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -32,7 +33,10 @@ func TestNewDriver(t *testing.T) {
 
 	require.NoError(err)
 
-	err = i.Start()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	err = i.Start(ctx)
 	require.NoError(err)
 
 	time.Sleep(50 * time.Millisecond)
@@ -60,7 +64,10 @@ func TestDriverInstance_State(t *testing.T) {
 	require.Len(state.Processes, 0)
 	require.True(state.Created.IsZero())
 
-	err = i.Start()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	err = i.Start(ctx)
 	require.NoError(err)
 	defer func() {
 		err = i.Stop()

@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"context"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -44,7 +45,7 @@ func (d *mockDriver) ServiceV2() protocol2.DriverClient {
 	return nil
 }
 
-func (d *mockDriver) Start() error {
+func (d *mockDriver) Start(ctx context.Context) error {
 	return nil
 }
 
