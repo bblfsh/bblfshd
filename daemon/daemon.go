@@ -29,7 +29,7 @@ type Daemon struct {
 	runtime   *runtime.Runtime
 	driverEnv []string
 
-	mu   sync.Mutex
+	mu   sync.RWMutex
 	pool map[string]*DriverPool
 }
 
@@ -131,10 +131,17 @@ func (d *Daemon) RemoveDriver(language string) error {
 }
 
 func (d *Daemon) DriverPool(ctx context.Context, language string) (*DriverPool, error) {
+	d.mu.RLock()
+	dp, ok := d.pool[language]
+	d.mu.RUnlock()
+	if ok {
+		return dp, nil
+	}
+
 	d.mu.Lock()
 	defer d.mu.Unlock()
-
-	if dp, ok := d.pool[language]; ok {
+	dp, ok = d.pool[language]
+	if ok {
 		return dp, nil
 	}
 
@@ -215,8 +222,8 @@ func (d *Daemon) removePool(language string) error {
 
 // Current returns the current list of driver pools.
 func (d *Daemon) Current() map[string]*DriverPool {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+	d.mu.RLock()
+	defer d.mu.RUnlock()
 
 	out := make(map[string]*DriverPool, len(d.pool))
 	for k, pool := range d.pool {
@@ -228,6 +235,8 @@ func (d *Daemon) Current() map[string]*DriverPool {
 
 // Stop stops all the pools and containers.
 func (d *Daemon) Stop() error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	var err error
 	for _, dp := range d.pool {
 		if cerr := dp.Stop(); cerr != nil && err != nil {
