@@ -102,6 +102,8 @@ func (s *ServiceV2) selectPool(rctx context.Context, language, content, filename
 			return "", nil, err
 		}
 		language = lang
+	} else { // always re-map enry->bblfsh language names
+		language = normalize(language)
 	}
 
 	dp, err := s.daemon.DriverPool(ctx, language)
@@ -225,6 +227,8 @@ func (s *Service) selectPool(ctx context.Context, language, content, filename st
 			return language, nil, ErrLanguageDetection.New()
 		}
 		logrus.Debugf("detected language %q, filename %q", language, filename)
+	} else { // always re-map enry->bblfsh language names
+		language = normalize(language)
 	}
 
 	dp, err := s.daemon.DriverPool(ctx, language)
