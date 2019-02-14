@@ -14,7 +14,14 @@ func GetLanguage(filename string, content []byte) string {
 		return lang
 	}
 
-	lang = strings.ToLower(lang)
+	return normalize(lang)
+}
+
+// normalize maps enry language names to the bblfsh ones.
+// TODO(bzz): remove this as soon as language aliases are supported in bblfsh
+// driver manifest.
+func normalize(languageName string) string {
+	lang := strings.ToLower(languageName)
 	lang = strings.Replace(lang, " ", "-", -1)
 	lang = strings.Replace(lang, "+", "p", -1)
 	lang = strings.Replace(lang, "#", "sharp", -1)
