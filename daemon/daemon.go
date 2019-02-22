@@ -173,11 +173,14 @@ func (d *Daemon) getDriverImage(rctx context.Context, language string) (runtime.
 
 // newDriverPool, instance a new driver pool for the given language and image
 // and should be called under a lock.
-func (d *Daemon) newDriverPool(ctx context.Context, language string, image runtime.DriverImage) (*DriverPool, error) {
-	sp, _ := opentracing.StartSpanFromContext(ctx, "bblfshd.pool.newDriverPool")
+func (d *Daemon) newDriverPool(rctx context.Context, language string, image runtime.DriverImage) (*DriverPool, error) {
+	sp, ctx := opentracing.StartSpanFromContext(rctx, "bblfshd.pool.newDriverPool")
 	defer sp.Finish()
 
-	dp := NewDriverPool(func(ctx context.Context) (Driver, error) {
+	dp := NewDriverPool(func(rctx context.Context) (Driver, error) {
+		sp, ctx := opentracing.StartSpanFromContext(rctx, "bblfshd.pool.driverFactory")
+		defer sp.Finish()
+
 		logrus.Debugf("spawning driver instance %q ...", image.Name())
 
 		opts := d.getDriverInstanceOptions()
