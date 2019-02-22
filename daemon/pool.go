@@ -25,6 +25,7 @@ var (
 	DefaultMaxInstancesPerDriver = runtime.NumCPU()
 
 	ErrPoolClosed        = errors.NewKind("driver pool already closed")
+	ErrPoolRunning       = errors.NewKind("driver pool already running")
 	ErrNegativeInstances = errors.NewKind("cannot set instances to negative number")
 )
 
@@ -77,6 +78,11 @@ func NewDriverPool(factory FactoryFunction) *DriverPool {
 
 // Start stats the driver pool.
 func (dp *DriverPool) Start(ctx context.Context) error {
+	if dp.running {
+		return ErrPoolRunning.New()
+	} else if dp.closed {
+		return ErrPoolClosed.New()
+	}
 	target := dp.ScalingPolicy.Scale(0, 0)
 	if err := dp.setInstances(ctx, target); err != nil {
 		_ = dp.setInstances(context.Background(), 0)
