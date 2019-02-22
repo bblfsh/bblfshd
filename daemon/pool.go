@@ -61,7 +61,7 @@ type DriverPool struct {
 }
 
 // FactoryFunction is a factory function that creates new DriverInstance's.
-type FactoryFunction func() (Driver, error)
+type FactoryFunction func(ctx context.Context) (Driver, error)
 
 // NewDriverPool creates and starts a new DriverPool. It takes as parameters
 // a FactoryFunction, used to instantiate new drivers.
@@ -77,10 +77,10 @@ func NewDriverPool(factory FactoryFunction) *DriverPool {
 }
 
 // Start stats the driver pool.
-func (dp *DriverPool) Start() error {
+func (dp *DriverPool) Start(ctx context.Context) error {
 	target := dp.ScalingPolicy.Scale(0, 0)
-	if err := dp.setInstances(target); err != nil {
-		_ = dp.setInstances(0)
+	if err := dp.setInstances(ctx, target); err != nil {
+		_ = dp.setInstances(context.Background(), 0)
 		return err
 	}
 	dp.running = true
@@ -92,24 +92,24 @@ func (dp *DriverPool) Start() error {
 // setInstances changes the number of running driver instances. Instances
 // will be started or stopped as necessary to satisfy the new instance count.
 // It blocks until the all required instances are started or stopped.
-func (dp *DriverPool) setInstances(target int) error {
+func (dp *DriverPool) setInstances(ctx context.Context, target int) error {
 	if target < 0 {
 		return ErrNegativeInstances.New()
 	}
 
 	n := target - dp.stats.instances.Value()
-	if n > 0 {
-		return dp.add(n)
-	} else if n < 0 {
-		return dp.del(-n)
+	if n == 0 {
+		return nil
 	}
-
-	return nil
+	if n > 0 {
+		return dp.add(ctx, n)
+	}
+	return dp.del(-n)
 }
 
-func (dp *DriverPool) add(n int) error {
+func (dp *DriverPool) add(ctx context.Context, n int) error {
 	for i := 0; i < n; i++ {
-		d, err := dp.factory()
+		d, err := dp.factory(ctx)
 		if err != nil {
 			return err
 		}
@@ -172,7 +172,7 @@ func (dp *DriverPool) doScaling() {
 	}
 
 	dp.Logger.Debugf("scaling driver pool from %d instance(s) to %d instance(s)", total, s)
-	if err := dp.setInstances(s); err != nil {
+	if err := dp.setInstances(context.TODO(), s); err != nil {
 		dp.Logger.Errorf("error re-scaling pool: %s", err)
 	}
 }
@@ -294,7 +294,7 @@ func (dp *DriverPool) Stop() error {
 	dp.closed = true
 	dp.close <- struct{}{}
 	<-dp.close
-	if err := dp.setInstances(0); err != nil {
+	if err := dp.setInstances(context.Background(), 0); err != nil {
 		return err
 	}
 
