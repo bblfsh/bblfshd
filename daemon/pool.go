@@ -369,7 +369,7 @@ func DefaultScalingPolicy() ScalingPolicy {
 }
 
 type movingAverage struct {
-	ScalingPolicy
+	sub   ScalingPolicy
 	loads []float64
 	pos   int
 }
@@ -379,9 +379,9 @@ type movingAverage struct {
 // reuse its instances for multiple pools.
 func MovingAverage(window int, p ScalingPolicy) ScalingPolicy {
 	return &movingAverage{
-		ScalingPolicy: p,
-		loads:         make([]float64, 0, window),
-		pos:           0,
+		sub:   p,
+		loads: make([]float64, 0, window),
+		pos:   0,
 	}
 }
 
@@ -402,11 +402,11 @@ func (p *movingAverage) Scale(total, load int) int {
 	}
 
 	avg := sum / float64(len(p.loads))
-	return p.ScalingPolicy.Scale(total, int(avg))
+	return p.sub.Scale(total, int(avg))
 }
 
 type minMax struct {
-	ScalingPolicy
+	Sub      ScalingPolicy
 	Min, Max int
 }
 
@@ -414,14 +414,14 @@ type minMax struct {
 // of instances.
 func MinMax(min, max int, p ScalingPolicy) ScalingPolicy {
 	return &minMax{
-		Min:           min,
-		Max:           max,
-		ScalingPolicy: p,
+		Min: min,
+		Max: max,
+		Sub: p,
 	}
 }
 
 func (p *minMax) Scale(total, load int) int {
-	s := p.ScalingPolicy.Scale(total, load)
+	s := p.Sub.Scale(total, load)
 	if s > p.Max {
 		return p.Max
 	}
