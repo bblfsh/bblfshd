@@ -370,9 +370,8 @@ func DefaultScalingPolicy() ScalingPolicy {
 
 type movingAverage struct {
 	ScalingPolicy
-	loads  []float64
-	pos    int
-	filled bool
+	loads []float64
+	pos   int
 }
 
 // MovingAverage computes a moving average of the load and forwards it to the
@@ -381,31 +380,28 @@ type movingAverage struct {
 func MovingAverage(window int, p ScalingPolicy) ScalingPolicy {
 	return &movingAverage{
 		ScalingPolicy: p,
-		loads:         make([]float64, window),
+		loads:         make([]float64, 0, window),
 		pos:           0,
-		filled:        false,
 	}
 }
 
 func (p *movingAverage) Scale(total, load int) int {
-	p.loads[p.pos] = float64(load)
+	if len(p.loads) < cap(p.loads) {
+		p.loads = append(p.loads, float64(load))
+	} else {
+		p.loads[p.pos] = float64(load)
+	}
 	p.pos++
-	if p.pos >= len(p.loads) {
-		p.filled = true
+	if p.pos >= cap(p.loads) {
 		p.pos = 0
 	}
 
-	maxPos := len(p.loads)
-	if !p.filled {
-		maxPos = p.pos
-	}
-
 	var sum float64
-	for i := 0; i < maxPos; i++ {
-		sum += p.loads[i]
+	for _, v := range p.loads {
+		sum += v
 	}
 
-	avg := sum / float64(maxPos)
+	avg := sum / float64(len(p.loads))
 	return p.ScalingPolicy.Scale(total, int(avg))
 }
 
