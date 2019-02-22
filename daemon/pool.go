@@ -24,9 +24,8 @@ var (
 	// scaling policy (see DefaultScalingPolicy()).
 	DefaultMaxInstancesPerDriver = runtime.NumCPU()
 
-	ErrPoolClosed         = errors.NewKind("driver pool already closed")
-	ErrInvalidPoolTimeout = errors.NewKind("invalid timeout: %v")
-	ErrNegativeInstances  = errors.NewKind("cannot set instances to negative number")
+	ErrPoolClosed        = errors.NewKind("driver pool already closed")
+	ErrNegativeInstances = errors.NewKind("cannot set instances to negative number")
 )
 
 // DriverPool controls a pool of drivers and balances requests among them,
