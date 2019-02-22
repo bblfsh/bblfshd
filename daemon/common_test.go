@@ -26,7 +26,7 @@ type mockDriver struct {
 	MockStatus  protocol.Status
 }
 
-func newMockDriver() (Driver, error) {
+func newMockDriver(ctx context.Context) (Driver, error) {
 	return &mockDriver{
 		MockID:     runtime.NewULID().String(),
 		MockStatus: protocol.Running,
@@ -63,7 +63,7 @@ func (d *mockDriver) Stop() error {
 }
 
 func newEchoDriver() *echoDriver {
-	d, _ := newMockDriver()
+	d, _ := newMockDriver(context.Background())
 	return &echoDriver{
 		Driver: d,
 	}

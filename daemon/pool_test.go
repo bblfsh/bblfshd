@@ -16,7 +16,8 @@ func TestDriverPoolClose_StartNoopClose(t *testing.T) {
 	require := require.New(t)
 	dp := NewDriverPool(newMockDriver)
 
-	err := dp.Start()
+	ctx := context.Background()
+	err := dp.Start(ctx)
 	require.NoError(err)
 
 	err = dp.Stop()
@@ -25,7 +26,7 @@ func TestDriverPoolClose_StartNoopClose(t *testing.T) {
 	err = dp.Stop()
 	require.True(ErrPoolClosed.Is(err))
 
-	err = dp.Execute(nil, 0)
+	err = dp.ExecuteCtx(ctx, nil)
 	require.True(ErrPoolClosed.Is(err))
 }
 
@@ -34,7 +35,7 @@ func TestDriverPoolCurrent(t *testing.T) {
 
 	dp := NewDriverPool(newMockDriver)
 
-	err := dp.Start()
+	err := dp.Start(context.Background())
 	require.NoError(err)
 
 	require.Len(dp.Current(), 1)
@@ -43,12 +44,19 @@ func TestDriverPoolCurrent(t *testing.T) {
 func TestDriverPoolExecute_Timeout(t *testing.T) {
 	require := require.New(t)
 
-	dp := NewDriverPool(func() (Driver, error) {
-		time.Sleep(time.Millisecond)
-		return newMockDriver()
+	dp := NewDriverPool(func(ctx context.Context) (Driver, error) {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(time.Millisecond):
+		}
+		return newMockDriver(ctx)
 	})
 
-	err := dp.Execute(nil, time.Nanosecond)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond)
+	defer cancel()
+
+	err := dp.ExecuteCtx(ctx, nil)
 	require.True(err == context.DeadlineExceeded)
 }
 
@@ -57,7 +65,7 @@ func TestDriverPoolState(t *testing.T) {
 
 	dp := NewDriverPool(newMockDriver)
 
-	err := dp.Start()
+	err := dp.Start(context.Background())
 	require.NoError(err)
 	require.Equal(dp.State().Wanted, 1)
 	require.Equal(dp.State().Running, 1)
@@ -72,11 +80,11 @@ func TestDriverPoolState(t *testing.T) {
 func TestDiverPoolStart_FailingDriver(t *testing.T) {
 	require := require.New(t)
 
-	dp := NewDriverPool(func() (Driver, error) {
+	dp := NewDriverPool(func(ctx context.Context) (Driver, error) {
 		return nil, fmt.Errorf("driver error")
 	})
 
-	err := dp.Start()
+	err := dp.Start(context.Background())
 	require.EqualError(err, "driver error")
 }
 
@@ -84,15 +92,15 @@ func TestDriverPoolExecute_Recovery(t *testing.T) {
 	require := require.New(t)
 
 	var called int
-	dp := NewDriverPool(func() (Driver, error) {
+	dp := NewDriverPool(func(ctx context.Context) (Driver, error) {
 		called++
-		return newMockDriver()
+		return newMockDriver(ctx)
 	})
 
-	err := dp.Start()
-	require.NoError(err)
-
 	ctx := context.Background()
+
+	err := dp.Start(ctx)
+	require.NoError(err)
 
 	for i := 0; i < 100; i++ {
 		err := dp.ExecuteCtx(ctx, func(_ context.Context, d Driver) error {
@@ -121,14 +129,16 @@ func TestDriverPoolExecute_Sequential(t *testing.T) {
 
 	dp := NewDriverPool(newMockDriver)
 
-	err := dp.Start()
+	ctx := context.Background()
+
+	err := dp.Start(ctx)
 	require.NoError(err)
 
 	for i := 0; i < 100; i++ {
-		err := dp.Execute(func(_ context.Context, d Driver) error {
+		err := dp.ExecuteCtx(ctx, func(_ context.Context, d Driver) error {
 			require.NotNil(d)
 			return nil
-		}, 0)
+		})
 
 		require.Nil(err)
 		require.Equal(dp.State().Running, 1)
@@ -143,18 +153,24 @@ func TestDriverPoolExecute_Parallel(t *testing.T) {
 
 	dp := NewDriverPool(newMockDriver)
 
-	err := dp.Start()
+	ctx := context.Background()
+
+	err := dp.Start(ctx)
 	require.NoError(err)
 
 	var wg sync.WaitGroup
 	wg.Add(100)
 	for i := 0; i < 100; i++ {
 		go func() {
-			err := dp.Execute(func(_ context.Context, _ Driver) error {
+			err := dp.ExecuteCtx(ctx, func(_ context.Context, _ Driver) error {
 				defer wg.Done()
-				time.Sleep(50 * time.Millisecond)
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-time.After(50 * time.Millisecond):
+				}
 				return nil
-			}, 0)
+			})
 
 			require.Nil(err)
 			require.True(len(dp.Current()) >= 1)

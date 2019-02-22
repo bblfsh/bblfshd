@@ -127,11 +127,11 @@ func buildMockedDaemon(t *testing.T, images ...runtime.DriverImage) (*Daemon, st
 	parsedBuild, err := time.Parse(time.RFC3339, testBuildDate)
 	d := NewDaemon("foo", parsedBuild, r)
 
-	dp := NewDriverPool(func() (Driver, error) {
+	dp := NewDriverPool(func(ctx context.Context) (Driver, error) {
 		return newEchoDriver(), nil
 	})
 
-	err = dp.Start()
+	err = dp.Start(context.Background())
 	require.NoError(err)
 
 	d.pool["python"] = dp
