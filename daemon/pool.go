@@ -42,8 +42,12 @@ type DriverPool struct {
 	factory FactoryFunction
 	// queue holds all the driver instances.
 	queue *driverQueue
-	// index holds a pointer to the current driver instances by id.
-	index sync.Map
+
+	drivers struct {
+		sync.RWMutex
+		// byID holds a pointer to the current driver instances by id.
+		byID map[string]Driver
+	}
 	// close channel will be used to synchronize Close() call with the
 	// scaling() goroutine. Once Close() starts, a struct{} will be sent to
 	// the close channel. And once scaling() finish it will close it.
@@ -66,7 +70,7 @@ type FactoryFunction func(ctx context.Context) (Driver, error)
 // NewDriverPool creates and starts a new DriverPool. It takes as parameters
 // a FactoryFunction, used to instantiate new drivers.
 func NewDriverPool(factory FactoryFunction) *DriverPool {
-	return &DriverPool{
+	dp := &DriverPool{
 		ScalingPolicy: DefaultScalingPolicy(),
 		Logger:        logrus.New(),
 
@@ -74,6 +78,8 @@ func NewDriverPool(factory FactoryFunction) *DriverPool {
 		close:   make(chan struct{}),
 		queue:   newDriverQueue(),
 	}
+	dp.drivers.byID = make(map[string]Driver)
+	return dp
 }
 
 // Start stats the driver pool.
@@ -102,14 +108,14 @@ func (dp *DriverPool) setInstances(ctx context.Context, target int) error {
 		return ErrNegativeInstances.New()
 	}
 
-	n := target - dp.stats.instances.Value()
-	if n == 0 {
+	dn := target - dp.stats.instances.Value()
+	if dn == 0 {
 		return nil
 	}
-	if n > 0 {
-		return dp.add(ctx, n)
+	if dn > 0 {
+		return dp.add(ctx, dn)
 	}
-	return dp.del(-n)
+	return dp.del(-dn)
 }
 
 func (dp *DriverPool) add(ctx context.Context, n int) error {
@@ -119,7 +125,9 @@ func (dp *DriverPool) add(ctx context.Context, n int) error {
 			return err
 		}
 
-		dp.index.Store(d.ID(), d)
+		dp.drivers.Lock()
+		dp.drivers.byID[d.ID()] = d
+		dp.drivers.Unlock()
 		dp.queue.Put(d)
 		dp.stats.instances.Add(1)
 	}
@@ -148,7 +156,9 @@ func (dp *DriverPool) remove(d Driver) error {
 		return err
 	}
 
-	dp.index.Delete(d.ID())
+	dp.drivers.Lock()
+	delete(dp.drivers.byID, d.ID())
+	dp.drivers.Unlock()
 	return nil
 }
 
@@ -266,12 +276,12 @@ func (dp *DriverPool) getDriver(rctx context.Context) (Driver, error) {
 // Current returns a list of the current instances from the pool, it includes
 // the running ones and those being stopped.
 func (dp *DriverPool) Current() []Driver {
-	var list []Driver
-	dp.index.Range(func(_, d interface{}) bool {
-		list = append(list, d.(Driver))
-		return true
-	})
-
+	dp.drivers.RLock()
+	defer dp.drivers.RUnlock()
+	list := make([]Driver, 0, len(dp.drivers.byID))
+	for _, d := range dp.drivers.byID {
+		list = append(list, d)
+	}
 	return list
 }
 
