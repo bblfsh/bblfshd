@@ -81,24 +81,24 @@ func TestDaemonParse_MockedDriverParallelClients(t *testing.T) {
 
 		require.NoError(err)
 		go func(i int, conn *grpc.ClientConn) {
+			defer wg.Done()
 			client := protocol.NewProtocolServiceClient(conn)
 			var iwg sync.WaitGroup
 			for j := 0; j < 50; j++ {
 				iwg.Add(1)
 				go func(i, j int) {
+					defer iwg.Done()
 					content := fmt.Sprintf("# -*- python -*-\nimport foo%d_%d", i, j)
 					resp, err := client.Parse(context.TODO(), &protocol.ParseRequest{Content: content})
 					require.NoError(err)
-					require.Equal(protocol.Ok, resp.Status)
+					require.Equal(protocol.Ok, resp.Status, "%s: %v", resp.Status, resp.Errors)
 					require.Equal(content, resp.UAST.Token)
-					iwg.Done()
 				}(i, j)
 			}
 			iwg.Wait()
 
 			err = conn.Close()
 			require.NoError(err)
-			wg.Done()
 		}(i, conn)
 	}
 

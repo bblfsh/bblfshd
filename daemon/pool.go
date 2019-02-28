@@ -24,9 +24,12 @@ var (
 	// scaling policy (see DefaultScalingPolicy()).
 	DefaultMaxInstancesPerDriver = runtime.NumCPU()
 
-	ErrPoolClosed        = errors.NewKind("driver pool already closed")
-	ErrPoolRunning       = errors.NewKind("driver pool already running")
-	ErrNegativeInstances = errors.NewKind("cannot set instances to negative number")
+	// ErrPoolClosed is returned if the pool was already closed or is being closed.
+	ErrPoolClosed = errors.NewKind("driver pool already closed")
+	// ErrPoolRunning is returned if the pool was already running.
+	ErrPoolRunning = errors.NewKind("driver pool already running")
+
+	errDriverStopped = errors.NewKind("driver stopped")
 )
 
 // DriverPool controls a pool of drivers and balances requests among them,
@@ -40,28 +43,52 @@ type DriverPool struct {
 
 	// factory function used to spawn new driver instances.
 	factory FactoryFunction
-	// queue holds all the driver instances.
-	queue *driverQueue
+
+	// wg tracks all goroutines owned by the driver pool.
+	wg sync.WaitGroup
+
+	// stop channel should be closed to send a stop signal to the pool.
+	stop chan struct{}
+	// stopped is closed when the pool (and the manager goroutine) stops.
+	stopped chan struct{}
+
+	// get serves as a request-response channel to get an idle driver instance.
+	// This channel is used by clients and is accepted by the manager goroutine.
+	get chan driverRequest
+	// put returns the driver to the pool. The driver should be active.
+	put chan Driver
+
+	// rescale is a signal passed from the runPolicy goroutine to the manager goroutine.
+	// It allows to re-evaluate scaling conditions when waiting for an idle driver.
+	rescale chan struct{}
+
+	// spawn signals the spawner goroutine to run a new driver.
+	// The driver is returned on the put channel.
+	spawn chan struct{}
+
+	// spawnErr is an optional channel to signal driver creation failures.
+	spawnErr chan error
 
 	drivers struct {
 		sync.RWMutex
-		// byID holds a pointer to the current driver instances by id.
-		byID map[string]Driver
+		idle map[Driver]struct{}
+		all  map[Driver]struct{}
 	}
-	// close channel will be used to synchronize Close() call with the
-	// scaling() goroutine. Once Close() starts, a struct{} will be sent to
-	// the close channel. And once scaling() finish it will close it.
-	close   chan struct{}
-	closed  bool
-	running bool
-	// stats hold different metrics about the state of the pool.
-	stats struct {
-		instances atomicInt // instances wanted
-		waiting   atomicInt // requests waiting for a driver
-		success   atomicInt // requests executed successfully
-		errors    atomicInt // requests errored
-		exited    atomicInt // drivers exited unexpectedly
-	}
+
+	requests atomicInt // requests waiting for a driver
+	running  atomicInt // total running instances; synced with len(drivers.all)
+	spawning atomicInt // instances being started
+	target   atomicInt // instances wanted
+
+	exited  atomicInt // drivers exited
+	success atomicInt // requests executed successfully
+	errors  atomicInt // requests failed
+}
+
+type driverRequest struct {
+	cancel <-chan struct{}
+	out    chan<- Driver
+	err    chan<- error
 }
 
 // FactoryFunction is a factory function that creates new DriverInstance's.
@@ -73,123 +100,445 @@ func NewDriverPool(factory FactoryFunction) *DriverPool {
 	dp := &DriverPool{
 		ScalingPolicy: DefaultScalingPolicy(),
 		Logger:        logrus.New(),
-
-		factory: factory,
-		close:   make(chan struct{}),
-		queue:   newDriverQueue(),
+		factory:       factory,
 	}
-	dp.drivers.byID = make(map[string]Driver)
 	return dp
 }
 
 // Start stats the driver pool.
 func (dp *DriverPool) Start(ctx context.Context) error {
-	if dp.running {
+	if dp.stop != nil {
 		return ErrPoolRunning.New()
-	} else if dp.closed {
+	}
+	select {
+	case <-dp.stopped:
 		return ErrPoolClosed.New()
+	default:
 	}
-	target := dp.ScalingPolicy.Scale(0, 0)
-	if err := dp.setInstances(ctx, target); err != nil {
-		_ = dp.setInstances(context.Background(), 0)
+
+	dp.stop = make(chan struct{})
+	dp.stopped = make(chan struct{})
+	dp.spawn = make(chan struct{})
+	dp.spawnErr = make(chan error)
+	dp.rescale = make(chan struct{}, 1)
+	dp.get = make(chan driverRequest)
+	dp.put = make(chan Driver)
+	dp.drivers.idle = make(map[Driver]struct{})
+	dp.drivers.all = make(map[Driver]struct{})
+
+	dp.target.Set(1)
+
+	dp.wg.Add(3)
+	go dp.runSpawn()
+	go dp.runPolicy()
+	go dp.manageDrivers()
+
+	// wait for a single instance to come up
+	d, err := dp.getDriver(ctx)
+	if err != nil {
+		_ = dp.Stop()
 		return err
 	}
-	dp.running = true
-
-	go dp.scaling()
-	return nil
-}
-
-// setInstances changes the number of running driver instances. Instances
-// will be started or stopped as necessary to satisfy the new instance count.
-// It blocks until the all required instances are started or stopped.
-func (dp *DriverPool) setInstances(ctx context.Context, target int) error {
-	if target < 0 {
-		return ErrNegativeInstances.New()
-	}
-
-	dn := target - dp.stats.instances.Value()
-	if dn == 0 {
-		return nil
-	}
-	if dn > 0 {
-		return dp.add(ctx, dn)
-	}
-	return dp.del(-dn)
-}
-
-func (dp *DriverPool) add(ctx context.Context, n int) error {
-	for i := 0; i < n; i++ {
-		d, err := dp.factory(ctx)
-		if err != nil {
-			return err
-		}
-
-		dp.drivers.Lock()
-		dp.drivers.byID[d.ID()] = d
-		dp.drivers.Unlock()
-		dp.queue.Put(d)
-		dp.stats.instances.Add(1)
-	}
-
-	return nil
-}
-
-func (dp *DriverPool) del(n int) error {
-	for i := 0; i < n; i++ {
-		d, more := dp.queue.Get()
-		if !more {
-			return ErrPoolClosed.New()
-		}
-
-		if err := dp.remove(d); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (dp *DriverPool) remove(d Driver) error {
-	dp.stats.instances.Add(-1)
-	if err := d.Stop(); err != nil {
+	if err := dp.putDriver(d); err != nil {
 		return err
 	}
-
-	dp.drivers.Lock()
-	delete(dp.drivers.byID, d.ID())
-	dp.drivers.Unlock()
 	return nil
 }
 
-func (dp *DriverPool) scaling() {
+// runPolicy goroutine re-evaluates the scaling policy on a regular time interval and sets
+// a target number of instances. The scaling itself will be performed by the manager goroutine.
+func (dp *DriverPool) runPolicy() {
+	defer dp.wg.Done()
 	ticker := time.NewTicker(time.Millisecond * 100)
 	defer ticker.Stop()
 	for {
 		select {
-		case <-dp.close:
-			close(dp.close)
+		case <-dp.stop:
 			return
 		case <-ticker.C:
-			dp.doScaling()
+		}
+		total := dp.running.Value()
+		load := dp.requests.Value()
+		dp.drivers.RLock()
+		idle := len(dp.drivers.idle)
+		dp.drivers.RUnlock()
+
+		target := dp.ScalingPolicy.Scale(total, load-idle)
+		if target < 1 {
+			target = 1 // there should be always at least 1 instance
+		}
+		old := dp.target.Set(target)
+		if old != target {
+			// optionally signal to the manager goroutine
+			select {
+			case dp.rescale <- struct{}{}:
+			default:
+			}
 		}
 	}
 }
 
-func (dp *DriverPool) doScaling() {
-	total := dp.stats.instances.Value()
-	ready := dp.queue.Size()
-	load := dp.stats.waiting.Value()
+// spawnOne starts a new driver instance. It will keep trying to run it in case of a failure.
+func (dp *DriverPool) spawnOne() {
+	dp.spawning.Add(1)
+	defer dp.spawning.Add(-1)
 
-	s := dp.ScalingPolicy.Scale(total, load-ready)
-	if s == total {
+	// TODO(dennwc): use exponential backoff instead?
+	ticker := time.NewTicker(time.Millisecond * 250)
+	defer ticker.Stop()
+
+	// keep trying in case of a failure
+	for {
+		d, err := dp.factory(chanContext(dp.stop))
+		if err == nil {
+			dp.drivers.Lock()
+			dp.drivers.all[d] = struct{}{}
+			dp.running.Add(1)
+			dp.drivers.Unlock()
+
+			err = dp.putDriver(d)
+			if err == nil {
+				return // done
+			}
+		}
+		dp.Logger.Errorf("failed to start a driver: %v", err)
+		select {
+		case <-dp.stop:
+			return // cancel
+		case dp.spawnErr <- err:
+		case <-ticker.C:
+		}
+	}
+}
+
+// runSpawn is a goroutine responsible for spawning new instances in the background.
+func (dp *DriverPool) runSpawn() {
+	defer dp.wg.Done()
+	for {
+		select {
+		case <-dp.stop:
+			return
+		case <-dp.spawn:
+			dp.spawnOne()
+		}
+	}
+}
+
+// peekIdle tries to get an idle driver from the pool. It won't wait for the driver to
+// become idle, instead it will return false if there are no idle drivers.
+func (dp *DriverPool) peekIdle() (Driver, bool) {
+	dp.drivers.RLock()
+	n := len(dp.drivers.idle)
+	dp.drivers.RUnlock()
+	if n == 0 {
+		return nil, false
+	}
+	dp.drivers.Lock()
+	defer dp.drivers.Unlock()
+	for d := range dp.drivers.idle {
+		delete(dp.drivers.idle, d)
+		return d, true
+	}
+	return nil, false
+}
+
+// setIdle returns the driver to an idle state.
+func (dp *DriverPool) setIdle(d Driver) {
+	dp.drivers.Lock()
+	defer dp.drivers.Unlock()
+	dp.drivers.idle[d] = struct{}{}
+}
+
+// killDriver stops are removes the driver from the queue.
+func (dp *DriverPool) killDriver(d Driver) {
+	dp.drivers.Lock()
+	delete(dp.drivers.all, d)
+	delete(dp.drivers.idle, d)
+	dp.running.Add(-1)
+	dp.exited.Add(1)
+	dp.drivers.Unlock()
+
+	if err := d.Stop(); err != nil {
+		dp.Logger.Errorf("error removing stopped driver: %s", err)
+	}
+}
+
+// scaleDiff returns current difference between the target number of instances and the
+// current number of running instances.
+func (dp *DriverPool) scaleDiff() int {
+	total := dp.running.Value()
+	return dp.target.Value() - total
+}
+
+// scale the driver pool to the current target number of instances.
+func (dp *DriverPool) scale() {
+	dn := dp.scaleDiff()
+	if dn == 0 {
 		return
 	}
 
-	dp.Logger.Debugf("scaling driver pool from %d instance(s) to %d instance(s)", total, s)
-	if err := dp.setInstances(context.TODO(), s); err != nil {
-		dp.Logger.Errorf("error re-scaling pool: %s", err)
+	// rescaleLater interrupts the scaling and serves the request first.
+	// It will make sure to continue scaling later.
+	rescaleLater := func(req driverRequest) {
+		select {
+		case dp.rescale <- struct{}{}:
+		default:
+		}
+		dp.waitOrScale(req)
 	}
+	if dn < 0 {
+		// scale down
+		for i := 0; i < -dn; i++ {
+			if d, ok := dp.peekIdle(); ok {
+				dp.killDriver(d)
+				continue
+			}
+			select {
+			case <-dp.stop:
+				return
+			case req := <-dp.get:
+				rescaleLater(req)
+				return
+			case d := <-dp.put:
+				dp.killDriver(d)
+			}
+		}
+		return
+	}
+	// scale up
+	for i := 0; i < dn; i++ {
+		select {
+		case req := <-dp.get:
+			rescaleLater(req)
+			return
+		case <-dp.stop:
+			return
+		case d := <-dp.put:
+			// received some existing instance
+			dp.setIdle(d)
+			i--
+			dn = dp.scaleDiff()
+		case dp.spawn <- struct{}{}:
+			// spawn request sent to the spawn goroutine
+			select {
+			case <-dp.stop:
+				return
+			case d := <-dp.put:
+				dp.setIdle(d)
+			case <-dp.spawnErr:
+				// ignore - already printed to the log
+			}
+		}
+	}
+}
+
+// waitOrScale is executed on the manager goroutine. It will either scale the pool up,
+// wait for an instance to become available, or scale the pool down. The function will
+// block until the request is served or cancelled.
+func (dp *DriverPool) waitOrScale(req driverRequest) {
+	// Note that we don't care about the pool closing in this function.
+	// If it happens, the client will receive this signal before we do and will
+	// cancel the request anyway. This reduces the number of select statements.
+
+	// returnDriver will either return the driver to the client,
+	// or will return it to the idle driver queue.
+	returnDriver := func(d Driver) {
+		select {
+		case <-req.cancel:
+			dp.setIdle(d)
+		case req.out <- d:
+		}
+	}
+
+	// loop allows to re-evaluate scaling conditions
+	for {
+		dn := dp.scaleDiff()
+
+		if dp.running.Value()+dp.spawning.Value() == 0 {
+			if dn < 0 {
+				// This shouldn't really happen: pool is draining, but there are no running
+				// instances. In any case, we don't want to deadlock here, so we will at least
+				// cancel the request with an error.
+				dp.Logger.Warningf("cannot serve the request: pool is draining")
+				req.err <- ErrPoolClosed.New()
+				return
+			} else if dn == 0 {
+				// No instances running and there are running requests in the background,
+				// but the policy doesn't allow us to scale up.
+				//
+				// This may happen when there were no requests for a long time, and the
+				// policy is not smart enough to allow us to run even a single instance.
+				//
+				// So we will pretend we are allowed to run one.
+				dn = 1
+			}
+			// dn > 0
+		}
+		if d, ok := dp.peekIdle(); ok {
+			returnDriver(d)
+			return
+		}
+
+		if dn > 0 {
+			// allowed to scale up
+			select {
+			case d := <-dp.put:
+				returnDriver(d)
+			case err := <-dp.spawnErr:
+				req.err <- err
+			case dp.spawn <- struct{}{}:
+				// spawn request sent to the spawn goroutine
+				select {
+				case d := <-dp.put:
+					returnDriver(d)
+				case err := <-dp.spawnErr:
+					req.err <- err
+				case <-req.cancel:
+				}
+			case <-req.cancel:
+			}
+			return
+		}
+		// dn <= 0
+
+		// not allowed to scale up or we are scaling down
+		select {
+		case <-req.cancel:
+			return
+		case err := <-dp.spawnErr:
+			req.err <- err
+			return
+		case d := <-dp.put:
+			if dn == 0 {
+				// exactly the right amount of instances
+				returnDriver(d)
+				return
+			}
+			// bad luck - we are scaling down
+			// TODO(dennwc): add some metric to track if there are cases when the
+			//               scaling policy asks us to drain and then asks to scale
+			//               back up - we could have returned this driver to the
+			//               client instead
+			dp.killDriver(d)
+		case <-dp.rescale:
+			// worth to restart the loop
+		}
+	}
+}
+
+// drain waits until all instances are stopped. Should only be called from the
+// manager goroutine. It assumes the stop channel already triggered.
+func (dp *DriverPool) drain() {
+	defer dp.target.Set(0)
+	for {
+		d, ok := dp.peekIdle()
+		if !ok {
+			break
+		}
+		dp.killDriver(d)
+	}
+	for dp.running.Value() > 0 {
+		d := <-dp.put
+		dp.killDriver(d)
+	}
+}
+
+// manageDrivers is the main goroutine responsible for managing drivers.
+// It will accept all client requests for drivers if there are no drivers in the idle state.
+// It will also take care of draining instances when the pool closes.
+func (dp *DriverPool) manageDrivers() {
+	defer close(dp.stopped)
+	defer dp.wg.Done()
+	defer dp.drain()
+
+	for {
+		select {
+		case d := <-dp.put:
+			dp.setIdle(d)
+		case req := <-dp.get:
+			dp.waitOrScale(req)
+		case <-dp.rescale:
+			dp.scale()
+		case <-dp.stop:
+			return
+		}
+	}
+}
+
+// getIdle returns an idle driver from the queue. It won't check the driver status.
+// After the driver is returned, it's owned by the caller, but it still counts toward the
+// pool scaling limit. The caller should put the instance back to the pool even if the
+// driver fails.
+func (dp *DriverPool) getIdle(rctx context.Context) (Driver, error) {
+	// fast path - get an idle driver directly from the pool
+	// this function executes on the current goroutine
+	if d, ok := dp.peekIdle(); ok {
+		return d, nil
+	}
+
+	// slow path - ask the manager goroutine to pick an instance for us
+	dp.requests.Add(1)
+	defer dp.requests.Add(-1)
+
+	// ensure we can cancel our request on return
+	ctx, cancel := context.WithCancel(rctx)
+	defer cancel()
+
+	resp := make(chan Driver)
+	errc := make(chan error, 1)
+	req := driverRequest{
+		out: resp, err: errc, cancel: ctx.Done(),
+	}
+	select {
+	case <-req.cancel: // parent context cancelled
+		return nil, ctx.Err()
+	case err := <-errc:
+		return nil, err
+	case dp.get <- req: // send request to get a driver
+		select {
+		case <-req.cancel:
+			return nil, ctx.Err()
+		case err := <-errc:
+			return nil, err
+		case d, ok := <-resp:
+			if ok {
+				return d, nil
+			}
+		case <-dp.stop:
+		}
+	case <-dp.stop:
+	}
+	return nil, ErrPoolClosed.New()
+}
+
+// putDriver returns the driver to the pool.
+func (dp *DriverPool) putDriver(d Driver) error {
+	if err := dp.checkStatus(d); err != nil {
+		return err
+	}
+	select {
+	case <-dp.stop:
+		dp.killDriver(d)
+		return ErrPoolClosed.New()
+	case dp.put <- d:
+	}
+	return nil
+}
+
+// checkStatus will check if driver is still active. If not, the function returns an error
+// and removes the driver from the pool.
+func (dp *DriverPool) checkStatus(d Driver) error {
+	status, err := d.Status()
+	if err != nil {
+		dp.Logger.Errorf("error getting driver status, removing: %s", err)
+		dp.killDriver(d)
+		return err
+	} else if status != protocol.Running {
+		dp.Logger.Debugf("removing stopped driver")
+		dp.killDriver(d)
+		return errDriverStopped.New()
+	}
+	return nil
 }
 
 // FunctionCtx is a function to be executed using a given driver.
@@ -222,55 +571,38 @@ func (dp *DriverPool) ExecuteCtx(rctx context.Context, c FunctionCtx) error {
 
 	d, err := dp.getDriver(ctx)
 	if err != nil {
+		dp.errors.Add(1)
 		return err
 	}
+	defer dp.putDriver(d)
 
-	status, err := d.Status()
-	if err != nil {
-		return err
-	}
-
-	if status != protocol.Running {
-		defer func() {
-			dp.stats.exited.Add(1)
-			dp.Logger.Debugf("removing stopped driver")
-			if err := dp.remove(d); err != nil {
-				dp.Logger.Errorf("error removing stopped driver: %s", err)
-			}
-		}()
-
-		return dp.ExecuteCtx(ctx, c)
-	}
-
-	defer dp.queue.Put(d)
 	if err := c(ctx, d); err != nil {
-		dp.stats.errors.Add(1)
+		dp.errors.Add(1)
 		return err
 	}
 
-	dp.stats.success.Add(1)
+	dp.success.Add(1)
 	return nil
 }
 
+// getDriver returns an idle driver instance. It will ensure that driver is running.
 func (dp *DriverPool) getDriver(rctx context.Context) (Driver, error) {
 	sp, ctx := opentracing.StartSpanFromContext(rctx, "bblfshd.pool.getDriver")
 	defer sp.Finish()
 
-	dp.stats.waiting.Add(1)
-	defer dp.stats.waiting.Add(-1)
-
-	d, more, err := dp.queue.GetWithContext(ctx)
-	if err != nil {
-		dp.stats.errors.Add(1)
-		dp.Logger.Warningf("unable to allocate a driver instance: %s", err)
-		return nil, err
+	for {
+		d, err := dp.getIdle(ctx)
+		if ErrPoolClosed.Is(err) {
+			return nil, err
+		} else if err != nil {
+			dp.Logger.Warningf("unable to allocate a driver instance: %s", err)
+			return nil, err
+		}
+		if dp.checkStatus(d) == nil {
+			return d, nil
+		}
+		// retry until the deadline
 	}
-
-	if !more {
-		return nil, ErrPoolClosed.New()
-	}
-
-	return d, nil
 }
 
 // Current returns a list of the current instances from the pool, it includes
@@ -278,8 +610,8 @@ func (dp *DriverPool) getDriver(rctx context.Context) (Driver, error) {
 func (dp *DriverPool) Current() []Driver {
 	dp.drivers.RLock()
 	defer dp.drivers.RUnlock()
-	list := make([]Driver, 0, len(dp.drivers.byID))
-	for _, d := range dp.drivers.byID {
+	list := make([]Driver, 0, len(dp.drivers.all))
+	for d := range dp.drivers.all {
 		list = append(list, d)
 	}
 	return list
@@ -288,76 +620,40 @@ func (dp *DriverPool) Current() []Driver {
 // State current state of driver pool.
 func (dp *DriverPool) State() *protocol.DriverPoolState {
 	return &protocol.DriverPoolState{
-		Wanted:  dp.stats.instances.Value(),
-		Running: len(dp.Current()),
-		Waiting: dp.stats.waiting.Value(),
-		Success: dp.stats.success.Value(),
-		Errors:  dp.stats.errors.Value(),
-		Exited:  dp.stats.exited.Value(),
+		Wanted:  dp.target.Value(),
+		Running: dp.running.Value(),
+		Waiting: dp.requests.Value(),
+		Success: dp.success.Value(),
+		Errors:  dp.errors.Value(),
+		Exited:  dp.exited.Value(),
 	}
 }
 
 // Stop stop the driver pool, including all its underlying driver instances.
 func (dp *DriverPool) Stop() error {
-	if dp.closed {
+	if dp.stop == nil {
+		return nil // not running
+	}
+	select {
+	case <-dp.stop:
+		<-dp.stopped
 		return ErrPoolClosed.New()
-	} else if !dp.running {
+	case <-dp.stopped:
+		return ErrPoolClosed.New()
+	default:
+		close(dp.stop)
+		dp.wg.Wait()
+		<-dp.stopped
 		return nil
 	}
-
-	dp.running = false
-	dp.closed = true
-	dp.close <- struct{}{}
-	<-dp.close
-	if err := dp.setInstances(context.Background(), 0); err != nil {
-		return err
-	}
-
-	return dp.queue.Close()
-}
-
-type driverQueue struct {
-	c chan Driver
-	n *atomicInt
-}
-
-func newDriverQueue() *driverQueue {
-	return &driverQueue{c: make(chan Driver), n: &atomicInt{}}
-}
-
-func (q *driverQueue) Put(d Driver) {
-	q.n.Add(1)
-	go func() { q.c <- d }()
-}
-
-func (q *driverQueue) Get() (driver Driver, more bool) {
-	defer q.n.Add(-1)
-
-	d, more := <-q.c
-	return d, more
-}
-
-func (q *driverQueue) GetWithContext(ctx context.Context) (driver Driver, more bool, err error) {
-	select {
-	case d, more := <-q.c:
-		q.n.Add(-1)
-		return d, more, nil
-	case <-ctx.Done():
-		return nil, true, ctx.Err()
-	}
-}
-
-func (q *driverQueue) Size() int {
-	return int(q.n.Value())
-}
-
-func (q *driverQueue) Close() error {
-	close(q.c)
-	return nil
 }
 
 type atomicInt struct {
 	val int32
+}
+
+func (c *atomicInt) Set(n int) int {
+	return int(atomic.SwapInt32(&c.val, int32(n)))
 }
 
 func (c *atomicInt) Add(n int) {
@@ -384,7 +680,7 @@ func DefaultScalingPolicy() ScalingPolicy {
 }
 
 type movingAverage struct {
-	sub   ScalingPolicy
+	sub   ScalingPolicy // policy that will use an average
 	loads []float64
 	pos   int
 }
@@ -421,28 +717,28 @@ func (p *movingAverage) Scale(total, load int) int {
 }
 
 type minMax struct {
-	Sub      ScalingPolicy
-	Min, Max int
+	sub      ScalingPolicy // policy to take min-max from
+	min, max int
 }
 
 // MinMax wraps a ScalingPolicy and applies a minimum and maximum to the number
 // of instances.
 func MinMax(min, max int, p ScalingPolicy) ScalingPolicy {
 	return &minMax{
-		Min: min,
-		Max: max,
-		Sub: p,
+		sub: p,
+		min: min,
+		max: max,
 	}
 }
 
 func (p *minMax) Scale(total, load int) int {
-	s := p.Sub.Scale(total, load)
-	if s > p.Max {
-		return p.Max
+	s := p.sub.Scale(total, load)
+	if s > p.max {
+		return p.max
 	}
 
-	if s < p.Min {
-		return p.Min
+	if s < p.min {
+		return p.min
 	}
 
 	return s
@@ -474,4 +770,32 @@ func (p *aimd) Scale(total, load int) int {
 	}
 
 	return res
+}
+
+// chanContext wraps a receive-only channel to act as a context.
+type chanContext <-chan struct{}
+
+// Deadline implements context.Context.
+func (c chanContext) Deadline() (time.Time, bool) {
+	return time.Time{}, false
+}
+
+// Done implements context.Context.
+func (c chanContext) Done() <-chan struct{} {
+	return c
+}
+
+// Err implements context.Context.
+func (c chanContext) Err() error {
+	select {
+	case <-c:
+		return context.Canceled
+	default:
+	}
+	return nil
+}
+
+// Value implements context.Context.
+func (c chanContext) Value(key interface{}) interface{} {
+	return nil
 }

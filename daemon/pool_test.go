@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/bblfsh/bblfshd/daemon/protocol"
+
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -24,10 +26,10 @@ func TestDriverPoolClose_StartNoopClose(t *testing.T) {
 	require.NoError(err)
 
 	err = dp.Stop()
-	require.True(ErrPoolClosed.Is(err))
+	require.True(ErrPoolClosed.Is(err), "%v", err)
 
 	err = dp.ExecuteCtx(ctx, nil)
-	require.True(ErrPoolClosed.Is(err))
+	require.True(ErrPoolClosed.Is(err), "%v", err)
 }
 
 func TestDriverPoolCurrent(t *testing.T) {
@@ -39,6 +41,9 @@ func TestDriverPoolCurrent(t *testing.T) {
 	require.NoError(err)
 
 	require.Len(dp.Current(), 1)
+
+	err = dp.Stop()
+	require.NoError(err)
 }
 
 func TestDriverPoolExecute_Timeout(t *testing.T) {
@@ -62,18 +67,19 @@ func TestDriverPoolExecute_Timeout(t *testing.T) {
 
 func TestDriverPoolState(t *testing.T) {
 	require := require.New(t)
+	assert := assert.New(t)
 
 	dp := NewDriverPool(newMockDriver)
 
 	err := dp.Start(context.Background())
 	require.NoError(err)
-	require.Equal(dp.State().Wanted, 1)
-	require.Equal(dp.State().Running, 1)
+	assert.Equal(1, dp.State().Wanted)
+	assert.Equal(1, dp.State().Running)
 
 	err = dp.Stop()
 	require.NoError(err)
-	require.Equal(dp.State().Wanted, 0)
-	require.Equal(dp.State().Running, 0)
+	assert.Equal(0, dp.State().Wanted)
+	assert.Equal(0, dp.State().Running)
 
 }
 
@@ -86,6 +92,8 @@ func TestDiverPoolStart_FailingDriver(t *testing.T) {
 
 	err := dp.Start(context.Background())
 	require.EqualError(err, "driver error")
+	err = dp.Stop()
+	require.True(ErrPoolClosed.Is(err))
 }
 
 func TestDriverPoolExecute_Recovery(t *testing.T) {
@@ -106,7 +114,7 @@ func TestDriverPoolExecute_Recovery(t *testing.T) {
 		err := dp.ExecuteCtx(ctx, func(_ context.Context, d Driver) error {
 			require.NotNil(d)
 
-			if i%10 == 0 {
+			if i%10 == 9 {
 				d.(*mockDriver).MockStatus = protocol.Stopped
 			}
 
@@ -114,7 +122,9 @@ func TestDriverPoolExecute_Recovery(t *testing.T) {
 		})
 
 		require.Nil(err)
-		require.Len(dp.Current(), 1)
+		if i%10 != 9 {
+			require.Len(dp.Current(), 1)
+		}
 	}
 
 	err = dp.Stop()
@@ -159,8 +169,8 @@ func TestDriverPoolExecute_Parallel(t *testing.T) {
 	require.NoError(err)
 
 	var wg sync.WaitGroup
-	wg.Add(100)
 	for i := 0; i < 100; i++ {
+		wg.Add(1)
 		go func() {
 			err := dp.ExecuteCtx(ctx, func(_ context.Context, _ Driver) error {
 				defer wg.Done()
