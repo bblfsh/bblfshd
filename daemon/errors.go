@@ -21,4 +21,6 @@ var (
 	ErrUnauthorized = errors.NewKind("unauthorized: authentication required to access %s (image: %s)")
 	// ErrLanguageDetection indicates that language was not detected by Enry.
 	ErrLanguageDetection = errors.NewKind("could not autodetect language")
+	// ErrUnknownEncoding is returned for parse requests with a file content in a non-UTF8 encoding.
+	ErrUnknownEncoding = errors.NewKind("unknown source file encoding (expected UTF-8)")
 )
