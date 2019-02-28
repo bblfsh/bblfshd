@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"time"
+	"unicode/utf8"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
@@ -39,6 +40,12 @@ func (s *ServiceV2) Parse(rctx xcontext.Context, req *protocol2.ParseRequest) (r
 	if req.Content == "" {
 		logrus.Debugf("empty request received, returning empty UAST")
 		return resp, nil
+	}
+
+	if !utf8.ValidString(req.Content) {
+		err := ErrUnknownEncoding.New()
+		logrus.Debugf("parse v2 (%s): %s", req.Filename, err)
+		return nil, err
 	}
 
 	language, dp, err := s.selectPool(ctx, req.Language, req.Content, req.Filename)
@@ -136,6 +143,12 @@ func (d *Service) Parse(req *protocol1.ParseRequest) *protocol1.ParseResponse {
 		logrus.Debugf("empty request received, returning empty UAST")
 		return resp
 	}
+	if !utf8.ValidString(req.Content) {
+		err := ErrUnknownEncoding.New()
+		logrus.Debugf("parse v1 (%s): %s", req.Filename, err)
+		resp.Response = newResponseFromError(err)
+		return resp
+	}
 
 	language, dp, err := d.selectPool(context.TODO(), req.Language, req.Content, req.Filename)
 	if err != nil {
@@ -194,6 +207,13 @@ func (d *Service) NativeParse(req *protocol1.NativeParseRequest) *protocol1.Nati
 
 	if req.Content == "" {
 		logrus.Debugf("empty request received, returning empty AST")
+		return resp
+	}
+
+	if !utf8.ValidString(req.Content) {
+		err := ErrUnknownEncoding.New()
+		logrus.Debugf("native parse v1 (%s): %s", req.Filename, err)
+		resp.Response = newResponseFromError(err)
 		return resp
 	}
 
