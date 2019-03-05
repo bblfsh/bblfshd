@@ -190,7 +190,9 @@ func (dp *DriverPool) runPolicy(ctx context.Context) {
 
 		target := dp.ScalingPolicy.Scale(total, load-idle)
 		if target < 1 {
-			target = 1 // there should be always at least 1 instance
+			// there should be always at least 1 instance
+			// TODO(dennwc): policies must never return 0 instances
+			target = 1
 		}
 		old := dp.targetSize.Set(target)
 		if old != target {
@@ -319,10 +321,29 @@ func (dp *DriverPool) scale() {
 	if dn < 0 {
 		// scale down
 		for i := 0; i < -dn; i++ {
+			select {
+			case <-stop:
+				return
+			case req := <-dp.get:
+				// no idle drivers, and there is a client waiting for us
+				// do the scaling "inline" while serving the request
+				dp.rescaleLater(req)
+				return
+			case d := <-dp.put:
+				// prefer to kill driver that are returned by clients instead an idle ones
+				// idle map may be accessed without management goroutine, thus it's more
+				// valuable to keep it full
+				dp.killDriver(d)
+				continue
+			default:
+			}
+			// only idle drivers remain - start killing those
 			if d, ok := dp.peekIdle(); ok {
 				dp.killDriver(d)
 				continue
 			}
+			// no drivers are idle, only way to downscale is to wait for clients to put
+			// their drivers back to the pool
 			select {
 			case <-stop:
 				return
