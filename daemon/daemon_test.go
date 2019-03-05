@@ -72,38 +72,42 @@ func TestDaemonParse_MockedDriverParallelClients(t *testing.T) {
 
 	var wg sync.WaitGroup
 	for i := 0; i < 20; i++ {
+		i := i
 		wg.Add(1)
-		conn, err := grpc.Dial(lis.Addr().String(),
-			grpc.WithBlock(),
-			grpc.WithInsecure(),
-			grpc.WithTimeout(2*time.Second),
-		)
 
-		require.NoError(err)
-		go func(i int, conn *grpc.ClientConn) {
+		go func() {
 			defer wg.Done()
+
+			conn, err := grpc.Dial(lis.Addr().String(),
+				grpc.WithBlock(),
+				grpc.WithInsecure(),
+				grpc.WithTimeout(2*time.Second),
+			)
+			require.NoError(err)
+			defer conn.Close()
+
 			client := protocol.NewProtocolServiceClient(conn)
 			var iwg sync.WaitGroup
 			for j := 0; j < 50; j++ {
 				iwg.Add(1)
-				go func(i, j int) {
+				j := j
+				go func() {
 					defer iwg.Done()
 					content := fmt.Sprintf("# -*- python -*-\nimport foo%d_%d", i, j)
 					resp, err := client.Parse(context.TODO(), &protocol.ParseRequest{Content: content})
 					require.NoError(err)
 					require.Equal(protocol.Ok, resp.Status, "%s: %v", resp.Status, resp.Errors)
 					require.Equal(content, resp.UAST.Token)
-				}(i, j)
+				}()
 			}
 			iwg.Wait()
 
 			err = conn.Close()
 			require.NoError(err)
-		}(i, conn)
+		}()
 	}
 
 	wg.Wait()
-
 }
 
 func buildMockedDaemon(t *testing.T, images ...runtime.DriverImage) (*Daemon, string) {
