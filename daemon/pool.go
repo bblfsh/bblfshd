@@ -55,18 +55,20 @@ type DriverPool struct {
 	// get serves as a request-response channel to get an idle driver instance.
 	// This channel is used by clients and is accepted by the manager goroutine.
 	get chan driverRequest
-	// put returns the driver to the pool. The driver should be active.
+	// put returns the driver to the pool. The driver must be active.
 	put chan Driver
 
-	// rescale is a signal passed from the runPolicy goroutine to the manager goroutine.
+	// rescale accepts signals passed from the runPolicy goroutine to the manager goroutine.
 	// It allows to re-evaluate scaling conditions when waiting for an idle driver.
 	rescale chan struct{}
 
-	// spawn signals the spawner goroutine to run a new driver.
+	// spawn accepts signals to the spawner goroutine to run a new driver.
 	// The driver is returned on the put channel.
 	spawn chan struct{}
 
-	// spawnErr is an optional channel to signal driver creation failures.
+	// spawnErr optionally communicates the driver creation failures to client goroutines.
+	// The spawn goroutine won't block waiting for this channel to accept an error and will
+	// log the error instead, if no client goroutines are willing to wait for it.
 	spawnErr chan error
 
 	drivers struct {
@@ -75,10 +77,10 @@ type DriverPool struct {
 		all  map[Driver]struct{}
 	}
 
-	requests atomicInt // requests waiting for a driver
-	running  atomicInt // total running instances; synced with len(drivers.all)
-	spawning atomicInt // instances being started
-	target   atomicInt // instances wanted
+	requests   atomicInt // requests waiting for a driver
+	running    atomicInt // total running instances; synced with len(drivers.all)
+	spawning   atomicInt // instances being started
+	targetSize atomicInt // instances wanted
 
 	exited  atomicInt // drivers exited
 	success atomicInt // requests executed successfully
@@ -86,9 +88,14 @@ type DriverPool struct {
 }
 
 type driverRequest struct {
+	// cancel channel is closes then the client request is cancelled. Set to ctx.Done().
 	cancel <-chan struct{}
-	out    chan<- Driver
-	err    chan<- error
+	// out receives a single Driver value to the client. Channel may also be closed,
+	// signalling that the pool is closing. Either out or err will be triggered.
+	out chan<- Driver
+	// err receives a single error value in case the pool cannot retrieve or create
+	// a driver instance. Either out or err will be triggered.
+	err chan<- error
 }
 
 // FactoryFunction is a factory function that creates new DriverInstance's.
@@ -126,7 +133,7 @@ func (dp *DriverPool) Start(ctx context.Context) error {
 	dp.drivers.idle = make(map[Driver]struct{})
 	dp.drivers.all = make(map[Driver]struct{})
 
-	dp.target.Set(1)
+	dp.targetSize.Set(1)
 
 	dp.wg.Add(3)
 	go dp.runSpawn()
@@ -167,7 +174,7 @@ func (dp *DriverPool) runPolicy() {
 		if target < 1 {
 			target = 1 // there should be always at least 1 instance
 		}
-		old := dp.target.Set(target)
+		old := dp.targetSize.Set(target)
 		if old != target {
 			// optionally signal to the manager goroutine
 			select {
@@ -264,10 +271,11 @@ func (dp *DriverPool) killDriver(d Driver) {
 }
 
 // scaleDiff returns current difference between the target number of instances and the
-// current number of running instances.
+// current number of running instances. This is positive when scaling up, and negative
+// when scaling down.
 func (dp *DriverPool) scaleDiff() int {
 	total := dp.running.Value()
-	return dp.target.Value() - total
+	return dp.targetSize.Value() - total
 }
 
 // scale the driver pool to the current target number of instances.
@@ -429,7 +437,7 @@ func (dp *DriverPool) waitOrScale(req driverRequest) {
 // drain waits until all instances are stopped. Should only be called from the
 // manager goroutine. It assumes the stop channel already triggered.
 func (dp *DriverPool) drain() {
-	defer dp.target.Set(0)
+	defer dp.targetSize.Set(0)
 	for {
 		d, ok := dp.peekIdle()
 		if !ok {
@@ -620,7 +628,7 @@ func (dp *DriverPool) Current() []Driver {
 // State current state of driver pool.
 func (dp *DriverPool) State() *protocol.DriverPoolState {
 	return &protocol.DriverPoolState{
-		Wanted:  dp.target.Value(),
+		Wanted:  dp.targetSize.Value(),
 		Running: dp.running.Value(),
 		Waiting: dp.requests.Value(),
 		Success: dp.success.Value(),
