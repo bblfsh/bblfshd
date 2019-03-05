@@ -655,6 +655,11 @@ func (dp *DriverPool) getDriver(rctx context.Context) (Driver, error) {
 	sp, ctx := opentracing.StartSpanFromContext(rctx, "bblfshd.pool.getDriver")
 	defer sp.Finish()
 
+	if dp.poolCtx == nil {
+		// not running
+		return nil, ErrPoolClosed.New()
+	}
+
 	for {
 		d, err := dp.getIdle(ctx)
 		if ErrPoolClosed.Is(err) {

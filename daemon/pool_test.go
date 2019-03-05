@@ -58,10 +58,14 @@ func TestDriverPoolExecute_Timeout(t *testing.T) {
 		return newMockDriver(ctx)
 	})
 
+	err := dp.Start(context.Background())
+	require.NoError(err)
+	defer dp.Stop()
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond)
 	defer cancel()
 
-	err := dp.ExecuteCtx(ctx, nil)
+	err = dp.ExecuteCtx(ctx, nil)
 	require.True(err == context.DeadlineExceeded)
 }
 
