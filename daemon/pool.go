@@ -286,6 +286,16 @@ func (dp *DriverPool) scaleDiff() int {
 	return dp.targetSize.Value() - total
 }
 
+// rescaleLater interrupts the scaling and serves the request first.
+// It will make sure to continue scaling later.
+func (dp *DriverPool) rescaleLater(req driverRequest) {
+	select {
+	case dp.rescale <- struct{}{}:
+	default:
+	}
+	dp.waitOrScale(req)
+}
+
 // scale the driver pool to the current target number of instances.
 func (dp *DriverPool) scale() {
 	dn := dp.scaleDiff()
@@ -293,15 +303,6 @@ func (dp *DriverPool) scale() {
 		return
 	}
 
-	// rescaleLater interrupts the scaling and serves the request first.
-	// It will make sure to continue scaling later.
-	rescaleLater := func(req driverRequest) {
-		select {
-		case dp.rescale <- struct{}{}:
-		default:
-		}
-		dp.waitOrScale(req)
-	}
 	if dn < 0 {
 		// scale down
 		for i := 0; i < -dn; i++ {
@@ -313,7 +314,7 @@ func (dp *DriverPool) scale() {
 			case <-dp.stop:
 				return
 			case req := <-dp.get:
-				rescaleLater(req)
+				dp.rescaleLater(req)
 				return
 			case d := <-dp.put:
 				dp.killDriver(d)
@@ -325,7 +326,7 @@ func (dp *DriverPool) scale() {
 	for i := 0; i < dn; i++ {
 		select {
 		case req := <-dp.get:
-			rescaleLater(req)
+			dp.rescaleLater(req)
 			return
 		case <-dp.stop:
 			return
@@ -348,6 +349,63 @@ func (dp *DriverPool) scale() {
 	}
 }
 
+// returnDriver will either return the driver to the client,
+// or will return it to the idle driver queue.
+func (dp *DriverPool) returnDriver(req driverRequest, d Driver) {
+	select {
+	case <-req.cancel:
+		dp.setIdle(d)
+	case req.out <- d:
+	}
+}
+
+// scaleUp serves the user request, assuming that the pool is allowed to scale up.
+func (dp *DriverPool) scaleUp(req driverRequest) {
+	select {
+	case d := <-dp.put:
+		dp.returnDriver(req, d)
+	case err := <-dp.spawnErr:
+		req.err <- err
+	case dp.spawn <- struct{}{}:
+		// spawn request sent to the spawn goroutine
+		select {
+		case d := <-dp.put:
+			dp.returnDriver(req, d)
+		case err := <-dp.spawnErr:
+			req.err <- err
+		case <-req.cancel:
+		}
+	case <-req.cancel:
+	}
+}
+
+// scaleDown serves the user request, assuming that the pool is scaling down, or not
+// allowed to scale up anymore. It returns the flag whether the request was fulfilled.
+func (dp *DriverPool) scaleDown(req driverRequest, exact bool) bool {
+	select {
+	case <-req.cancel:
+		return true
+	case err := <-dp.spawnErr:
+		req.err <- err
+		return true
+	case d := <-dp.put:
+		if exact {
+			// exactly the right amount of instances
+			dp.returnDriver(req, d)
+			return true
+		}
+		// bad luck - we are scaling down
+		// TODO(dennwc): add some metric to track if there are cases when the
+		//               scaling policy asks us to drain and then asks to scale
+		//               back up - we could have returned this driver to the
+		//               client instead
+		dp.killDriver(d)
+	case <-dp.rescale:
+		// worth to re-evaluate scaling conditions
+	}
+	return false
+}
+
 // waitOrScale is executed on the manager goroutine. It will either scale the pool up,
 // wait for an instance to become available, or scale the pool down. The function will
 // block until the request is served or cancelled.
@@ -355,16 +413,6 @@ func (dp *DriverPool) waitOrScale(req driverRequest) {
 	// Note that we don't care about the pool closing in this function.
 	// If it happens, the client will receive this signal before we do and will
 	// cancel the request anyway. This reduces the number of select statements.
-
-	// returnDriver will either return the driver to the client,
-	// or will return it to the idle driver queue.
-	returnDriver := func(d Driver) {
-		select {
-		case <-req.cancel:
-			dp.setIdle(d)
-		case req.out <- d:
-		}
-	}
 
 	// loop allows to re-evaluate scaling conditions
 	for {
@@ -391,53 +439,20 @@ func (dp *DriverPool) waitOrScale(req driverRequest) {
 			// dn > 0
 		}
 		if d, ok := dp.peekIdle(); ok {
-			returnDriver(d)
+			dp.returnDriver(req, d)
 			return
 		}
 
 		if dn > 0 {
 			// allowed to scale up
-			select {
-			case d := <-dp.put:
-				returnDriver(d)
-			case err := <-dp.spawnErr:
-				req.err <- err
-			case dp.spawn <- struct{}{}:
-				// spawn request sent to the spawn goroutine
-				select {
-				case d := <-dp.put:
-					returnDriver(d)
-				case err := <-dp.spawnErr:
-					req.err <- err
-				case <-req.cancel:
-				}
-			case <-req.cancel:
-			}
+			dp.scaleUp(req)
 			return
 		}
 		// dn <= 0
 
 		// not allowed to scale up or we are scaling down
-		select {
-		case <-req.cancel:
+		if dp.scaleDown(req, dn == 0) {
 			return
-		case err := <-dp.spawnErr:
-			req.err <- err
-			return
-		case d := <-dp.put:
-			if dn == 0 {
-				// exactly the right amount of instances
-				returnDriver(d)
-				return
-			}
-			// bad luck - we are scaling down
-			// TODO(dennwc): add some metric to track if there are cases when the
-			//               scaling policy asks us to drain and then asks to scale
-			//               back up - we could have returned this driver to the
-			//               client instead
-			dp.killDriver(d)
-		case <-dp.rescale:
-			// worth to restart the loop
 		}
 	}
 }
