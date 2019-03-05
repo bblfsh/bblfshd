@@ -136,9 +136,19 @@ func (dp *DriverPool) Start(ctx context.Context) error {
 	dp.targetSize.Set(1)
 
 	dp.wg.Add(3)
-	go dp.runSpawn()
-	go dp.runPolicy()
-	go dp.manageDrivers()
+	go func() {
+		defer dp.wg.Done()
+		dp.runSpawn()
+	}()
+	go func() {
+		defer dp.wg.Done()
+		dp.runPolicy()
+	}()
+	go func() {
+		defer close(dp.stopped)
+		defer dp.wg.Done()
+		dp.manageDrivers()
+	}()
 
 	// wait for a single instance to come up
 	d, err := dp.getDriver(ctx)
@@ -155,7 +165,6 @@ func (dp *DriverPool) Start(ctx context.Context) error {
 // runPolicy goroutine re-evaluates the scaling policy on a regular time interval and sets
 // a target number of instances. The scaling itself will be performed by the manager goroutine.
 func (dp *DriverPool) runPolicy() {
-	defer dp.wg.Done()
 	ticker := time.NewTicker(time.Millisecond * 100)
 	defer ticker.Stop()
 	for {
@@ -220,7 +229,6 @@ func (dp *DriverPool) spawnOne() {
 
 // runSpawn is a goroutine responsible for spawning new instances in the background.
 func (dp *DriverPool) runSpawn() {
-	defer dp.wg.Done()
 	for {
 		select {
 		case <-dp.stop:
@@ -455,8 +463,6 @@ func (dp *DriverPool) drain() {
 // It will accept all client requests for drivers if there are no drivers in the idle state.
 // It will also take care of draining instances when the pool closes.
 func (dp *DriverPool) manageDrivers() {
-	defer close(dp.stopped)
-	defer dp.wg.Done()
 	defer dp.drain()
 
 	for {
