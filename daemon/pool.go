@@ -47,8 +47,12 @@ type DriverPool struct {
 	// wg tracks all goroutines owned by the driver pool.
 	wg sync.WaitGroup
 
-	// stop channel should be closed to send a stop signal to the pool.
-	stop chan struct{}
+	// poolCtx will be cancelled as a signal that the pool is closing.
+	poolCtx context.Context
+	// stop is called to send a stop channel to the pool. stopped channel will be closed
+	// when the pool is fully stopped.
+	stop func()
+
 	// stopped is closed when the pool (and the manager goroutine) stops.
 	stopped chan struct{}
 
@@ -114,7 +118,7 @@ func NewDriverPool(factory FactoryFunction) *DriverPool {
 
 // Start stats the driver pool.
 func (dp *DriverPool) Start(ctx context.Context) error {
-	if dp.stop != nil {
+	if dp.poolCtx != nil {
 		return ErrPoolRunning.New()
 	}
 	select {
@@ -123,7 +127,10 @@ func (dp *DriverPool) Start(ctx context.Context) error {
 	default:
 	}
 
-	dp.stop = make(chan struct{})
+	// Yes, it's discouraged to use a long-lived context.
+	// But an alternative is to re-implement a root Context, which is even worse.
+	dp.poolCtx, dp.stop = context.WithCancel(context.Background())
+
 	dp.stopped = make(chan struct{})
 	dp.spawn = make(chan struct{})
 	dp.spawnErr = make(chan error)
@@ -138,11 +145,11 @@ func (dp *DriverPool) Start(ctx context.Context) error {
 	dp.wg.Add(3)
 	go func() {
 		defer dp.wg.Done()
-		dp.runSpawn()
+		dp.runSpawn(dp.poolCtx)
 	}()
 	go func() {
 		defer dp.wg.Done()
-		dp.runPolicy()
+		dp.runPolicy(dp.poolCtx)
 	}()
 	go func() {
 		defer close(dp.stopped)
@@ -164,12 +171,14 @@ func (dp *DriverPool) Start(ctx context.Context) error {
 
 // runPolicy goroutine re-evaluates the scaling policy on a regular time interval and sets
 // a target number of instances. The scaling itself will be performed by the manager goroutine.
-func (dp *DriverPool) runPolicy() {
+func (dp *DriverPool) runPolicy(ctx context.Context) {
 	ticker := time.NewTicker(time.Millisecond * 100)
 	defer ticker.Stop()
+
+	stop := ctx.Done()
 	for {
 		select {
-		case <-dp.stop:
+		case <-stop:
 			return
 		case <-ticker.C:
 		}
@@ -204,8 +213,10 @@ func (dp *DriverPool) spawnOne() {
 	defer ticker.Stop()
 
 	// keep trying in case of a failure
+	ctx := dp.poolCtx
+	stop := ctx.Done()
 	for {
-		d, err := dp.factory(chanContext(dp.stop))
+		d, err := dp.factory(ctx)
 		if err == nil {
 			dp.drivers.Lock()
 			dp.drivers.all[d] = struct{}{}
@@ -219,7 +230,7 @@ func (dp *DriverPool) spawnOne() {
 		}
 		dp.Logger.Errorf("failed to start a driver: %v", err)
 		select {
-		case <-dp.stop:
+		case <-stop:
 			return // cancel
 		case dp.spawnErr <- err:
 		case <-ticker.C:
@@ -228,10 +239,11 @@ func (dp *DriverPool) spawnOne() {
 }
 
 // runSpawn is a goroutine responsible for spawning new instances in the background.
-func (dp *DriverPool) runSpawn() {
+func (dp *DriverPool) runSpawn(ctx context.Context) {
+	stop := ctx.Done()
 	for {
 		select {
-		case <-dp.stop:
+		case <-stop:
 			return
 		case <-dp.spawn:
 			dp.spawnOne()
@@ -303,6 +315,7 @@ func (dp *DriverPool) scale() {
 		return
 	}
 
+	stop := dp.poolCtx.Done()
 	if dn < 0 {
 		// scale down
 		for i := 0; i < -dn; i++ {
@@ -311,7 +324,7 @@ func (dp *DriverPool) scale() {
 				continue
 			}
 			select {
-			case <-dp.stop:
+			case <-stop:
 				return
 			case req := <-dp.get:
 				dp.rescaleLater(req)
@@ -328,7 +341,7 @@ func (dp *DriverPool) scale() {
 		case req := <-dp.get:
 			dp.rescaleLater(req)
 			return
-		case <-dp.stop:
+		case <-stop:
 			return
 		case d := <-dp.put:
 			// received some existing instance
@@ -338,7 +351,7 @@ func (dp *DriverPool) scale() {
 		case dp.spawn <- struct{}{}:
 			// spawn request sent to the spawn goroutine
 			select {
-			case <-dp.stop:
+			case <-stop:
 				return
 			case d := <-dp.put:
 				dp.setIdle(d)
@@ -480,6 +493,7 @@ func (dp *DriverPool) drain() {
 func (dp *DriverPool) manageDrivers() {
 	defer dp.drain()
 
+	stop := dp.poolCtx.Done()
 	for {
 		select {
 		case d := <-dp.put:
@@ -488,7 +502,7 @@ func (dp *DriverPool) manageDrivers() {
 			dp.waitOrScale(req)
 		case <-dp.rescale:
 			dp.scale()
-		case <-dp.stop:
+		case <-stop:
 			return
 		}
 	}
@@ -518,8 +532,9 @@ func (dp *DriverPool) getIdle(rctx context.Context) (Driver, error) {
 	req := driverRequest{
 		out: resp, err: errc, cancel: ctx.Done(),
 	}
+	stop := dp.poolCtx.Done()
 	select {
-	case <-req.cancel: // parent context cancelled
+	case <-req.cancel: // parent context cancelled (same as rctx.Done())
 		return nil, ctx.Err()
 	case err := <-errc:
 		return nil, err
@@ -533,9 +548,9 @@ func (dp *DriverPool) getIdle(rctx context.Context) (Driver, error) {
 			if ok {
 				return d, nil
 			}
-		case <-dp.stop:
+		case <-stop:
 		}
-	case <-dp.stop:
+	case <-stop:
 	}
 	return nil, ErrPoolClosed.New()
 }
@@ -546,7 +561,7 @@ func (dp *DriverPool) putDriver(d Driver) error {
 		return err
 	}
 	select {
-	case <-dp.stop:
+	case <-dp.poolCtx.Done():
 		dp.killDriver(d)
 		return ErrPoolClosed.New()
 	case dp.put <- d:
@@ -660,17 +675,17 @@ func (dp *DriverPool) State() *protocol.DriverPoolState {
 
 // Stop stop the driver pool, including all its underlying driver instances.
 func (dp *DriverPool) Stop() error {
-	if dp.stop == nil {
+	if dp.poolCtx == nil {
 		return nil // not running
 	}
 	select {
-	case <-dp.stop:
+	case <-dp.poolCtx.Done():
 		<-dp.stopped
 		return ErrPoolClosed.New()
 	case <-dp.stopped:
 		return ErrPoolClosed.New()
 	default:
-		close(dp.stop)
+		dp.stop()
 		dp.wg.Wait()
 		<-dp.stopped
 		return nil
@@ -799,32 +814,4 @@ func (p *aimd) Scale(total, load int) int {
 	}
 
 	return res
-}
-
-// chanContext wraps a receive-only channel to act as a context.
-type chanContext <-chan struct{}
-
-// Deadline implements context.Context.
-func (c chanContext) Deadline() (time.Time, bool) {
-	return time.Time{}, false
-}
-
-// Done implements context.Context.
-func (c chanContext) Done() <-chan struct{} {
-	return c
-}
-
-// Err implements context.Context.
-func (c chanContext) Err() error {
-	select {
-	case <-c:
-		return context.Canceled
-	default:
-	}
-	return nil
-}
-
-// Value implements context.Context.
-func (c chanContext) Value(key interface{}) interface{} {
-	return nil
 }
