@@ -64,6 +64,7 @@ type DriverPool struct {
 
 	// rescale accepts signals passed from the runPolicy goroutine to the manager goroutine.
 	// It allows to re-evaluate scaling conditions when waiting for an idle driver.
+	// The channel must have a buffer and sends to this channel must be used with default.
 	rescale chan struct{}
 
 	// spawn accepts signals to the spawner goroutine to run a new driver.
@@ -131,10 +132,15 @@ func (dp *DriverPool) Start(ctx context.Context) error {
 	// But an alternative is to re-implement a root Context, which is even worse.
 	dp.poolCtx, dp.stop = context.WithCancel(context.Background())
 
+	// This channel is read by the pool manager goroutine as a signal to rescale.
+	// The scaling policy goroutine write to this channel whenever the allow number of
+	// drivers changes. The channel must have a buffer of at least 1 and sends to the
+	// channel should not block.
+	dp.rescale = make(chan struct{}, 1)
+
 	dp.stopped = make(chan struct{})
 	dp.spawn = make(chan struct{})
 	dp.spawnErr = make(chan error)
-	dp.rescale = make(chan struct{}, 1)
 	dp.get = make(chan driverRequest)
 	dp.put = make(chan Driver)
 	dp.drivers.idle = make(map[Driver]struct{})
@@ -196,8 +202,12 @@ func (dp *DriverPool) runPolicy(ctx context.Context) {
 		}
 		old := dp.targetSize.Set(target)
 		if old != target {
-			// optionally signal to the manager goroutine
+			// send a signal to the manager goroutine
 			select {
+			// the channel has buffer of 1 so it acts like a deferred signal
+			// the send will fail only if the channel is already full, meaning
+			// that manager goroutine haven't had time to receive the previous
+			// signal yet, and it's ignore the signal we are trying to send
 			case dp.rescale <- struct{}{}:
 			default:
 			}
