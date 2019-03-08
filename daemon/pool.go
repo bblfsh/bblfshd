@@ -5,7 +5,9 @@ package daemon
 import (
 	"context"
 	"math"
+	"os"
 	"runtime"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -22,7 +24,9 @@ var (
 	// DefaultMaxInstancesPerDriver is the maximum number of instances of
 	// the same driver which can be launched following the default
 	// scaling policy (see DefaultScalingPolicy()).
-	DefaultMaxInstancesPerDriver = runtime.NumCPU()
+	//
+	// Can be changed by setting BBLFSHD_MAX_DRIVER_INSTANCES.
+	DefaultMaxInstancesPerDriver = envIntOr("BBLFSHD_MAX_DRIVER_INSTANCES", runtime.NumCPU())
 
 	// ErrPoolClosed is returned if the pool was already closed or is being closed.
 	ErrPoolClosed = errors.NewKind("driver pool already closed")
@@ -31,6 +35,31 @@ var (
 
 	errDriverStopped = errors.NewKind("driver stopped")
 )
+
+var (
+	policyDefaultWindow    = envIntOr("BBLFSHD_POLICY_WINDOW", 30)
+	policyDefaultMin       = envIntOr("BBLFSHD_POLICY_MIN", 1)
+	policyDefaultScale     = envIntOr("BBLFSHD_POLICY_SCALE", 1)
+	policyDefaultDownscale = envFloatOr("BBLFSHD_POLICY_DOWNSCALE", 0.25)
+)
+
+func envIntOr(env string, def int) int {
+	s := os.Getenv(env)
+	v, err := strconv.Atoi(s)
+	if err != nil {
+		return def
+	}
+	return v
+}
+
+func envFloatOr(env string, def float64) float64 {
+	s := os.Getenv(env)
+	v, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return def
+	}
+	return v
+}
 
 // DriverPool controls a pool of drivers and balances requests among them,
 // ensuring each driver does not get concurrent requests. The number of driver
@@ -194,7 +223,7 @@ func (dp *DriverPool) runPolicy(ctx context.Context) {
 		idle := len(dp.drivers.idle)
 		dp.drivers.RUnlock()
 
-		target := dp.ScalingPolicy.Scale(total, load-idle)
+		target := dp.ScalingPolicy.Scale(total, idle, load)
 		if target < 1 {
 			// there should be always at least 1 instance
 			// TODO(dennwc): policies must never return 0 instances
@@ -747,21 +776,33 @@ func (c *atomicInt) Value() int {
 // ScalingPolicy specifies whether instances should be started or stopped to
 // cope with load.
 type ScalingPolicy interface {
-	// Scale takes the number of total instances and the load. The load is
-	// the number of request waiting or, there is none, it is a negative
-	// value indicating how many instances are ready.
-	Scale(total, load int) int
+	// Scale takes the number of total instances, idle instances and the load.
+	// Idle value indicates how many instances are ready. The load is the number
+	// of request waiting.
+	Scale(total, idle, load int) int
+}
+
+// defaultScalingPolicy is the same as DefaultScalingPolicy, but has no window.
+func defaultScalingPolicy() ScalingPolicy {
+	min := policyDefaultMin
+	if min < 0 {
+		min = DefaultMaxInstancesPerDriver
+	}
+	return MinMax(
+		min, DefaultMaxInstancesPerDriver,
+		AIMD(policyDefaultScale, policyDefaultDownscale),
+	)
 }
 
 // DefaultScalingPolicy returns a new instance of the default scaling policy.
 // Instances returned by this function should not be reused.
 func DefaultScalingPolicy() ScalingPolicy {
-	return MovingAverage(10, MinMax(1, DefaultMaxInstancesPerDriver, AIMD(1, 0.5)))
+	return MovingAverage(policyDefaultWindow, defaultScalingPolicy())
 }
 
 type movingAverage struct {
 	sub   ScalingPolicy // policy that will use an average
-	loads []float64
+	loads []int
 	pos   int
 }
 
@@ -771,29 +812,29 @@ type movingAverage struct {
 func MovingAverage(window int, p ScalingPolicy) ScalingPolicy {
 	return &movingAverage{
 		sub:   p,
-		loads: make([]float64, 0, window),
+		loads: make([]int, 0, window),
 		pos:   0,
 	}
 }
 
-func (p *movingAverage) Scale(total, load int) int {
+func (p *movingAverage) Scale(total, idle, load int) int {
 	if len(p.loads) < cap(p.loads) {
-		p.loads = append(p.loads, float64(load))
+		p.loads = append(p.loads, load)
 	} else {
-		p.loads[p.pos] = float64(load)
+		p.loads[p.pos] = load
 	}
 	p.pos++
 	if p.pos >= cap(p.loads) {
 		p.pos = 0
 	}
 
-	var sum float64
+	var sum int
 	for _, v := range p.loads {
 		sum += v
 	}
 
-	avg := sum / float64(len(p.loads))
-	return p.sub.Scale(total, int(avg))
+	avg := int(float64(sum) / float64(len(p.loads)))
+	return p.sub.Scale(total, idle, avg)
 }
 
 type minMax struct {
@@ -804,6 +845,9 @@ type minMax struct {
 // MinMax wraps a ScalingPolicy and applies a minimum and maximum to the number
 // of instances.
 func MinMax(min, max int, p ScalingPolicy) ScalingPolicy {
+	if min < 1 {
+		min = 1
+	}
 	return &minMax{
 		sub: p,
 		min: min,
@@ -811,43 +855,43 @@ func MinMax(min, max int, p ScalingPolicy) ScalingPolicy {
 	}
 }
 
-func (p *minMax) Scale(total, load int) int {
-	s := p.sub.Scale(total, load)
-	if s > p.max {
+func (p *minMax) Scale(total, idle, load int) int {
+	v := p.sub.Scale(total, idle, load)
+	if v > p.max {
 		return p.max
 	}
-
-	if s < p.min {
+	if v < p.min {
 		return p.min
 	}
-
-	return s
+	return v
 }
 
 type aimd struct {
-	Add int
-	Mul float64
+	add int
+	mul float64
 }
 
 // AIMD returns a ScalingPolicy of additive increase / multiplicative decrease.
-// Increases are of min(add, load). Decreases are of (ready / mul).
+// Increases are of min(add, load). Decreases are of (unused * mul).
 func AIMD(add int, mul float64) ScalingPolicy {
-	return &aimd{add, mul}
+	return &aimd{add: add, mul: mul}
 }
 
-func (p *aimd) Scale(total, load int) int {
-	if load > 0 {
-		if load > p.Add {
-			return total + p.Add
+func (p *aimd) Scale(total, idle, waiting int) int {
+	load := waiting - idle
+	if load >= 0 {
+		dn := p.add
+		if p.add > load {
+			dn = load
 		}
-
-		return total + load
+		total += dn
+	} else {
+		unused := -load
+		total -= int(math.Ceil(float64(unused) * p.mul))
 	}
 
-	res := total - int(math.Ceil(float64(-load)*p.Mul))
-	if res < 0 {
-		return 0
+	if total < 1 {
+		total = 1 // must not return 0
 	}
-
-	return res
+	return total
 }

@@ -202,12 +202,13 @@ func TestDriverPoolExecute_Parallel(t *testing.T) {
 }
 
 type mockScalingPolicy struct {
-	Total, Load int
-	Result      int
+	Total, Idle, Load int
+	Result            int
 }
 
-func (p *mockScalingPolicy) Scale(total int, load int) int {
+func (p *mockScalingPolicy) Scale(total, idle, load int) int {
 	p.Total = total
+	p.Idle = idle
 	p.Load = load
 	return p.Result
 }
@@ -218,15 +219,15 @@ func TestMinMax(t *testing.T) {
 	m := &mockScalingPolicy{}
 	p := MinMax(5, 10, m)
 	m.Result = 1
-	require.Equal(5, p.Scale(1, 1))
+	require.Equal(5, p.Scale(1, 0, 1))
 	m.Result = 5
-	require.Equal(5, p.Scale(1, 1))
+	require.Equal(5, p.Scale(1, 0, 1))
 	m.Result = 7
-	require.Equal(7, p.Scale(1, 1))
+	require.Equal(7, p.Scale(1, 0, 1))
 	m.Result = 10
-	require.Equal(10, p.Scale(1, 1))
+	require.Equal(10, p.Scale(1, 0, 1))
 	m.Result = 11
-	require.Equal(10, p.Scale(1, 1))
+	require.Equal(10, p.Scale(1, 0, 1))
 }
 
 func TestMovingAverage(t *testing.T) {
@@ -234,29 +235,29 @@ func TestMovingAverage(t *testing.T) {
 
 	m := &mockScalingPolicy{}
 	p := MovingAverage(1, m)
-	p.Scale(1, 2)
+	p.Scale(1, 0, 2)
 	require.Equal(1, m.Total)
 	require.Equal(2, m.Load)
-	p.Scale(1, 50)
+	p.Scale(1, 0, 50)
 	require.Equal(1, m.Total)
 	require.Equal(50, m.Load)
 
 	p = MovingAverage(2, m)
-	p.Scale(1, 1)
+	p.Scale(1, 0, 1)
 	require.Equal(1, m.Load)
-	p.Scale(1, 3)
+	p.Scale(1, 0, 3)
 	require.Equal(2, m.Load)
-	p.Scale(1, 7)
+	p.Scale(1, 0, 7)
 	require.Equal(5, m.Load)
 
 	p = MovingAverage(100, m)
 	for i := 0; i < 100; i++ {
-		p.Scale(1, 200)
+		p.Scale(1, 0, 200)
 		require.Equal(200, m.Load)
 	}
 
 	for i := 0; i < 50; i++ {
-		p.Scale(1, 100)
+		p.Scale(1, 0, 100)
 	}
 	require.Equal(150, m.Load)
 }
@@ -266,12 +267,15 @@ func TestAIMD(t *testing.T) {
 
 	p := AIMD(1, 0.5)
 
-	require.Equal(0, p.Scale(0, 0))
-	require.Equal(1, p.Scale(1, 0))
+	require.Equal(1, p.Scale(0, 0, 0))
+	require.Equal(1, p.Scale(1, 0, 0))
+	require.Equal(1, p.Scale(1, 1, 0))
 
-	require.Equal(1, p.Scale(0, 1))
-	require.Equal(2, p.Scale(1, 1))
+	require.Equal(1, p.Scale(0, 0, 1))
+	require.Equal(2, p.Scale(1, 0, 1))
+	require.Equal(2, p.Scale(1, 1, 2))
 
-	require.Equal(0, p.Scale(1, -1))
-	require.Equal(1, p.Scale(2, -1))
+	require.Equal(1, p.Scale(1, 1, 0))
+	require.Equal(1, p.Scale(2, 2, 1))
+	require.Equal(2, p.Scale(2, 2, 2))
 }
