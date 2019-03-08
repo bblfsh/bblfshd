@@ -26,6 +26,12 @@
   version = "1.0"
 
 [[projects]]
+  name = "github.com/cenkalti/backoff"
+  packages = ["."]
+  revision = "1e4cf3da559842a91afcb6ea6141451e6c30c618"
+  version = "v2.1.1"
+
+[[projects]]
   branch = "master"
   name = "github.com/codahale/hdrhistogram"
   packages = ["."]
@@ -663,6 +669,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "58809bc080b0267b337a0bca7baf237636d7b1f794292adbf95f135d9166643f"
+  inputs-digest = "6012e33cb2d44742fbf9227646712a87cdc76c32d5facc7961e7bbc456dcc9a7"
   solver-name = "gps-cdcl"
   solver-version = 1

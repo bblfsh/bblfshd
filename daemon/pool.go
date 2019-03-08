@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/cenkalti/backoff"
 	"github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
 
@@ -220,8 +221,7 @@ func (dp *DriverPool) spawnOne() {
 	dp.spawning.Add(1)
 	defer dp.spawning.Add(-1)
 
-	// TODO(dennwc): use exponential backoff instead?
-	ticker := time.NewTicker(time.Millisecond * 250)
+	ticker := backoff.NewTicker(backoff.NewExponentialBackOff())
 	defer ticker.Stop()
 
 	// keep trying in case of a failure
@@ -245,7 +245,13 @@ func (dp *DriverPool) spawnOne() {
 		case <-stop:
 			return // cancel
 		case dp.spawnErr <- err:
-		case <-ticker.C:
+		case _, ok := <-ticker.C:
+			if !ok {
+				dp.Logger.Errorf("driver keeps failing, closing the pool; error: %v", err)
+				// can only run in a goroutine, since Stop will wait for runSpawn to return
+				go dp.Stop()
+				return
+			}
 		}
 	}
 }
