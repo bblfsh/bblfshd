@@ -165,6 +165,12 @@ func TestDriverPoolExecute_Sequential(t *testing.T) {
 func TestDriverPoolExecute_Parallel(t *testing.T) {
 	require := require.New(t)
 
+	oldWindow := policyDefaultWindow
+	defer func() {
+		policyDefaultWindow = oldWindow
+	}()
+	policyDefaultWindow = time.Second / 2
+
 	dp := NewDriverPool(newMockDriver)
 
 	ctx := context.Background()
@@ -176,12 +182,12 @@ func TestDriverPoolExecute_Parallel(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			err := dp.ExecuteCtx(ctx, func(_ context.Context, _ Driver) error {
-				defer wg.Done()
 				select {
 				case <-ctx.Done():
 					return ctx.Err()
-				case <-time.After(50 * time.Millisecond):
+				case <-time.After(policyDefaultTick / 2):
 				}
 				return nil
 			})
@@ -194,8 +200,8 @@ func TestDriverPoolExecute_Parallel(t *testing.T) {
 	wg.Wait()
 	require.Len(dp.Current(), runtime.NumCPU())
 
-	time.Sleep(time.Second)
-	require.Equal(dp.State().Running, 1)
+	time.Sleep(policyDefaultWindow)
+	require.Equal(1, dp.State().Running)
 
 	err = dp.Stop()
 	require.NoError(err)
