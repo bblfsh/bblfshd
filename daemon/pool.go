@@ -27,7 +27,7 @@ var (
 	// scaling policy (see DefaultScalingPolicy()).
 	//
 	// Can be changed by setting BBLFSHD_MAX_DRIVER_INSTANCES.
-	DefaultMaxInstancesPerDriver = envIntOr("BBLFSHD_MAX_DRIVER_INSTANCES", runtime.NumCPU())
+	DefaultMaxInstancesPerDriver = mustEnvInt("BBLFSHD_MAX_DRIVER_INSTANCES", runtime.NumCPU())
 
 	// ErrPoolClosed is returned if the pool was already closed or is being closed.
 	ErrPoolClosed = errors.NewKind("driver pool already closed")
@@ -38,26 +38,45 @@ var (
 )
 
 var (
-	policyDefaultWindow    = envIntOr("BBLFSHD_POLICY_WINDOW", 30)
-	policyDefaultMin       = envIntOr("BBLFSHD_POLICY_MIN", 1)
-	policyDefaultScale     = envIntOr("BBLFSHD_POLICY_SCALE", 1)
-	policyDefaultDownscale = envFloatOr("BBLFSHD_POLICY_DOWNSCALE", 0.25)
+	policyDefaultWindow    = mustEnvDur("BBLFSHD_POLICY_WINDOW", time.Second*3)
+	policyDefaultTick      = mustEnvDur("BBLFSHD_POLICY_TICK", time.Millisecond*100)
+	policyDefaultMin       = mustEnvInt("BBLFSHD_POLICY_MIN", 1)
+	policyDefaultScale     = mustEnvInt("BBLFSHD_POLICY_SCALE_INC", 1)
+	policyDefaultDownscale = mustEnvFloat("BBLFSHD_POLICY_DOWNSCALE_MULT", 0.25)
 )
 
-func envIntOr(env string, def int) int {
+func mustEnvInt(env string, def int) int {
 	s := os.Getenv(env)
+	if s == "" {
+		return def
+	}
 	v, err := strconv.Atoi(s)
 	if err != nil {
-		return def
+		panic(err)
 	}
 	return v
 }
 
-func envFloatOr(env string, def float64) float64 {
+func mustEnvFloat(env string, def float64) float64 {
 	s := os.Getenv(env)
+	if s == "" {
+		return def
+	}
 	v, err := strconv.ParseFloat(s, 64)
 	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
+func mustEnvDur(env string, def time.Duration) time.Duration {
+	s := os.Getenv(env)
+	if s == "" {
 		return def
+	}
+	v, err := time.ParseDuration(s)
+	if err != nil {
+		panic(err)
 	}
 	return v
 }
@@ -208,7 +227,7 @@ func (dp *DriverPool) Start(ctx context.Context) error {
 // runPolicy goroutine re-evaluates the scaling policy on a regular time interval and sets
 // a target number of instances. The scaling itself will be performed by the manager goroutine.
 func (dp *DriverPool) runPolicy(ctx context.Context) {
-	ticker := time.NewTicker(time.Millisecond * 100)
+	ticker := time.NewTicker(policyDefaultTick)
 	defer ticker.Stop()
 
 	stop := ctx.Done()
@@ -782,16 +801,18 @@ func (c *atomicInt) Value() int {
 // ScalingPolicy specifies whether instances should be started or stopped to
 // cope with load.
 type ScalingPolicy interface {
-	// Scale takes the number of total instances, idle instances and the load.
-	// Idle value indicates how many instances are ready. The load is the number
-	// of request waiting.
-	Scale(total, idle, load int) int
+	// Scale takes the total number of active instances, number idle instances and the
+	// number of requests waiting to get a driver instance. Idle may not be zero even if
+	// number of waiting requests is non-zero.
+	// Scale returns the new target number of instances to keep running. This number must
+	// not be less than 1.
+	Scale(total, idle, waiting int) int
 }
 
 // defaultScalingPolicy is the same as DefaultScalingPolicy, but has no window.
 func defaultScalingPolicy() ScalingPolicy {
 	min := policyDefaultMin
-	if min < 0 {
+	if min <= 0 {
 		min = DefaultMaxInstancesPerDriver
 	}
 	return MinMax(
@@ -803,7 +824,8 @@ func defaultScalingPolicy() ScalingPolicy {
 // DefaultScalingPolicy returns a new instance of the default scaling policy.
 // Instances returned by this function should not be reused.
 func DefaultScalingPolicy() ScalingPolicy {
-	return MovingAverage(policyDefaultWindow, defaultScalingPolicy())
+	window := int(policyDefaultWindow / policyDefaultTick)
+	return MovingAverage(window, defaultScalingPolicy())
 }
 
 type movingAverage struct {
