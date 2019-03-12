@@ -27,6 +27,12 @@ var (
 	//
 	// Can be changed by setting BBLFSHD_MAX_DRIVER_INSTANCES.
 	DefaultMaxInstancesPerDriver = mustEnvInt("BBLFSHD_MAX_DRIVER_INSTANCES", runtime.NumCPU())
+	// DefaultMinInstancesPerDriver is the minimal number of instances of
+	// the same driver which will be launched following the default
+	// scaling policy (see DefaultScalingPolicy()).
+	//
+	// Can be changed by setting BBLFSHD_MIN_DRIVER_INSTANCES.
+	DefaultMinInstancesPerDriver = mustEnvInt("BBLFSHD_MIN_DRIVER_INSTANCES", 1)
 
 	// ErrPoolClosed is returned if the pool was already closed or is being closed.
 	ErrPoolClosed = errors.NewKind("driver pool already closed")
@@ -37,10 +43,20 @@ var (
 )
 
 var (
-	policyDefaultWindow    = mustEnvDur("BBLFSHD_POLICY_WINDOW", time.Second*3)
-	policyDefaultTick      = mustEnvDur("BBLFSHD_POLICY_TICK", time.Millisecond*100)
-	policyDefaultMin       = mustEnvInt("BBLFSHD_POLICY_MIN", 1)
-	policyDefaultScale     = mustEnvInt("BBLFSHD_POLICY_SCALE_INC", 1)
+	// policyDefaultWindow is a window for the average function used in the default scaling
+	// policy. The window will be divided by policyDefaultTick intervals to calculate the
+	// size of the window buffer, so this should ideally be a multiple of policyDefaultTick.
+	policyDefaultWindow = mustEnvDur("BBLFSHD_POLICY_WINDOW", time.Second*3)
+	// policyDefaultTick is a tick rate for the goroutine that re-evaluates the scaling
+	// policy for each driver pool.
+	policyDefaultTick = mustEnvDur("BBLFSHD_POLICY_TICK", time.Millisecond*100)
+	// policyDefaultScale is a default increment for an additive increase scaling.
+	//
+	// See AIMD for more details.
+	policyDefaultScale = mustEnvInt("BBLFSHD_POLICY_SCALE_INC", 1)
+	// policyDefaultDownscale is a default multiplier for a multiplicative decrease downscaling.
+	//
+	// See AIMD for more details.
 	policyDefaultDownscale = mustEnvFloat("BBLFSHD_POLICY_DOWNSCALE_MULT", 0.25)
 )
 
@@ -805,7 +821,7 @@ type ScalingPolicy interface {
 
 // defaultScalingPolicy is the same as DefaultScalingPolicy, but has no window.
 func defaultScalingPolicy() ScalingPolicy {
-	min := policyDefaultMin
+	min := DefaultMinInstancesPerDriver
 	if min <= 0 {
 		min = DefaultMaxInstancesPerDriver
 	}
