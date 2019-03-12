@@ -151,6 +151,14 @@ Run tests with:
 $ make test
 ```
 
+### Environment variables
+
+- `BBLFSHD_MAX_DRIVER_INSTANCES` - maximal number of driver instances for each language.
+  Default to a number of CPUs.
+
+- `BBLFSHD_MIN_DRIVER_INSTANCES` - minimal number of driver instances that will be run
+  for each language. Default to 1.
+
 ### Enable tracing
 
 Bblfshd supports [OpenTracing](https://opentracing.io/) that can be used to profile request on a high level or trace
