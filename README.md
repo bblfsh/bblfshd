@@ -51,12 +51,12 @@ docker exec -it bblfshd bblfshctl driver list
 ```
 
 ```
-+----------+-------------------------------+---------+--------+---------+--------+-----+-------------+
-| LANGUAGE |             IMAGE             | VERSION | STATUS | CREATED |   OS   | GO  |   NATIVE    |
-+----------+-------------------------------+---------+--------+---------+--------+-----+-------------+
-| python   | //bblfsh/python-driver:latest | v1.1.5  | beta   | 4 days  | alpine | 1.8 | 3.6.2       |
-| java     | //bblfsh/java-driver:latest   | v1.1.0  | alpha  | 6 days  | alpine | 1.8 | 8.131.11-r2 |
-+----------+-------------------------------+---------+--------+---------+--------+-----+-------------+
++----------+-------------------------------+---------+--------+---------+-----+-------------+
+| LANGUAGE |             IMAGE             | VERSION | STATUS | CREATED | GO  |   NATIVE    |
++----------+-------------------------------+---------+--------+---------+-----+-------------+
+| python   | //bblfsh/python-driver:latest | v1.1.5  | beta   | 4 days  | 1.8 | 3.6.2       |
+| java     | //bblfsh/java-driver:latest   | v1.1.0  | alpha  | 6 days  | 1.8 | 8.131.11-r2 |
++----------+-------------------------------+---------+--------+---------+-----+-------------+
 ```
 
 To test the driver you can execute a parse request to the server with the `bblfshctl parse` command,
