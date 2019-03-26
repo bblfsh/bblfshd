@@ -52,10 +52,10 @@ func driverStatusToText(r *protocol.DriverStatesResponse) {
 			native = append(native, fmt.Sprintf("%s", v))
 		}
 
-		line := fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s",
+		line := fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s",
 			s.Language, s.Reference, s.Version,
 			s.Status, units.HumanDuration(time.Since(s.Build)),
-			s.OS, s.GoVersion, strings.Join(native, ","),
+			s.GoVersion, strings.Join(native, ","),
 		)
 		table.Append(strings.Split(line, "\t"))
 	}

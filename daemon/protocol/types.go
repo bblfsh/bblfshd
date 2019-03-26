@@ -69,6 +69,8 @@ type DriverImageState struct {
 	// Status is the development status of the driver (alpha, beta, etc)
 	Status string `json:"status"`
 	// OS is the linux distribution running on the driver container.
+	//
+	// Deprecated: see GoVersion and NativeVersion
 	OS string `json:"os"`
 	// Native version is the version of the compiler/interpreter being use in the
 	// native side of the driver.
