@@ -1,9 +1,12 @@
 language: go
 
 go:
-  - '1.10.x'
+  - '1.12.x'
 
 go_import_path: github.com/bblfsh/bblfshd
+
+env:
+  - GO111MODULE=on
 
 sudo: required
 services:

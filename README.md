@@ -99,7 +99,7 @@ should be strongly discouraged).
 ## Development
 
 If you wish to work on *bblfshd* , you'll first need [Go](http://www.golang.org)
-installed on your machine (version 1.10+ is *required*) and [Docker](https://docs.docker.com/engine/installation/).
+installed on your machine (version 1.11+ is *required*) and [Docker](https://docs.docker.com/engine/installation/).
 Docker is used to build and run tests in an isolated environment.
 
 For local development of *bblfshd*, first make sure Go is properly installed and

@@ -1,5 +1,5 @@
 # Base builder image with all libraries installed, including the source of the project
-FROM golang:1.10 as builder
+FROM golang:1.12 as builder
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -9,6 +9,7 @@ RUN apt-get update && \
     && apt-get clean
 
 ENV GOPATH=/go
+ENV GO111MODULE=on
 WORKDIR /go/src/github.com/bblfsh/bblfshd
 
 ADD . .

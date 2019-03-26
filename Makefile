@@ -34,9 +34,9 @@ VERSION ?= $(DEV_PREFIX)-$(GIT_COMMIT)$(GIT_DIRTY)
 
 # Go parameters
 GO_CMD = go
-GO_BUILD = $(GO_CMD) build
-GO_GET = $(GO_CMD) get -v
-GO_TEST = $(GO_CMD) test -v
+GO_BUILD = GO111MODULE=on $(GO_CMD) build
+GO_GET = GO111MODULE=on $(GO_CMD) get -v
+GO_TEST = GO111MODULE=on $(GO_CMD) test -v
 
 # Packages content
 PKG_OS_bblfshctl = darwin linux windows
