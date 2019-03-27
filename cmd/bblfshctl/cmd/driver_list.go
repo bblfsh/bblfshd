@@ -43,7 +43,7 @@ func (c *DriverListCommand) Execute(args []string) error {
 
 func driverStatusToText(r *protocol.DriverStatesResponse) {
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Language", "Image", "Version", "Status", "Created", "OS", "Go", "Native"})
+	table.SetHeader([]string{"Language", "Image", "Version", "Status", "Created", "Go", "Native"})
 	table.SetAlignment(tablewriter.ALIGN_LEFT)
 
 	for _, s := range r.State {
