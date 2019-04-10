@@ -614,6 +614,13 @@ func (dp *DriverPool) manageDrivers() {
 // pool scaling limit. The caller should put the instance back to the pool even if the
 // driver fails.
 func (dp *DriverPool) getIdle(rctx context.Context) (Driver, error) {
+	// don't do anything if the request is already cancelled,
+	// or we will have to "rollback" it later
+	select {
+	case <-rctx.Done():
+		return nil, rctx.Err()
+	default:
+	}
 	// fast path - get an idle driver directly from the pool
 	// this function executes on the current goroutine
 	if d, ok := dp.peekIdle(); ok {

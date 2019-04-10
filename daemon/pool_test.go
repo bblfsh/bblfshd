@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"runtime"
 	"sync"
@@ -28,7 +29,9 @@ func TestDriverPoolClose_StartNoopClose(t *testing.T) {
 	err = dp.Stop()
 	require.True(ErrPoolClosed.Is(err), "%v", err)
 
-	err = dp.ExecuteCtx(ctx, nil)
+	err = dp.ExecuteCtx(ctx, func(ctx context.Context, d Driver) error {
+		return errors.New("should not happen")
+	})
 	require.True(ErrPoolClosed.Is(err), "%v", err)
 }
 
@@ -65,7 +68,9 @@ func TestDriverPoolExecute_Timeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond)
 	defer cancel()
 
-	err = dp.ExecuteCtx(ctx, nil)
+	err = dp.ExecuteCtx(ctx, func(ctx context.Context, d Driver) error {
+		return errors.New("should not happen")
+	})
 	require.True(err == context.DeadlineExceeded)
 }
 
