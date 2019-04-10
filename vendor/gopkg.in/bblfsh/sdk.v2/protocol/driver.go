@@ -20,32 +20,49 @@ import (
 
 //go:generate protoc --proto_path=$GOPATH/src:. --gogo_out=plugins=grpc:. ./driver.proto
 
+const (
+	mb = 1 << 20
+
+	// DefaultGRPCMaxMessageBytes is maximum msg size for gRPC.
+	DefaultGRPCMaxMessageBytes = 100 * mb
+)
+
 // ServerOptions returns a set of common options that should be used in bblfsh server.
 //
 // It automatically enables OpenTrace if a global tracer is set.
 func ServerOptions() []grpc.ServerOption {
+	opts := []grpc.ServerOption{
+		grpc.MaxSendMsgSize(DefaultGRPCMaxMessageBytes),
+		grpc.MaxRecvMsgSize(DefaultGRPCMaxMessageBytes),
+	}
 	tracer := opentracing.GlobalTracer()
 	if _, ok := tracer.(opentracing.NoopTracer); ok {
-		return nil
+		return opts
 	}
-	return []grpc.ServerOption{
+	opts = append(opts,
 		grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(tracer)),
 		grpc.StreamInterceptor(otgrpc.OpenTracingStreamServerInterceptor(tracer)),
-	}
+	)
+	return opts
 }
 
 // DialOptions returns a set of common options that should be used when dialing bblfsh server.
 //
 // It automatically enables OpenTrace if a global tracer is set.
 func DialOptions() []grpc.DialOption {
+	opts := []grpc.DialOption{grpc.WithDefaultCallOptions(
+		grpc.MaxCallSendMsgSize(DefaultGRPCMaxMessageBytes),
+		grpc.MaxCallRecvMsgSize(DefaultGRPCMaxMessageBytes),
+	)}
 	tracer := opentracing.GlobalTracer()
 	if _, ok := tracer.(opentracing.NoopTracer); ok {
-		return nil
+		return opts
 	}
-	return []grpc.DialOption{
+	opts = append(opts,
 		grpc.WithUnaryInterceptor(otgrpc.OpenTracingClientInterceptor(tracer)),
 		grpc.WithStreamInterceptor(otgrpc.OpenTracingStreamClientInterceptor(tracer)),
-	}
+	)
+	return opts
 }
 
 func RegisterDriver(srv *grpc.Server, d driver.Driver) {

@@ -5,6 +5,9 @@ import (
 	"fmt"
 
 	"gopkg.in/src-d/go-errors.v1"
+
+	"gopkg.in/bblfsh/sdk.v2/uast"
+	"gopkg.in/bblfsh/sdk.v2/uast/nodes"
 )
 
 var (
@@ -17,6 +20,12 @@ var (
 	// in Lookup or If, for example, before another transformation step that sets this variable is executed.
 	// If this is the case, see Fields vs Obj comparison in regards to execution order.
 	ErrVariableNotDefined = errors.NewKind("variable %q is not defined")
+	// ErrVariableUnused is returned when a first half of transformation defines a variable and the second part
+	// never uses it in any operations.
+	//
+	// If you receive this error and still think that every variable is used - double check conditional branches
+	// like Opt, If, Case, etc.
+	ErrVariableUnused = errors.NewKind("variables %q unused in the second part of the transform")
 	// ErrExpectedObject is returned when transformation expected an object in the tree or variable, but got other type.
 	ErrExpectedObject = errors.NewKind("expected object, got %T")
 	// ErrExpectedList is returned when transformation expected an array in the tree or variable, but got other type.
@@ -38,7 +47,9 @@ var (
 	// ErrUnusedField is returned when a transformation is not defined as partial, but does not process a specific key
 	// found in object. This usually means that an AST has a field that is not covered by transformation code and it
 	// should be added to the mapping.
-	ErrUnusedField = errors.NewKind("field was not used: %v")
+	//
+	// Use NewErrUnusedField for constructing this error.
+	ErrUnusedField = errors.NewKind("unused field(s) on node %v: %v")
 	// ErrDuplicateField is returned when trying to create a Fields definition with two items with the same name.
 	ErrDuplicateField = errors.NewKind("duplicate field: %v")
 	// ErrUndefinedField is returned when trying to create an object with a field that is not defined in the type spec.
@@ -82,4 +93,21 @@ func (e *MultiError) Error() string {
 		fmt.Fprintf(buf, "\t%v\n", err)
 	}
 	return buf.String()
+}
+
+// NewErrUnusedField is a helper for creating ErrUnusedField.
+//
+// It will include a short type information for the node to simplify debugging.
+func NewErrUnusedField(n nodes.Object, fields []string) error {
+	var t interface{}
+	if typ, _ := n[uast.KeyType].(nodes.String); typ != "" {
+		t = typ
+	} else {
+		t = n.Keys()
+	}
+	var f interface{} = fields
+	if len(fields) == 1 {
+		f = fields[0]
+	}
+	return ErrUnusedField.New(t, f)
 }
