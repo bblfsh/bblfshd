@@ -72,7 +72,7 @@ func RolesFieldOp(vr string, op ArrayOp, roles ...role.Role) Field {
 func ASTObjectLeft(typ string, ast ObjectOp) ObjectOp {
 	if fields, ok := ast.Fields(); !ok {
 		panic("unexpected partial transform")
-	} else if _, ok := fields[uast.KeyRoles]; ok {
+	} else if fields.Has(uast.KeyRoles) {
 		panic("unexpected roles filed")
 	}
 	var obj Fields
@@ -95,7 +95,7 @@ type RolesByType func(typ string) role.Roles
 func ASTObjectRightCustom(typ string, norm ObjectOp, fnc RolesByType, rop ArrayOp, roles ...role.Role) ObjectOp {
 	if fields, ok := norm.Fields(); !ok {
 		panic("unexpected partial transform")
-	} else if _, ok := fields[uast.KeyRoles]; ok {
+	} else if fields.Has(uast.KeyRoles) {
 		panic("unexpected roles field")
 	}
 	var obj Fields
@@ -412,11 +412,11 @@ func StringToRolesMap(m map[string][]role.Role) map[nodes.Value]ArrayOp {
 // Since rules are applied depth-first, this operation will work properly only in a separate mapping step.
 // In other cases it will apply itself before parent node appends field roles.
 func AnnotateIfNoRoles(typ string, roles ...role.Role) Mapping {
-	return Map(
-		Check( // TODO: CheckObj
-			Not(Has{
-				uast.KeyRoles: AnyNode(nil),
-			}),
+	return MapObj(
+		CheckObj(
+			HasFields{
+				uast.KeyRoles: false,
+			},
 			Part("_", Obj{
 				uast.KeyType: String(typ),
 			}),

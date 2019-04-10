@@ -18,8 +18,61 @@ func Equal(n1, n2 External) bool {
 	} else if n1 == nil || n2 == nil {
 		return false
 	}
-	if Same(n1, n2) {
-		return true
+	switch n1 := n1.(type) {
+	case String:
+		n2, ok := n2.(String)
+		if ok {
+			return n1 == n2
+		}
+	case Int:
+		n2, ok := n2.(Int)
+		if ok {
+			return n1 == n2
+		}
+	case Uint:
+		n2, ok := n2.(Uint)
+		if ok {
+			return n1 == n2
+		}
+	case Bool:
+		n2, ok := n2.(Bool)
+		if ok {
+			return n1 == n2
+		}
+	case Float:
+		n2, ok := n2.(Float)
+		if ok {
+			return n1 == n2
+		}
+	case Object:
+		if n2, ok := n2.(Object); ok {
+			if len(n1) != len(n2) {
+				return false
+			}
+			if pointerOf(n1) == pointerOf(n2) {
+				return true
+			}
+			return n1.EqualObject(n2)
+		}
+		if _, ok := n2.(Node); ok {
+			return false
+		}
+		return n1.Equal(n2)
+	case Array:
+		if n2, ok := n2.(Array); ok {
+			if len(n1) != len(n2) {
+				return false
+			}
+			return len(n1) == 0 || &n1[0] == &n2[0] || n1.EqualArray(n2)
+		}
+		if _, ok := n2.(Node); ok {
+			return false
+		}
+		return n1.Equal(n2)
+	default:
+		if Same(n1, n2) {
+			return true
+		}
 	}
 	if n, ok := n1.(Node); ok {
 		return n.Equal(n2)
@@ -27,6 +80,61 @@ func Equal(n1, n2 External) bool {
 		return n.Equal(n1)
 	}
 	return equalExt(n1, n2)
+}
+
+// NodeEqual compares two subtrees.
+// Equality is checked by value (deep), not by reference.
+func NodeEqual(n1, n2 Node) bool {
+	if n1 == nil && n2 == nil {
+		return true
+	} else if n1 == nil || n2 == nil {
+		return false
+	}
+	switch n1 := n1.(type) {
+	case String:
+		n2, ok := n2.(String)
+		return ok && n1 == n2
+	case Int:
+		n2, ok := n2.(Int)
+		if ok {
+			return n1 == n2
+		}
+	case Uint:
+		n2, ok := n2.(Uint)
+		if ok {
+			return n1 == n2
+		}
+	case Bool:
+		n2, ok := n2.(Bool)
+		return ok && n1 == n2
+	case Float:
+		n2, ok := n2.(Float)
+		if ok {
+			return n1 == n2
+		}
+	case Object:
+		n2, ok := n2.(Object)
+		if !ok {
+			return false
+		}
+		if len(n1) != len(n2) {
+			return false
+		}
+		if pointerOf(n1) == pointerOf(n2) {
+			return true
+		}
+		return n1.EqualObject(n2)
+	case Array:
+		n2, ok := n2.(Array)
+		if !ok {
+			return false
+		}
+		if len(n1) != len(n2) {
+			return false
+		}
+		return len(n1) == 0 || &n1[0] == &n2[0] || n1.EqualArray(n2)
+	}
+	return n1.Equal(n2)
 }
 
 // Node is a generic interface for a tree structure.
@@ -896,12 +1004,40 @@ func Same(n1, n2 External) bool {
 		// second node is external, need to call SameAs on it
 		return n2.SameAs(n1)
 	}
+	// fast path
+	switch i1 := i1.(type) {
+	case Object:
+		i2, ok := i2.(Object)
+		if !ok || len(i1) != len(i2) {
+			return false
+		}
+		return pointerOf(i1) == pointerOf(i2)
+	case Array:
+		i2, ok := i2.(Array)
+		if !ok || len(i1) != len(i2) {
+			return false
+		}
+		if i1 == nil && i2 == nil {
+			return true
+		} else if i1 == nil || i2 == nil {
+			return false
+		} else if len(i1) == 0 {
+			return true
+		}
+		return &i1[0] == &i2[0]
+	case Value:
+		i2, ok := i2.(Value)
+		if !ok {
+			return false
+		}
+		return i1 == i2
+	}
 	// both nodes are internal - compare unique key
 	return UniqueKey(i1) == UniqueKey(i2)
 }
 
 // pointerOf returns a Go pointer for Node that is a reference type (Arrays and Objects).
-func pointerOf(n Node) uintptr {
+func pointerOf(n interface{}) uintptr {
 	if n == nil {
 		return 0
 	}
@@ -947,4 +1083,30 @@ func UniqueKey(n Node) Comparable {
 		}
 		return unkPtr(ptr)
 	}
+}
+
+// ChildrenCount reports the number of immediate children of n. If n is an Array this is
+// the length of the array. If n is an Object, each object in a field of n counts as
+// one child and each array is counted as its length.
+func ChildrenCount(n Node) int {
+	switch n := n.(type) {
+	case nil:
+		return 0
+	case Value:
+		return 0
+	case Array:
+		return len(n)
+	case Object:
+		c := 0
+		for _, v := range n {
+			switch v := v.(type) {
+			case Object:
+				c++
+			case Array:
+				c += len(v)
+			}
+		}
+		return c
+	}
+	return 0
 }
