@@ -12,11 +12,11 @@ import (
 	"github.com/bblfsh/bblfshd/daemon/protocol"
 	"github.com/bblfsh/bblfshd/runtime"
 
+	protocol2 "github.com/bblfsh/sdk/v3/protocol"
 	"github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	protocol1 "gopkg.in/bblfsh/sdk.v1/protocol"
-	protocol2 "gopkg.in/bblfsh/sdk.v2/protocol"
 )
 
 // Daemon is a Babelfish server.

@@ -12,9 +12,9 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/bblfsh/bblfshd/daemon/protocol"
+	protocol2 "github.com/bblfsh/sdk/v3/protocol"
 	xcontext "golang.org/x/net/context"
 	protocol1 "gopkg.in/bblfsh/sdk.v1/protocol"
-	protocol2 "gopkg.in/bblfsh/sdk.v2/protocol"
 )
 
 var _ protocol2.DriverServer = (*ServiceV2)(nil)
