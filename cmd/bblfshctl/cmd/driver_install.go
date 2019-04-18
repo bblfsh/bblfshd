@@ -14,7 +14,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/bblfsh/bblfshd/daemon/protocol"
-	"gopkg.in/bblfsh/sdk.v2/driver/manifest/discovery"
+	"github.com/bblfsh/sdk/v3/driver/manifest/discovery"
 
 	"github.com/briandowns/spinner"
 )

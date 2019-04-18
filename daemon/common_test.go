@@ -10,6 +10,7 @@ import (
 	"github.com/bblfsh/bblfshd/daemon/protocol"
 	"github.com/bblfsh/bblfshd/runtime"
 
+	protocol2 "github.com/bblfsh/sdk/v3/protocol"
 	"github.com/containers/image/types"
 	oldctx "golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -17,7 +18,6 @@ import (
 	protocol1 "gopkg.in/bblfsh/sdk.v1/protocol"
 	"gopkg.in/bblfsh/sdk.v1/sdk/driver"
 	"gopkg.in/bblfsh/sdk.v1/uast"
-	protocol2 "gopkg.in/bblfsh/sdk.v2/protocol"
 )
 
 type mockDriver struct {

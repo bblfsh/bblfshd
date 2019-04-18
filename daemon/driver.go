@@ -16,10 +16,10 @@ import (
 	"github.com/bblfsh/bblfshd/daemon/protocol"
 	"github.com/bblfsh/bblfshd/runtime"
 
+	protocol2 "github.com/bblfsh/sdk/v3/protocol"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"google.golang.org/grpc"
 	protocol1 "gopkg.in/bblfsh/sdk.v1/protocol"
-	protocol2 "gopkg.in/bblfsh/sdk.v2/protocol"
 )
 
 type Driver interface {

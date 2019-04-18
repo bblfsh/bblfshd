@@ -20,9 +20,9 @@ import (
 	"github.com/sirupsen/logrus"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 
+	cmdutil "github.com/bblfsh/sdk/v3/cmd"
+	"github.com/bblfsh/sdk/v3/driver/manifest/discovery"
 	"gopkg.in/bblfsh/sdk.v1/sdk/server"
-	cmdutil "gopkg.in/bblfsh/sdk.v2/cmd"
-	"gopkg.in/bblfsh/sdk.v2/driver/manifest/discovery"
 )
 
 const (
