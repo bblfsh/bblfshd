@@ -119,17 +119,19 @@ func main() {
 		}()
 	}
 
-	c, err := jaegercfg.FromEnv()
-	if err != nil {
-		logrus.Errorf("error configuring tracer: %s", err)
-		os.Exit(1)
+	if os.Getenv("JAEGER_AGENT_HOST") != "" {
+		c, err := jaegercfg.FromEnv()
+		if err != nil {
+			logrus.Errorf("error configuring tracer: %s", err)
+			os.Exit(1)
+		}
+		closer, err := c.InitGlobalTracer("bblfshd")
+		if err != nil {
+			logrus.Errorf("error configuring tracer: %s", err)
+			os.Exit(1)
+		}
+		defer closer.Close()
 	}
-	closer, err := c.InitGlobalTracer("bblfshd")
-	if err != nil {
-		logrus.Errorf("error configuring tracer: %s", err)
-		os.Exit(1)
-	}
-	defer closer.Close()
 
 	r := buildRuntime()
 	grpcOpts, err := cmdutil.GRPCSizeOptions(*maxMessageSize)
