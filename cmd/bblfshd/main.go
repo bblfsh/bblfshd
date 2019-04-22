@@ -122,13 +122,11 @@ func main() {
 	if os.Getenv("JAEGER_AGENT_HOST") != "" {
 		c, err := jaegercfg.FromEnv()
 		if err != nil {
-			logrus.Errorf("error configuring tracer: %s", err)
-			os.Exit(1)
+			logrus.Fatalf("error configuring tracer: %s", err)
 		}
 		closer, err := c.InitGlobalTracer("bblfshd")
 		if err != nil {
-			logrus.Errorf("error configuring tracer: %s", err)
-			os.Exit(1)
+			logrus.Fatalf("error configuring tracer: %s", err)
 		}
 		defer closer.Close()
 	}
@@ -136,8 +134,7 @@ func main() {
 	r := buildRuntime()
 	grpcOpts, err := cmdutil.GRPCSizeOptions(*maxMessageSize)
 	if err != nil {
-		logrus.Errorln(err)
-		os.Exit(1)
+		logrus.Fatalln(err)
 	}
 
 	parsedBuild, err := time.Parse(buildDateFormat, build)
@@ -147,16 +144,14 @@ func main() {
 			logrus.Infof("using start time instead in this dev build: %s",
 				parsedBuild.Format(buildDateFormat))
 		} else {
-			logrus.Errorf("wrong date format for this build: %s", err)
-			os.Exit(1)
+			logrus.Fatalf("wrong date format for this build: %s", err)
 		}
 	}
 	d := daemon.NewDaemon(version, parsedBuild, r, grpcOpts...)
 	if args := cmd.Args(); len(args) == 2 && args[0] == "install" && args[1] == "recommended" {
 		err := installRecommended(d)
 		if err != nil {
-			logrus.Errorf("error listing drivers: %s", err)
-			os.Exit(1)
+			logrus.Fatalf("error listing drivers: %s", err)
 		}
 		return
 	}
@@ -179,15 +174,13 @@ func listenUser(d *daemon.Daemon) {
 	var err error
 	usrListener, err = net.Listen(*network, *address)
 	if err != nil {
-		logrus.Errorf("error creating listener: %s", err)
-		os.Exit(1)
+		logrus.Fatalf("error creating listener: %s", err)
 	}
 
 	allowAnyoneInUnixSocket(*network, *address)
 	logrus.Infof("server listening in %s (%s)", *address, *network)
 	if err = d.UserServer.Serve(usrListener); err != nil {
-		logrus.Errorf("error starting server: %s", err)
-		os.Exit(1)
+		logrus.Fatalf("error starting server: %s", err)
 	}
 }
 
@@ -195,15 +188,13 @@ func listenControl(d *daemon.Daemon) {
 	var err error
 	ctlListener, err = net.Listen(*ctl.network, *ctl.address)
 	if err != nil {
-		logrus.Errorf("error creating control listener: %s", err)
-		os.Exit(1)
+		logrus.Fatalf("error creating control listener: %s", err)
 	}
 
 	allowAnyoneInUnixSocket(*ctl.network, *ctl.address)
 	logrus.Infof("control server listening in %s (%s)", *ctl.address, *ctl.network)
 	if err = d.ControlServer.Serve(ctlListener); err != nil {
-		logrus.Errorf("error starting control server: %s", err)
-		os.Exit(1)
+		logrus.Fatalf("error starting control server: %s", err)
 	}
 }
 
@@ -213,8 +204,7 @@ func allowAnyoneInUnixSocket(network, address string) {
 	}
 
 	if err := os.Chmod(address, 0777); err != nil {
-		logrus.Errorf("error changing permissions to socket %q: %s", address, err)
-		os.Exit(1)
+		logrus.Fatalf("error changing permissions to socket %q: %s", address, err)
 	}
 }
 
@@ -236,8 +226,7 @@ func buildRuntime() *runtime.Runtime {
 
 	r := runtime.NewRuntime(*storage)
 	if err := r.Init(); err != nil {
-		logrus.Errorf("error initializing runtime: %s", err)
-		os.Exit(1)
+		logrus.Fatalf("error initializing runtime: %s", err)
 	}
 
 	return r
