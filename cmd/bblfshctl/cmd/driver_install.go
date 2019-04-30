@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -78,6 +79,8 @@ func recommendedDrivers() (map[string]string, error) {
 	list, err := getOfficialDrivers()
 	if err != nil {
 		return nil, err
+	} else if len(list) == 0 {
+		return nil, errors.New("official drivers list is empty; try updating bblfshd")
 	}
 	m := make(map[string]string, len(list))
 	for _, d := range list {
@@ -85,6 +88,9 @@ func recommendedDrivers() (map[string]string, error) {
 			continue
 		}
 		m[d.Language] = driverImage(d.Language)
+	}
+	if len(m) == 0 {
+		return nil, errors.New("recommended drivers list is empty; try updating bblfshd")
 	}
 	return m, nil
 }
