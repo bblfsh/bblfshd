@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/opentracing/opentracing-go"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 
 	"github.com/bblfsh/bblfshd/daemon/protocol"
@@ -28,6 +29,10 @@ func NewServiceV2(d *Daemon) *ServiceV2 {
 }
 
 func (s *ServiceV2) Parse(rctx xcontext.Context, req *protocol2.ParseRequest) (resp *protocol2.ParseResponse, gerr error) {
+	parseCallsV2.Add(1)
+	defer prometheus.NewTimer(parseLatencyV2).ObserveDuration()
+	parseContentSizeV2.Observe(float64(len(req.Content)))
+
 	sp, ctx := opentracing.StartSpanFromContext(rctx, "bblfshd.v2.Parse")
 	defer sp.Finish()
 
@@ -43,6 +48,7 @@ func (s *ServiceV2) Parse(rctx xcontext.Context, req *protocol2.ParseRequest) (r
 	}
 
 	if !utf8.ValidString(req.Content) {
+		parseErrorsV2.Add(1)
 		err := ErrUnknownEncoding.New()
 		logrus.Debugf("parse v2 (%s): %s", req.Filename, err)
 		return nil, err
@@ -50,6 +56,7 @@ func (s *ServiceV2) Parse(rctx xcontext.Context, req *protocol2.ParseRequest) (r
 
 	language, dp, err := s.selectPool(ctx, req.Language, req.Content, req.Filename)
 	if err != nil {
+		parseErrorsV2.Add(1)
 		logrus.Errorf("error selecting pool: %s", err)
 		return nil, err
 	}
@@ -60,6 +67,9 @@ func (s *ServiceV2) Parse(rctx xcontext.Context, req *protocol2.ParseRequest) (r
 		resp, err = driver.ServiceV2().Parse(ctx, req)
 		return err
 	})
+	if err != nil {
+		parseErrorsV2.Add(1)
+	}
 	if resp != nil {
 		resp.Language = language
 	}
@@ -132,10 +142,18 @@ func NewService(d *Daemon) *Service {
 }
 
 func (d *Service) Parse(req *protocol1.ParseRequest) *protocol1.ParseResponse {
+	parseCallsV1.Add(1)
+	parseContentSizeV1.Observe(float64(len(req.Content)))
+
 	resp := &protocol1.ParseResponse{}
 	start := time.Now()
 	defer func() {
-		resp.Elapsed = time.Since(start)
+		if resp == nil || resp.Status != protocol1.Ok || len(resp.Errors) != 0 {
+			parseErrorsV1.Add(1)
+		}
+		dt := time.Since(start)
+		parseLatencyV1.Observe(dt.Seconds())
+		resp.Elapsed = dt
 		d.logResponse(resp.Status, req.Filename, req.Language, len(req.Content), resp.Elapsed)
 	}()
 
@@ -198,10 +216,18 @@ func (d *Service) logResponse(s protocol1.Status, filename string, language stri
 }
 
 func (d *Service) NativeParse(req *protocol1.NativeParseRequest) *protocol1.NativeParseResponse {
+	parseCallsV1.Add(1)
+	parseContentSizeV1.Observe(float64(len(req.Content)))
+
 	resp := &protocol1.NativeParseResponse{}
 	start := time.Now()
 	defer func() {
-		resp.Elapsed = time.Since(start)
+		if resp == nil || resp.Status != protocol1.Ok || len(resp.Errors) != 0 {
+			parseErrorsV1.Add(1)
+		}
+		dt := time.Since(start)
+		parseLatencyV1.Observe(dt.Seconds())
+		resp.Elapsed = dt
 		d.logResponse(resp.Status, req.Language, req.Language, len(req.Content), resp.Elapsed)
 	}()
 
@@ -260,6 +286,8 @@ func (s *Service) selectPool(ctx context.Context, language, content, filename st
 }
 
 func (d *Service) Version(req *protocol1.VersionRequest) *protocol1.VersionResponse {
+	versionCalls.Add(1)
+
 	resp := &protocol1.VersionResponse{Version: d.daemon.version, Build: d.daemon.build}
 	start := time.Now()
 	defer func() {
@@ -270,6 +298,8 @@ func (d *Service) Version(req *protocol1.VersionRequest) *protocol1.VersionRespo
 }
 
 func (d *Service) SupportedLanguages(req *protocol1.SupportedLanguagesRequest) *protocol1.SupportedLanguagesResponse {
+	languagesCalls.Add(1)
+
 	resp := &protocol1.SupportedLanguagesResponse{}
 	start := time.Now()
 	defer func() {

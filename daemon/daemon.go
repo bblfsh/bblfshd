@@ -74,6 +74,8 @@ func registerGRPC(d *Daemon) {
 }
 
 func (d *Daemon) InstallDriver(language string, image string, update bool) error {
+	driverInstallCalls.Add(1)
+
 	img, err := runtime.NewDriverImage(image)
 	if err != nil {
 		return ErrRuntime.Wrap(err)
@@ -114,6 +116,8 @@ func (d *Daemon) InstallDriver(language string, image string, update bool) error
 }
 
 func (d *Daemon) RemoveDriver(language string) error {
+	driverRemoveCalls.Add(1)
+
 	img, err := d.getDriverImage(context.TODO(), language)
 	if err != nil {
 		return ErrRuntime.Wrap(err)
@@ -177,11 +181,14 @@ func (d *Daemon) newDriverPool(rctx context.Context, language string, image runt
 	sp, ctx := opentracing.StartSpanFromContext(rctx, "bblfshd.pool.newDriverPool")
 	defer sp.Finish()
 
+	imageName := image.Name()
+	labels := []string{language, imageName}
+
 	dp := NewDriverPool(func(rctx context.Context) (Driver, error) {
 		sp, ctx := opentracing.StartSpanFromContext(rctx, "bblfshd.pool.driverFactory")
 		defer sp.Finish()
 
-		logrus.Debugf("spawning driver instance %q ...", image.Name())
+		logrus.Debugf("spawning driver instance %q ...", imageName)
 
 		opts := d.getDriverInstanceOptions()
 		driver, err := NewDriverInstance(d.runtime, language, image, opts)
@@ -193,13 +200,10 @@ func (d *Daemon) newDriverPool(rctx context.Context, language string, image runt
 			return nil, err
 		}
 
-		logrus.Infof("new driver instance started %s (%s)", image.Name(), driver.Container.ID())
+		logrus.Infof("new driver instance started %s (%s)", imageName, driver.Container.ID())
 		return driver, nil
 	})
-
-	dp.Logger = logrus.WithFields(logrus.Fields{
-		"language": language,
-	})
+	dp.SetLabels(labels)
 
 	if err := dp.Start(ctx); err != nil {
 		return nil, err
