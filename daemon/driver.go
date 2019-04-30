@@ -150,6 +150,9 @@ func (i *DriverInstance) dial(ctx context.Context) error {
 	}
 	opts = append(opts, protocol2.DialOptions()...)
 	conn, err := grpc.DialContext(ctx, addr, opts...)
+	if err != nil {
+		return err
+	}
 
 	i.conn = conn
 	i.srv1 = protocol1.NewProtocolServiceClient(conn)
@@ -200,7 +203,18 @@ func (i *DriverInstance) State() (*protocol.DriverInstanceState, error) {
 
 // Stop stops the inner running container.
 func (i *DriverInstance) Stop() error {
-	return i.Container.Stop()
+	var first error
+	if i.Container != nil {
+		if err := i.Container.Stop(); err != nil && first == nil {
+			first = err
+		}
+	}
+	if i.conn != nil {
+		if err := i.conn.Close(); err != nil && first == nil {
+			first = err
+		}
+	}
+	return first
 }
 
 // Service returns the client using the grpc connection.
