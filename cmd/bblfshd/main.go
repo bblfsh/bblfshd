@@ -17,6 +17,7 @@ import (
 	"github.com/bblfsh/bblfshd/daemon"
 	"github.com/bblfsh/bblfshd/runtime"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 
@@ -53,6 +54,9 @@ var (
 		enabled *bool
 		address *string
 	}
+	metrics struct {
+		address *string
+	}
 	cmd *flag.FlagSet
 
 	usrListener net.Listener
@@ -75,6 +79,7 @@ func init() {
 	log.fields = cmd.String("log-fields", "", "extra fields to add to every log line in json format.")
 	pprof.enabled = cmd.Bool("profiler", false, "run profiler http endpoint (pprof).")
 	pprof.address = cmd.String("profiler-address", ":6060", "profiler address to listen on.")
+	metrics.address = cmd.String("metrics-address", ":2112", "metrics address to listen on.")
 	cmd.Parse(os.Args[1:])
 
 	buildLogger()
@@ -115,6 +120,14 @@ func main() {
 		go func() {
 			if err := http.ListenAndServe(*pprof.address, nil); err != nil {
 				logrus.Errorf("cannot start pprof: %v", err)
+			}
+		}()
+	}
+	if *metrics.address != "" {
+		logrus.Infof("running metrics on %s", *metrics.address)
+		go func() {
+			if err := http.ListenAndServe(*metrics.address, promhttp.Handler()); err != nil {
+				logrus.Errorf("cannot start metrics: %v", err)
 			}
 		}()
 	}

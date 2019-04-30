@@ -14,6 +14,7 @@ import (
 
 	"github.com/cenkalti/backoff"
 	"github.com/opentracing/opentracing-go"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 
 	"github.com/bblfsh/bblfshd/daemon/protocol"
@@ -157,6 +158,20 @@ type DriverPool struct {
 	exited  atomicInt // drivers exited
 	success atomicInt // requests executed successfully
 	errors  atomicInt // requests failed
+
+	metrics struct {
+		scaling struct {
+			total  prometheus.Gauge
+			idle   prometheus.Gauge
+			load   prometheus.Gauge
+			target prometheus.Gauge
+		}
+		spawn struct {
+			total prometheus.Counter
+			err   prometheus.Counter
+			kill  prometheus.Counter
+		}
+	}
 }
 
 type driverRequest struct {
@@ -176,12 +191,27 @@ type FactoryFunction func(ctx context.Context) (Driver, error)
 // NewDriverPool creates and starts a new DriverPool. It takes as parameters
 // a FactoryFunction, used to instantiate new drivers.
 func NewDriverPool(factory FactoryFunction) *DriverPool {
-	dp := &DriverPool{
+	return &DriverPool{
 		ScalingPolicy: DefaultScalingPolicy(),
 		Logger:        logrus.New(),
 		factory:       factory,
 	}
-	return dp
+}
+
+func (dp *DriverPool) SetLabels(labels []string) {
+	dp.Logger = logrus.WithFields(logrus.Fields{
+		"language": labels[0],
+		"image":    labels[1],
+	})
+
+	dp.metrics.spawn.total = driversSpawned.WithLabelValues(labels...)
+	dp.metrics.spawn.err = driversSpawnErrors.WithLabelValues(labels...)
+	dp.metrics.spawn.kill = driversKilled.WithLabelValues(labels...)
+
+	dp.metrics.scaling.total = driversRunning.WithLabelValues(labels...)
+	dp.metrics.scaling.idle = driversIdle.WithLabelValues(labels...)
+	dp.metrics.scaling.load = driversRequests.WithLabelValues(labels...)
+	dp.metrics.scaling.target = driversTarget.WithLabelValues(labels...)
 }
 
 // Start stats the driver pool.
@@ -267,6 +297,12 @@ func (dp *DriverPool) runPolicy(ctx context.Context) {
 			// TODO(dennwc): policies must never return 0 instances
 			target = 1
 		}
+		if dp.metrics.scaling.total != nil {
+			dp.metrics.scaling.total.Set(float64(total))
+			dp.metrics.scaling.load.Set(float64(load))
+			dp.metrics.scaling.idle.Set(float64(idle))
+			dp.metrics.scaling.target.Set(float64(target))
+		}
 		old := dp.targetSize.Set(target)
 		if old != target {
 			// send a signal to the manager goroutine
@@ -294,6 +330,9 @@ func (dp *DriverPool) spawnOne() {
 	ctx := dp.poolCtx
 	stop := ctx.Done()
 	for {
+		if dp.metrics.spawn.total != nil {
+			dp.metrics.spawn.total.Add(1)
+		}
 		d, err := dp.factory(ctx)
 		if err == nil {
 			dp.drivers.Lock()
@@ -305,6 +344,9 @@ func (dp *DriverPool) spawnOne() {
 			if err == nil {
 				return // done
 			}
+		}
+		if dp.metrics.spawn.err != nil {
+			dp.metrics.spawn.err.Add(1)
 		}
 		dp.Logger.Errorf("failed to start a driver: %v", err)
 		select {
@@ -362,6 +404,10 @@ func (dp *DriverPool) setIdle(d Driver) {
 
 // killDriver stops are removes the driver from the queue.
 func (dp *DriverPool) killDriver(d Driver) {
+	if dp.metrics.spawn.kill != nil {
+		dp.metrics.spawn.kill.Add(1)
+	}
+
 	dp.drivers.Lock()
 	delete(dp.drivers.all, d)
 	delete(dp.drivers.idle, d)
