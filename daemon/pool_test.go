@@ -205,7 +205,8 @@ func TestDriverPoolExecute_Parallel(t *testing.T) {
 	wg.Wait()
 	require.Len(dp.Current(), runtime.NumCPU())
 
-	time.Sleep(policyDefaultWindow)
+	// need approximately two full windows, times the inverse downscale factor
+	time.Sleep(policyDefaultWindow * defaultPolicyTargetWindow * time.Duration(1/policyDefaultDownscale))
 	require.Equal(1, dp.State().Running)
 
 	err = dp.Stop()
