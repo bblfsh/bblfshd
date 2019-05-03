@@ -199,6 +199,13 @@ func listenUser(d *daemon.Daemon) {
 
 func listenControl(d *daemon.Daemon) {
 	var err error
+	if *ctl.network == "unix" {
+		// Remove returns an error if file does not exists
+		// if it returns nil, we know the file existed, so bblfshd might have crashed
+		if err := os.Remove(*ctl.address); err == nil {
+			logrus.Warningf("control socket %s (%s) already exists", *ctl.address, *ctl.network)
+		}
+	}
 	ctlListener, err = net.Listen(*ctl.network, *ctl.address)
 	if err != nil {
 		logrus.Fatalf("error creating control listener: %s", err)
