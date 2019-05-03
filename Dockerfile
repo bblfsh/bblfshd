@@ -38,9 +38,14 @@ RUN apt-get update && \
         libostree-1-1 \
     && apt-get clean
 
+ENV TINI_VERSION v0.18.0
+ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
+RUN chmod +x /tini
+
 COPY --from=binbuild build /opt/bblfsh/bin/
 ADD etc /opt/bblfsh/etc/
 ENV PATH="/opt/bblfsh/bin:${PATH}"
 
-ENTRYPOINT ["bblfshd"]
+# Run bblfshd under Tini (see https://github.com/krallin/tini/issues/8 for details)
+ENTRYPOINT ["/tini", "--", "bblfshd"]
 
