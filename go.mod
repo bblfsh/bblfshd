@@ -2,6 +2,7 @@ module github.com/bblfsh/bblfshd
 
 require (
 	github.com/14rcole/gopopulate v0.0.0-20180821133914-b175b219e774 // indirect
+	github.com/bblfsh/go-client/v4 v4.0.1
 	github.com/bblfsh/sdk/v3 v3.0.0
 	github.com/beorn7/perks v1.0.0 // indirect
 	github.com/briandowns/spinner v0.0.0-20170614154858-48dbb65d7bd5
@@ -56,7 +57,7 @@ require (
 	golang.org/x/net v0.0.0-20190424112056-4829fb13d2c6
 	golang.org/x/sys v0.0.0-20190429190828-d89cdac9e872 // indirect
 	golang.org/x/text v0.3.2 // indirect
-	google.golang.org/grpc v1.13.0
+	google.golang.org/grpc v1.14.0
 	gopkg.in/bblfsh/sdk.v1 v1.16.1
 	gopkg.in/src-d/enry.v1 v1.6.1
 	gopkg.in/src-d/go-errors.v1 v1.0.0

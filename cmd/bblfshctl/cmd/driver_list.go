@@ -41,6 +41,15 @@ func (c *DriverListCommand) Execute(args []string) error {
 	return err
 }
 
+func printErrors(errors []string) {
+	if len(errors) != 0 {
+		fmt.Println("Errors:")
+		for _, err := range errors {
+			fmt.Printf("\t- %s\n", err)
+		}
+	}
+}
+
 func driverStatusToText(r *protocol.DriverStatesResponse) {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"Language", "Image", "Version", "Status", "Created", "Go", "Native"})
