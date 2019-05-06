@@ -1,14 +1,11 @@
 package cmd
 
 import (
-	"context"
+	"errors"
 	"fmt"
-	"io/ioutil"
-	"path/filepath"
 
-	"gopkg.in/bblfsh/sdk.v1/protocol"
-
-	"github.com/hokaccha/go-prettyjson"
+	bblfsh "github.com/bblfsh/go-client/v4"
+	"github.com/bblfsh/sdk/v3/uast/uastyaml"
 )
 
 const (
@@ -26,73 +23,32 @@ type ParseCommand struct {
 }
 
 func (c *ParseCommand) Execute(args []string) error {
+	if c.Args.File == "" {
+		return errors.New("file argument is mandatory")
+	}
 	if err := c.UserCommand.Execute(nil); err != nil {
 		return err
 	}
 
-	if c.Args.File == "" {
-		return fmt.Errorf("file argument is mandatory")
-	}
-
-	content, err := ioutil.ReadFile(c.Args.File)
+	cli, err := bblfsh.NewClientWithConnection(c.conn)
 	if err != nil {
 		return err
 	}
+	defer cli.Close()
 
+	req := cli.NewParseRequest().ReadFile(c.Args.File)
 	if c.Native {
-		return c.doNative(string(content))
+		req = req.Mode(bblfsh.Native)
 	}
 
-	return c.doUAST(string(content))
-}
-
-func (c *ParseCommand) doUAST(content string) error {
-	resp, err := c.srv.Parse(context.TODO(), &protocol.ParseRequest{
-		Filename: filepath.Base(c.Args.File),
-		Content:  string(content),
-	})
-
+	ast, _, err := req.UAST()
 	if err != nil {
 		return err
 	}
-
-	printResponse(&resp.Response)
-	fmt.Println(resp.UAST)
+	data, err := uastyaml.Marshal(ast)
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(data))
 	return nil
-}
-
-func (c *ParseCommand) doNative(content string) error {
-	resp, err := c.srv.NativeParse(context.TODO(), &protocol.NativeParseRequest{
-		Filename: filepath.Base(c.Args.File),
-		Content:  string(content),
-	})
-
-	if err != nil {
-		return err
-	}
-
-	pp, err := prettyjson.Format([]byte(resp.AST))
-	if err != nil {
-		return err
-	}
-
-	printResponse(&resp.Response)
-	fmt.Println(string(pp))
-	return nil
-}
-
-func printResponse(r *protocol.Response) {
-	fmt.Printf("Status: %s\n", r.Status)
-	fmt.Printf("Elapsed: %s\n", r.Elapsed)
-	printErrors(r.Errors)
-	fmt.Println("")
-}
-
-func printErrors(errors []string) {
-	if len(errors) != 0 {
-		fmt.Println("Errors:")
-		for _, err := range errors {
-			fmt.Printf("\t- %s\n", err)
-		}
-	}
 }
