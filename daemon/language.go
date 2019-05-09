@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"gopkg.in/src-d/enry.v1"
+	"github.com/src-d/enry/v2"
 )
 
 // GetLanguage detects the language of a file and returns it in a normalized

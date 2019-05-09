@@ -8,7 +8,6 @@ require (
 	github.com/beorn7/perks v1.0.0 // indirect
 	github.com/briandowns/spinner v0.0.0-20170614154858-48dbb65d7bd5
 	github.com/cenkalti/backoff v2.1.1+incompatible
-	github.com/cespare/trie v0.0.0-20150610204604-3fe1a95cbba9 // indirect
 	github.com/containerd/console v0.0.0-20180220200639-2748ece16665 // indirect
 	github.com/containers/image v0.0.0-20170921085858-33dad2514b7d
 	github.com/containers/storage v0.0.0-20180220103138-477e551dd493 // indirect
@@ -50,10 +49,10 @@ require (
 	github.com/prometheus/procfs v0.0.0-20190425082905-87a4384529e0 // indirect
 	github.com/seccomp/libseccomp-golang v0.0.0-20170625204121-f6ec81daf48e // indirect
 	github.com/sirupsen/logrus v1.4.1
+	github.com/src-d/enry/v2 v2.0.0
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.3.0
 	github.com/syndtr/gocapability v0.0.0-20170704070218-db04d3cc01c8 // indirect
-	github.com/toqueteos/trie v0.0.0-20150530104557-56fed4a05683 // indirect
 	github.com/uber-go/atomic v1.4.0 // indirect
 	github.com/uber/jaeger-client-go v2.16.0+incompatible
 	github.com/uber/jaeger-lib v2.0.0+incompatible // indirect
@@ -68,8 +67,5 @@ require (
 	google.golang.org/genproto v0.0.0-20190502173448-54afdca5d873 // indirect
 	google.golang.org/grpc v1.20.1
 	gopkg.in/bblfsh/sdk.v1 v1.17.0
-	gopkg.in/src-d/enry.v1 v1.6.1
 	gopkg.in/src-d/go-errors.v1 v1.0.0
-	gopkg.in/toqueteos/substring.v1 v1.0.2 // indirect
-	gopkg.in/yaml.v2 v2.2.2 // indirect
 )
