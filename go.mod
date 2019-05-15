@@ -4,7 +4,7 @@ require (
 	github.com/14rcole/gopopulate v0.0.0-20180821133914-b175b219e774 // indirect
 	github.com/Microsoft/go-winio v0.4.12 // indirect
 	github.com/bblfsh/go-client/v4 v4.0.1
-	github.com/bblfsh/sdk/v3 v3.0.0
+	github.com/bblfsh/sdk/v3 v3.1.0
 	github.com/beorn7/perks v1.0.0 // indirect
 	github.com/briandowns/spinner v0.0.0-20170614154858-48dbb65d7bd5
 	github.com/cenkalti/backoff v2.1.1+incompatible
@@ -48,7 +48,7 @@ require (
 	github.com/prometheus/common v0.3.0 // indirect
 	github.com/prometheus/procfs v0.0.0-20190425082905-87a4384529e0 // indirect
 	github.com/seccomp/libseccomp-golang v0.0.0-20170625204121-f6ec81daf48e // indirect
-	github.com/sirupsen/logrus v1.4.1
+	github.com/sirupsen/logrus v1.4.2
 	github.com/src-d/enry/v2 v2.0.0
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.3.0
@@ -59,12 +59,12 @@ require (
 	github.com/vishvananda/netlink v0.0.0-20170710030406-8c5a115d793b // indirect
 	github.com/vishvananda/netns v0.0.0-20170707011535-86bef332bfc3 // indirect
 	go.uber.org/atomic v1.4.0 // indirect
-	golang.org/x/crypto v0.0.0-20190426145343-a29dc8fdc734 // indirect
-	golang.org/x/net v0.0.0-20190503192946-f4e77d36d62c
-	golang.org/x/sys v0.0.0-20190506115046-ca7f33d4116e // indirect
+	golang.org/x/crypto v0.0.0-20190513172903-22d7a77e9e5f // indirect
+	golang.org/x/net v0.0.0-20190520210107-018c4d40a106
+	golang.org/x/sys v0.0.0-20190520201301-c432e742b0af // indirect
 	golang.org/x/text v0.3.2 // indirect
 	google.golang.org/appengine v1.4.0 // indirect
-	google.golang.org/genproto v0.0.0-20190502173448-54afdca5d873 // indirect
+	google.golang.org/genproto v0.0.0-20190516172635-bb713bdc0e52 // indirect
 	google.golang.org/grpc v1.20.1
 	gopkg.in/bblfsh/sdk.v1 v1.17.0
 	gopkg.in/src-d/go-errors.v1 v1.0.0

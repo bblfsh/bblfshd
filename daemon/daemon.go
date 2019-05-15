@@ -29,8 +29,9 @@ type Daemon struct {
 	runtime   *runtime.Runtime
 	driverEnv []string
 
-	mu   sync.RWMutex
-	pool map[string]*DriverPool
+	mu      sync.RWMutex
+	pool    map[string]*DriverPool // language ID → driver pool
+	aliases map[string]string      // alias → language ID
 }
 
 // NewDaemon creates a new server based on the runtime with the given version.
@@ -43,6 +44,7 @@ func NewDaemon(version string, build time.Time, r *runtime.Runtime, opts ...grpc
 		build:         build,
 		runtime:       r,
 		pool:          make(map[string]*DriverPool),
+		aliases:       make(map[string]string),
 		UserServer:    grpc.NewServer(opts...),
 		ControlServer: grpc.NewServer(commonOpt...),
 	}
@@ -69,7 +71,9 @@ func registerGRPC(d *Daemon) {
 	protocol1.DefaultService = NewService(d)
 	protocol1.RegisterProtocolServiceServer(d.UserServer, protocol1.NewProtocolServiceServer())
 
-	protocol2.RegisterDriverServer(d.UserServer, NewServiceV2(d))
+	s2 := NewServiceV2(d)
+	protocol2.RegisterDriverServer(d.UserServer, s2)
+	protocol2.RegisterDriverHostServer(d.UserServer, s2)
 	protocol.RegisterService(d.ControlServer, NewControlService(d))
 }
 
@@ -92,7 +96,7 @@ func (d *Daemon) InstallDriver(language string, image string, update bool) error
 		}
 	}
 
-	s, err := d.getDriverImage(context.TODO(), language)
+	s, _, err := d.getDriverImage(context.TODO(), language)
 	if err != nil && !ErrMissingDriver.Is(err) {
 		return ErrRuntime.Wrap(err)
 	}
@@ -118,7 +122,7 @@ func (d *Daemon) InstallDriver(language string, image string, update bool) error
 func (d *Daemon) RemoveDriver(language string) error {
 	driverRemoveCalls.Add(1)
 
-	img, err := d.getDriverImage(context.TODO(), language)
+	img, _, err := d.getDriverImage(context.TODO(), language)
 	if err != nil {
 		return ErrRuntime.Wrap(err)
 	}
@@ -136,6 +140,9 @@ func (d *Daemon) RemoveDriver(language string) error {
 
 func (d *Daemon) DriverPool(ctx context.Context, language string) (*DriverPool, error) {
 	d.mu.RLock()
+	if l, ok := d.aliases[language]; ok {
+		language = l
+	}
 	dp, ok := d.pool[language]
 	d.mu.RUnlock()
 	if ok {
@@ -144,40 +151,56 @@ func (d *Daemon) DriverPool(ctx context.Context, language string) (*DriverPool, 
 
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	if l, ok := d.aliases[language]; ok {
+		language = l
+	}
 	dp, ok = d.pool[language]
 	if ok {
 		return dp, nil
 	}
 
-	image, err := d.getDriverImage(ctx, language)
+	image, aliases, err := d.getDriverImage(ctx, language)
 	if err != nil {
 		return nil, ErrRuntime.Wrap(err)
 	}
 
-	return d.newDriverPool(ctx, language, image)
+	return d.newDriverPool(ctx, language, aliases, image)
 }
 
-func (d *Daemon) getDriverImage(rctx context.Context, language string) (runtime.DriverImage, error) {
+func driverWithLang(lang string, list []*runtime.DriverImageStatus) *runtime.DriverImageStatus {
+	for _, d := range list {
+		m := d.Manifest
+		if m.Language == lang {
+			return d
+		}
+		for _, l := range m.Aliases {
+			if l == lang {
+				return d
+			}
+		}
+	}
+	return nil
+}
+
+func (d *Daemon) getDriverImage(rctx context.Context, language string) (runtime.DriverImage, []string, error) {
 	sp, _ := opentracing.StartSpanFromContext(rctx, "bblfshd.runtime.ListDrivers")
 	defer sp.Finish()
 
 	list, err := d.runtime.ListDrivers()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-
-	for _, d := range list {
-		if d.Manifest.Language == language {
-			return runtime.NewDriverImage(d.Reference)
-		}
+	dr := driverWithLang(language, list)
+	if dr == nil {
+		return nil, nil, ErrMissingDriver.New(language)
 	}
-
-	return nil, ErrMissingDriver.New(language)
+	img, err := runtime.NewDriverImage(dr.Reference)
+	return img, dr.Manifest.Aliases, err
 }
 
 // newDriverPool, instance a new driver pool for the given language and image
 // and should be called under a lock.
-func (d *Daemon) newDriverPool(rctx context.Context, language string, image runtime.DriverImage) (*DriverPool, error) {
+func (d *Daemon) newDriverPool(rctx context.Context, language string, aliases []string, image runtime.DriverImage) (*DriverPool, error) {
 	sp, ctx := opentracing.StartSpanFromContext(rctx, "bblfshd.pool.newDriverPool")
 	defer sp.Finish()
 
@@ -210,6 +233,10 @@ func (d *Daemon) newDriverPool(rctx context.Context, language string, image runt
 	}
 
 	d.pool[language] = dp
+	for _, l := range aliases {
+		logrus.Debugf("language alias: %s = %s", language, l)
+		d.aliases[l] = language
+	}
 	return dp, nil
 }
 

@@ -4,6 +4,7 @@ package daemon
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 	"unicode/utf8"
@@ -13,12 +14,17 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/bblfsh/bblfshd/daemon/protocol"
+	"github.com/bblfsh/sdk/v3/driver/manifest"
 	protocol2 "github.com/bblfsh/sdk/v3/protocol"
 	xcontext "golang.org/x/net/context"
+	manifest1 "gopkg.in/bblfsh/sdk.v1/manifest"
 	protocol1 "gopkg.in/bblfsh/sdk.v1/protocol"
 )
 
-var _ protocol2.DriverServer = (*ServiceV2)(nil)
+var (
+	_ protocol2.DriverServer     = (*ServiceV2)(nil)
+	_ protocol2.DriverHostServer = (*ServiceV2)(nil)
+)
 
 type ServiceV2 struct {
 	daemon *Daemon
@@ -28,6 +34,7 @@ func NewServiceV2(d *Daemon) *ServiceV2 {
 	return &ServiceV2{daemon: d}
 }
 
+// Parse implements protocol2.DriverServer.
 func (s *ServiceV2) Parse(rctx xcontext.Context, req *protocol2.ParseRequest) (resp *protocol2.ParseResponse, gerr error) {
 	parseCallsV2.Add(1)
 	defer prometheus.NewTimer(parseLatencyV2).ObserveDuration()
@@ -74,6 +81,47 @@ func (s *ServiceV2) Parse(rctx xcontext.Context, req *protocol2.ParseRequest) (r
 		resp.Language = language
 	}
 	return resp, err
+}
+
+// ServerVersion implements protocol2.DriverHostServer.
+func (s *ServiceV2) ServerVersion(rctx xcontext.Context, _ *protocol2.VersionRequest) (*protocol2.VersionResponse, error) {
+	versionCallsV2.Add(1)
+
+	sp, _ := opentracing.StartSpanFromContext(rctx, "bblfshd.v2.ServerVersion")
+	defer sp.Finish()
+
+	resp := &protocol2.Version{Version: s.daemon.version}
+	if !s.daemon.build.IsZero() {
+		resp.Build = s.daemon.build
+	}
+	return &protocol2.VersionResponse{Version: resp}, nil
+}
+
+// SupportedLanguages implements protocol2.DriverHostServer.
+func (s *ServiceV2) SupportedLanguages(rctx xcontext.Context, _ *protocol2.SupportedLanguagesRequest) (_ *protocol2.SupportedLanguagesResponse, gerr error) {
+	languagesCallsV2.Add(1)
+
+	sp, _ := opentracing.StartSpanFromContext(rctx, "bblfshd.v2.SupportedLanguages")
+	defer sp.Finish()
+
+	start := time.Now()
+	defer func() {
+		s.logResponse(gerr, "", "", 0, time.Since(start))
+	}()
+
+	drivers, err := s.daemon.runtime.ListDrivers()
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]*protocol2.Manifest, 0, len(drivers))
+	for _, d := range drivers {
+		if d.Manifest == nil {
+			return nil, errors.New("empty manifest returned by driver")
+		}
+		out = append(out, protocol2.NewManifest(d.Manifest))
+	}
+	return &protocol2.SupportedLanguagesResponse{Languages: out}, nil
 }
 
 func (s *ServiceV2) logResponse(err error, filename string, language string, size int, elapsed time.Duration) {
@@ -141,6 +189,7 @@ func NewService(d *Daemon) *Service {
 	return &Service{daemon: d}
 }
 
+// Parse implements protocol1.Service.
 func (d *Service) Parse(req *protocol1.ParseRequest) *protocol1.ParseResponse {
 	parseCallsV1.Add(1)
 	parseContentSizeV1.Observe(float64(len(req.Content)))
@@ -215,6 +264,7 @@ func (d *Service) logResponse(s protocol1.Status, filename string, language stri
 	}
 }
 
+// NativeParse implements protocol1.Service.
 func (d *Service) NativeParse(req *protocol1.NativeParseRequest) *protocol1.NativeParseResponse {
 	parseCallsV1.Add(1)
 	parseContentSizeV1.Observe(float64(len(req.Content)))
@@ -285,8 +335,9 @@ func (s *Service) selectPool(ctx context.Context, language, content, filename st
 	return language, dp, nil
 }
 
+// Version implements protocol1.Service.
 func (d *Service) Version(req *protocol1.VersionRequest) *protocol1.VersionResponse {
-	versionCalls.Add(1)
+	versionCallsV1.Add(1)
 
 	resp := &protocol1.VersionResponse{Version: d.daemon.version, Build: d.daemon.build}
 	start := time.Now()
@@ -297,8 +348,33 @@ func (d *Service) Version(req *protocol1.VersionRequest) *protocol1.VersionRespo
 	return resp
 }
 
+// manifestV2toV1 converts driver manifest from v2 API format to v1.
+func manifestV2toV1(m *manifest.Manifest) *manifest1.Manifest {
+	dm := &manifest1.Manifest{
+		Name:     m.Name,
+		Language: m.Language,
+		Version:  m.Version,
+		Status:   manifest1.DevelopmentStatus(m.Status),
+		Features: make([]manifest1.Feature, 0, len(m.Features)),
+	}
+	dm.Runtime.GoVersion = m.Runtime.GoVersion
+	dm.Runtime.NativeVersion = []string{m.Runtime.NativeVersion}
+	if m.Documentation != nil {
+		dm.Documentation.Description = m.Documentation.Description
+		dm.Documentation.Caveats = m.Documentation.Caveats
+	}
+	if !m.Build.IsZero() {
+		dm.Build = &m.Build
+	}
+	for _, f := range m.Features {
+		dm.Features = append(dm.Features, manifest1.Feature(f))
+	}
+	return dm
+}
+
+// SupportedLanguages implements protocol1.Service.
 func (d *Service) SupportedLanguages(req *protocol1.SupportedLanguagesRequest) *protocol1.SupportedLanguagesResponse {
-	languagesCalls.Add(1)
+	languagesCallsV1.Add(1)
 
 	resp := &protocol1.SupportedLanguagesResponse{}
 	start := time.Now()
@@ -315,7 +391,8 @@ func (d *Service) SupportedLanguages(req *protocol1.SupportedLanguagesRequest) *
 
 	driverRes := make([]protocol1.DriverManifest, len(drivers))
 	for i, driver := range drivers {
-		driverRes[i] = protocol1.NewDriverManifest(driver.Manifest)
+		m := manifestV2toV1(driver.Manifest)
+		driverRes[i] = protocol1.NewDriverManifest(m)
 	}
 
 	resp.Languages = driverRes
@@ -363,20 +440,14 @@ func (s *ControlService) DriverStates() ([]*protocol.DriverImageState, error) {
 
 	var out []*protocol.DriverImageState
 	for _, d := range list {
-		build := d.Manifest.Build
-		if build == nil {
-			build = &time.Time{}
-		}
-
 		out = append(out, &protocol.DriverImageState{
 			Reference:     d.Reference,
 			Language:      d.Manifest.Language,
 			Version:       d.Manifest.Version,
-			Build:         *build,
+			Build:         d.Manifest.Build,
 			Status:        string(d.Manifest.Status),
-			OS:            string(d.Manifest.Runtime.OS),
 			GoVersion:     string(d.Manifest.Runtime.GoVersion),
-			NativeVersion: []string(d.Manifest.Runtime.NativeVersion),
+			NativeVersion: []string{d.Manifest.Runtime.NativeVersion},
 		})
 	}
 
