@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"gopkg.in/bblfsh/sdk.v1/manifest"
-	"gopkg.in/bblfsh/sdk.v1/sdk/driver"
+	"github.com/bblfsh/sdk/v3/driver"
+	"github.com/bblfsh/sdk/v3/driver/manifest"
 	"gopkg.in/src-d/go-errors.v1"
 )
 

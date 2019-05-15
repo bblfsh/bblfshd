@@ -57,24 +57,28 @@ var (
 		Help: "Size of parsed files",
 	}, []string{"vers"})
 
+	versionCalls = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "bblfshd_version_total",
+		Help: "The total number of version requests",
+	}, []string{"vers"})
+	languagesCalls = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "bblfshd_languages_total",
+		Help: "The total number of supported languages requests",
+	}, []string{"vers"})
+
+	versionCallsV1     = versionCalls.WithLabelValues("v1")
+	languagesCallsV1   = languagesCalls.WithLabelValues("v1")
 	parseCallsV1       = parseCalls.WithLabelValues("v1")
 	parseErrorsV1      = parseErrors.WithLabelValues("v1")
 	parseLatencyV1     = parseLatency.WithLabelValues("v1")
 	parseContentSizeV1 = parseContentSize.WithLabelValues("v1")
 
+	versionCallsV2     = versionCalls.WithLabelValues("v2")
+	languagesCallsV2   = languagesCalls.WithLabelValues("v2")
 	parseCallsV2       = parseCalls.WithLabelValues("v2")
 	parseErrorsV2      = parseErrors.WithLabelValues("v2")
 	parseLatencyV2     = parseLatency.WithLabelValues("v2")
 	parseContentSizeV2 = parseContentSize.WithLabelValues("v2")
-
-	versionCalls = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "bblfshd_version_total",
-		Help: "The total number of version requests",
-	})
-	languagesCalls = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "bblfshd_languages_total",
-		Help: "The total number of supported languages requests",
-	})
 )
 
 // Scaling metrics
