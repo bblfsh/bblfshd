@@ -9,13 +9,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bblfsh/bblfshd/daemon/protocol"
-	"github.com/bblfsh/bblfshd/runtime"
-
-	protocol2 "github.com/bblfsh/sdk/v3/protocol"
 	"github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+
+	"github.com/bblfsh/bblfshd/daemon/protocol"
+	"github.com/bblfsh/bblfshd/runtime"
+
+	"github.com/bblfsh/sdk/v3/driver/manifest"
+	protocol2 "github.com/bblfsh/sdk/v3/protocol"
 	protocol1 "gopkg.in/bblfsh/sdk.v1/protocol"
 )
 
@@ -160,12 +162,12 @@ func (d *Daemon) DriverPool(ctx context.Context, language string) (*DriverPool, 
 		return dp, nil
 	}
 
-	image, aliases, err := d.getDriverImage(ctx, language)
+	image, m, err := d.getDriverImage(ctx, language)
 	if err != nil {
 		return nil, ErrRuntime.Wrap(err)
 	}
 
-	return d.newDriverPool(ctx, language, aliases, image)
+	return d.newDriverPool(ctx, m.Language, m.Aliases, image)
 }
 
 func driverWithLang(lang string, list []*runtime.DriverImageStatus) *runtime.DriverImageStatus {
@@ -184,7 +186,7 @@ func driverWithLang(lang string, list []*runtime.DriverImageStatus) *runtime.Dri
 	return nil
 }
 
-func (d *Daemon) getDriverImage(rctx context.Context, language string) (runtime.DriverImage, []string, error) {
+func (d *Daemon) getDriverImage(rctx context.Context, language string) (runtime.DriverImage, *manifest.Manifest, error) {
 	sp, _ := opentracing.StartSpanFromContext(rctx, "bblfshd.runtime.ListDrivers")
 	defer sp.Finish()
 
@@ -197,7 +199,7 @@ func (d *Daemon) getDriverImage(rctx context.Context, language string) (runtime.
 		return nil, nil, ErrMissingDriver.New(language)
 	}
 	img, err := runtime.NewDriverImage(dr.Reference)
-	return img, dr.Manifest.Aliases, err
+	return img, dr.Manifest, err
 }
 
 // newDriverPool, instance a new driver pool for the given language and image
