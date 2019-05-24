@@ -139,6 +139,7 @@ func (d *Daemon) RemoveDriver(language string) error {
 }
 
 func (d *Daemon) DriverPool(ctx context.Context, language string) (*DriverPool, error) {
+	language = strings.ToLower(language)
 	d.mu.RLock()
 	if l, ok := d.aliases[language]; ok {
 		language = l
@@ -168,13 +169,14 @@ func (d *Daemon) DriverPool(ctx context.Context, language string) (*DriverPool, 
 }
 
 func driverWithLang(lang string, list []*runtime.DriverImageStatus) *runtime.DriverImageStatus {
+	lang = strings.ToLower(lang)
 	for _, d := range list {
 		m := d.Manifest
-		if m.Language == lang {
+		if strings.ToLower(m.Language) == lang {
 			return d
 		}
 		for _, l := range m.Aliases {
-			if l == lang {
+			if strings.ToLower(l) == lang {
 				return d
 			}
 		}
@@ -235,7 +237,7 @@ func (d *Daemon) newDriverPool(rctx context.Context, language string, aliases []
 	d.pool[language] = dp
 	for _, l := range aliases {
 		logrus.Debugf("language alias: %s = %s", language, l)
-		d.aliases[l] = language
+		d.aliases[strings.ToLower(l)] = language
 	}
 	return dp, nil
 }
