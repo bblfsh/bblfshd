@@ -17,7 +17,9 @@ import (
 	"github.com/bblfsh/bblfshd/daemon"
 	"github.com/bblfsh/bblfshd/runtime"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	pversion "github.com/prometheus/common/version"
 	"github.com/sirupsen/logrus"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 
@@ -27,13 +29,13 @@ import (
 )
 
 const (
-	defaultBuild    = "undefined"
+	undefined       = "undefined"
 	buildDateFormat = "2006-01-02T15:04:05-0700"
 )
 
 var (
-	version = "undefined"
-	build   = defaultBuild
+	version = undefined
+	build   = undefined
 
 	network        *string
 	address        *string
@@ -64,6 +66,10 @@ var (
 )
 
 func init() {
+	pversion.Version = version
+	pversion.BuildDate = build
+	prometheus.MustRegister(pversion.NewCollector("bblfshd"))
+
 	cmd = flag.NewFlagSet("bblfshd", flag.ExitOnError)
 	network = cmd.String("network", "tcp", "network type: tcp, tcp4, tcp6, unix or unixpacket.")
 	address = cmd.String("address", "0.0.0.0:9432", "address to listen.")
@@ -152,7 +158,7 @@ func main() {
 
 	parsedBuild, err := time.Parse(buildDateFormat, build)
 	if err != nil {
-		if build == defaultBuild {
+		if build == undefined {
 			parsedBuild = time.Now()
 			logrus.Infof("using start time instead in this dev build: %s",
 				parsedBuild.Format(buildDateFormat))
