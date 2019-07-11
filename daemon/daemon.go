@@ -9,9 +9,11 @@ import (
 	"sync"
 	"time"
 
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
+
 	"github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
-	"google.golang.org/grpc"
 
 	"github.com/bblfsh/bblfshd/daemon/protocol"
 	"github.com/bblfsh/bblfshd/runtime"
@@ -19,6 +21,18 @@ import (
 	"github.com/bblfsh/sdk/v3/driver/manifest"
 	protocol2 "github.com/bblfsh/sdk/v3/protocol"
 	protocol1 "gopkg.in/bblfsh/sdk.v1/protocol"
+)
+
+const (
+	// keepaliveMinTime is the minimum amount of time a client should wait before sending
+	// a keepalive ping.
+	keepaliveMinTime = 1 * time.Minute
+
+	// keepalivePingWithoutStream is a boolean flag.
+	// If true, server allows keepalive pings even when there are no active
+	// streams(RPCs). If false, and client sends ping when there are no active
+	// streams, server will send GOAWAY and close the connection.
+	keepalivePingWithoutStream = true
 )
 
 // Daemon is a Babelfish server.
@@ -38,7 +52,15 @@ type Daemon struct {
 
 // NewDaemon creates a new server based on the runtime with the given version.
 func NewDaemon(version string, build time.Time, r *runtime.Runtime, opts ...grpc.ServerOption) *Daemon {
-	commonOpt := protocol2.ServerOptions()
+	commonOpt := append(protocol2.ServerOptions(),
+		// EnforcementPolicy is used to set keepalive enforcement policy on the
+		// server-side. Server will close connection with a client that violates this
+		// policy.
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			MinTime:             keepaliveMinTime,
+			PermitWithoutStream: keepalivePingWithoutStream,
+		}),
+	)
 	opts = append(opts, commonOpt...)
 
 	d := &Daemon{
