@@ -12,13 +12,13 @@ import (
 	"sync/atomic"
 	"time"
 
+	"gopkg.in/src-d/go-log.v1"
+
 	"github.com/cenkalti/backoff"
 	"github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/sirupsen/logrus"
 
 	"github.com/bblfsh/bblfshd/daemon/protocol"
-	"gopkg.in/bblfsh/sdk.v1/sdk/server"
 	"gopkg.in/src-d/go-errors.v1"
 )
 
@@ -107,7 +107,7 @@ type DriverPool struct {
 	// ScalingPolicy scaling policy used to scale up the instances.
 	ScalingPolicy ScalingPolicy
 	// Logger used during the live of the driver pool.
-	Logger server.Logger
+	Logger log.Logger
 
 	// factory function used to spawn new driver instances.
 	factory FactoryFunction
@@ -193,13 +193,13 @@ type FactoryFunction func(ctx context.Context) (Driver, error)
 func NewDriverPool(factory FactoryFunction) *DriverPool {
 	return &DriverPool{
 		ScalingPolicy: DefaultScalingPolicy(),
-		Logger:        logrus.New(),
+		Logger:        log.New(nil),
 		factory:       factory,
 	}
 }
 
 func (dp *DriverPool) SetLabels(labels []string) {
-	dp.Logger = logrus.WithFields(logrus.Fields{
+	dp.Logger = log.DefaultLogger.With(log.Fields{
 		"language": labels[0],
 		"image":    labels[1],
 	})
@@ -348,14 +348,14 @@ func (dp *DriverPool) spawnOne() {
 		if dp.metrics.spawn.err != nil {
 			dp.metrics.spawn.err.Add(1)
 		}
-		dp.Logger.Errorf("failed to start a driver: %v", err)
+		dp.Logger.Errorf(err, "failed to start a driver")
 		select {
 		case <-stop:
 			return // cancel
 		case dp.spawnErr <- err:
 		case _, ok := <-ticker.C:
 			if !ok {
-				dp.Logger.Errorf("driver keeps failing, closing the pool; error: %v", err)
+				dp.Logger.Errorf(err, "driver keeps failing, closing the pool; error")
 				// can only run in a goroutine, since Stop will wait for runSpawn to return
 				go dp.Stop()
 				return
@@ -416,7 +416,7 @@ func (dp *DriverPool) killDriver(d Driver) {
 	dp.drivers.Unlock()
 
 	if err := d.Stop(); err != nil {
-		dp.Logger.Errorf("error removing stopped driver: %s", err)
+		dp.Logger.Errorf(err, "error removing stopped driver")
 	}
 }
 
@@ -730,7 +730,7 @@ func (dp *DriverPool) putDriver(d Driver) error {
 func (dp *DriverPool) checkStatus(d Driver) error {
 	status, err := d.Status()
 	if err != nil {
-		dp.Logger.Errorf("error getting driver status, removing: %s", err)
+		dp.Logger.Errorf(err, "error getting driver status, removing")
 		dp.killDriver(d)
 		return err
 	} else if status != protocol.Running {
