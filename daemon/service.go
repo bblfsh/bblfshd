@@ -9,9 +9,10 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"gopkg.in/src-d/go-log.v1"
+
 	"github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/sirupsen/logrus"
 
 	"github.com/bblfsh/bblfshd/daemon/protocol"
 	"github.com/bblfsh/sdk/v3/driver/manifest"
@@ -50,21 +51,21 @@ func (s *ServiceV2) Parse(rctx xcontext.Context, req *protocol2.ParseRequest) (r
 	}()
 
 	if req.Content == "" {
-		logrus.Debugf("empty request received, returning empty UAST")
+		log.Debugf("empty request received, returning empty UAST")
 		return resp, nil
 	}
 
 	if !utf8.ValidString(req.Content) {
 		parseErrorsV2.Add(1)
 		err := ErrUnknownEncoding.New()
-		logrus.Debugf("parse v2 (%s): %s", req.Filename, err)
+		log.Debugf("parse v2 (%s): %s", req.Filename, err)
 		return nil, err
 	}
 
 	language, dp, err := s.selectPool(ctx, req.Language, req.Content, req.Filename)
 	if err != nil {
 		parseErrorsV2.Add(1)
-		logrus.Errorf("error selecting pool: %s", err)
+		log.Errorf(err, "error selecting pool")
 		return nil, err
 	}
 
@@ -125,7 +126,7 @@ func (s *ServiceV2) SupportedLanguages(rctx xcontext.Context, _ *protocol2.Suppo
 }
 
 func (s *ServiceV2) logResponse(err error, filename string, language string, size int, elapsed time.Duration) {
-	fields := logrus.Fields{"elapsed": elapsed}
+	fields := log.Fields{"elapsed": elapsed}
 	if filename != "" {
 		fields["filename"] = filename
 	}
@@ -134,14 +135,13 @@ func (s *ServiceV2) logResponse(err error, filename string, language string, siz
 		fields["language"] = language
 	}
 
-	l := logrus.WithFields(fields)
+	l := log.With(fields)
 	text := fmt.Sprintf("request processed content %d bytes", size)
 
 	if err != nil {
-		text += " error: " + err.Error()
-		l.Error(text)
+		l.Errorf(err, text)
 	} else {
-		l.Debug(text)
+		l.Debugf(text)
 	}
 }
 
@@ -153,7 +153,7 @@ func (s *ServiceV2) detectLanguage(rctx context.Context, content, filename strin
 	if language == "" {
 		return "", ErrLanguageDetection.New()
 	}
-	logrus.Debugf("detected language %q, filename %q", language, filename)
+	log.Debugf("detected language %q, filename %q", language, filename)
 	return language, nil
 }
 
@@ -207,19 +207,19 @@ func (d *Service) Parse(req *protocol1.ParseRequest) *protocol1.ParseResponse {
 	}()
 
 	if req.Content == "" {
-		logrus.Debugf("empty request received, returning empty UAST")
+		log.Debugf("empty request received, returning empty UAST")
 		return resp
 	}
 	if !utf8.ValidString(req.Content) {
 		err := ErrUnknownEncoding.New()
-		logrus.Debugf("parse v1 (%s): %s", req.Filename, err)
+		log.Debugf("parse v1 (%s): %s", req.Filename, err)
 		resp.Response = newResponseFromError(err)
 		return resp
 	}
 
 	language, dp, err := d.selectPool(context.TODO(), req.Language, req.Content, req.Filename)
 	if err != nil {
-		logrus.Errorf("error selecting pool: %s", err)
+		log.Errorf(err, "error selecting pool")
 		resp.Response = newResponseFromError(err)
 		resp.Language = language
 		return resp
@@ -242,7 +242,7 @@ func (d *Service) Parse(req *protocol1.ParseRequest) *protocol1.ParseResponse {
 }
 
 func (d *Service) logResponse(s protocol1.Status, filename string, language string, size int, elapsed time.Duration) {
-	fields := logrus.Fields{"elapsed": elapsed}
+	fields := log.Fields{"elapsed": elapsed}
 	if filename != "" {
 		fields["filename"] = filename
 	}
@@ -251,16 +251,16 @@ func (d *Service) logResponse(s protocol1.Status, filename string, language stri
 		fields["language"] = language
 	}
 
-	l := logrus.WithFields(fields)
+	l := log.With(fields)
 	text := fmt.Sprintf("request processed content %d bytes, status %s", size, s)
 
 	switch s {
 	case protocol1.Ok:
-		l.Debug(text)
+		l.Debugf(text)
 	case protocol1.Error:
-		l.Warning(text)
+		l.Warningf(text)
 	case protocol1.Fatal:
-		l.Error(text)
+		l.Errorf(fmt.Errorf("protocol1 fatal error"), text)
 	}
 }
 
@@ -282,20 +282,20 @@ func (d *Service) NativeParse(req *protocol1.NativeParseRequest) *protocol1.Nati
 	}()
 
 	if req.Content == "" {
-		logrus.Debugf("empty request received, returning empty AST")
+		log.Debugf("empty request received, returning empty AST")
 		return resp
 	}
 
 	if !utf8.ValidString(req.Content) {
 		err := ErrUnknownEncoding.New()
-		logrus.Debugf("native parse v1 (%s): %s", req.Filename, err)
+		log.Debugf("native parse v1 (%s): %s", req.Filename, err)
 		resp.Response = newResponseFromError(err)
 		return resp
 	}
 
 	language, dp, err := d.selectPool(context.TODO(), req.Language, req.Content, req.Filename)
 	if err != nil {
-		logrus.Errorf("error selecting pool: %s", err)
+		log.Errorf(err, "error selecting pool")
 		resp.Response = newResponseFromError(err)
 		return resp
 	}
@@ -322,7 +322,7 @@ func (s *Service) selectPool(ctx context.Context, language, content, filename st
 		if language == "" {
 			return language, nil, ErrLanguageDetection.New()
 		}
-		logrus.Debugf("detected language %q, filename %q", language, filename)
+		log.Debugf("detected language %q, filename %q", language, filename)
 	} else { // always re-map enry->bblfsh language names
 		language = normalize(language)
 	}
