@@ -13,7 +13,7 @@ import (
 	"google.golang.org/grpc/keepalive"
 
 	"github.com/opentracing/opentracing-go"
-	"github.com/sirupsen/logrus"
+	"gopkg.in/src-d/go-log.v1"
 
 	"github.com/bblfsh/bblfshd/daemon/protocol"
 	"github.com/bblfsh/bblfshd/runtime"
@@ -139,7 +139,7 @@ func (d *Daemon) InstallDriver(language string, image string, update bool) error
 		return err
 	}
 
-	logrus.Infof("driver %s installed %q", language, img.Name())
+	log.Infof("driver %s installed %q", language, img.Name())
 	return nil
 }
 
@@ -158,7 +158,7 @@ func (d *Daemon) RemoveDriver(language string) error {
 		return err
 	}
 
-	logrus.Infof("driver %s removed %q", language, img.Name())
+	log.Infof("driver %s removed %q", language, img.Name())
 	return err
 }
 
@@ -237,7 +237,7 @@ func (d *Daemon) newDriverPool(rctx context.Context, language string, aliases []
 		sp, ctx := opentracing.StartSpanFromContext(rctx, "bblfshd.pool.driverFactory")
 		defer sp.Finish()
 
-		logrus.Debugf("spawning driver instance %q ...", imageName)
+		log.Debugf("spawning driver instance %q ...", imageName)
 
 		opts := d.getDriverInstanceOptions()
 		driver, err := NewDriverInstance(d.runtime, language, image, opts)
@@ -249,7 +249,7 @@ func (d *Daemon) newDriverPool(rctx context.Context, language string, aliases []
 			return nil, err
 		}
 
-		logrus.Infof("new driver instance started %s (%s)", imageName, driver.Container.ID())
+		log.Infof("new driver instance started %s (%s)", imageName, driver.Container.ID())
 		return driver, nil
 	})
 	dp.SetLabels(labels)
@@ -260,7 +260,7 @@ func (d *Daemon) newDriverPool(rctx context.Context, language string, aliases []
 
 	d.pool[language] = dp
 	for _, l := range aliases {
-		logrus.Debugf("language alias: %s = %s", language, l)
+		log.Debugf("language alias: %s = %s", language, l)
 		d.aliases[strings.ToLower(l)] = language
 	}
 	return dp, nil
@@ -308,13 +308,11 @@ func (d *Daemon) Stop() error {
 }
 
 func (d *Daemon) getDriverInstanceOptions() *Options {
-	l := logrus.StandardLogger()
-
 	opts := &Options{Env: d.driverEnv}
-	opts.LogLevel = l.Level.String()
+	opts.LogLevel = log.DefaultLevel
 	opts.LogFormat = "text"
 
-	if _, ok := l.Formatter.(*logrus.JSONFormatter); ok {
+	if log.DefaultFormat == log.JSONFormat {
 		opts.LogFormat = "json"
 	}
 

@@ -48,8 +48,8 @@ require (
 	github.com/prometheus/common v0.3.0
 	github.com/prometheus/procfs v0.0.0-20190425082905-87a4384529e0 // indirect
 	github.com/seccomp/libseccomp-golang v0.0.0-20170625204121-f6ec81daf48e // indirect
-	github.com/sirupsen/logrus v1.4.2
 	github.com/src-d/enry/v2 v2.0.0
+	github.com/src-d/envconfig v1.0.0 // indirect
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.3.0
 	github.com/syndtr/gocapability v0.0.0-20170704070218-db04d3cc01c8 // indirect
@@ -68,4 +68,5 @@ require (
 	google.golang.org/grpc v1.20.1
 	gopkg.in/bblfsh/sdk.v1 v1.17.0
 	gopkg.in/src-d/go-errors.v1 v1.0.0
+	gopkg.in/src-d/go-log.v1 v1.0.2
 )
