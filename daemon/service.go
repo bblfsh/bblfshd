@@ -25,6 +25,8 @@ import (
 var (
 	_ protocol2.DriverServer     = (*ServiceV2)(nil)
 	_ protocol2.DriverHostServer = (*ServiceV2)(nil)
+
+	backoffPeriod = time.Second
 )
 
 type ServiceV2 struct {
@@ -72,7 +74,7 @@ func (s *ServiceV2) Parse(rctx xcontext.Context, req *protocol2.ParseRequest) (r
 	req.Language = language
 
 	err = dp.ExecuteCtx(ctx, func(ctx context.Context, driver Driver) error {
-		resp, err = driver.ServiceV2().Parse(ctx, req)
+		resp, err = parseV2(ctx, dp, driver, req)
 		return err
 	})
 	if err != nil {
@@ -81,6 +83,36 @@ func (s *ServiceV2) Parse(rctx xcontext.Context, req *protocol2.ParseRequest) (r
 	if resp != nil {
 		resp.Language = language
 	}
+	return resp, err
+}
+
+func parseV2(ctx context.Context, pool *DriverPool, drv Driver, req *protocol2.ParseRequest) (*protocol2.ParseResponse, error) {
+	var (
+		resp *protocol2.ParseResponse
+		err  error
+	)
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		resp, err = drv.ServiceV2().Parse(ctx, req)
+		close(done)
+	}()
+
+	select {
+	case <-ctx.Done():
+		select {
+		case <-time.After(backoffPeriod):
+			e := ctx.Err()
+			killDriver(pool, drv, e)
+			return nil, e
+
+		case <-done:
+		}
+	case <-done:
+	}
+
 	return resp, err
 }
 
@@ -228,7 +260,7 @@ func (d *Service) Parse(req *protocol1.ParseRequest) *protocol1.ParseResponse {
 	req.Language = language
 
 	err = dp.Execute(func(ctx context.Context, driver Driver) error {
-		resp, err = driver.Service().Parse(ctx, req)
+		resp, err = parseV1(ctx, dp, driver, req)
 		return err
 	}, req.Timeout)
 
@@ -239,6 +271,37 @@ func (d *Service) Parse(req *protocol1.ParseRequest) *protocol1.ParseResponse {
 
 	resp.Language = language
 	return resp
+}
+
+func parseV1(ctx context.Context, pool *DriverPool, drv Driver, req *protocol1.ParseRequest) (*protocol1.ParseResponse, error) {
+	var (
+		resp *protocol1.ParseResponse
+		err  error
+	)
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		resp, err = drv.Service().Parse(ctx, req)
+		close(done)
+	}()
+
+	select {
+	case <-ctx.Done():
+		select {
+		case <-time.After(backoffPeriod):
+			e := ctx.Err()
+			killDriver(pool, drv, e)
+			return nil, e
+
+		case <-done:
+		}
+
+	case <-done:
+	}
+
+	return resp, err
 }
 
 func (d *Service) logResponse(s protocol1.Status, filename string, language string, size int, elapsed time.Duration) {
@@ -452,4 +515,10 @@ func (s *ControlService) DriverStates() ([]*protocol.DriverImageState, error) {
 	}
 
 	return out, nil
+}
+
+func killDriver(pool *DriverPool, drv Driver, err error) {
+	log.Errorf(err, "killing %s driver", drv.ID())
+	driverKillCalls.Add(1)
+	pool.killDriver(drv)
 }
