@@ -36,6 +36,10 @@ var (
 		Name: "bblfshd_driver_remove_total",
 		Help: "The total number of calls to remove a driver",
 	})
+	driverKillCalls = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "bblfshd_driver_kill_total",
+		Help: "The total number of calls to kill a driver",
+	})
 )
 
 // Public API metrics

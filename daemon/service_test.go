@@ -1,12 +1,14 @@
 package daemon
 
 import (
+	"context"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"gopkg.in/bblfsh/sdk.v1/protocol"
+	protocol1 "gopkg.in/bblfsh/sdk.v1/protocol"
 )
 
 func TestServiceParse(t *testing.T) {
@@ -18,9 +20,36 @@ func TestServiceParse(t *testing.T) {
 	s := NewService(d)
 	resp := s.Parse(&protocol.ParseRequest{Filename: "foo.py", Content: "foo"})
 	require.Len(resp.Errors, 0)
-	require.Equal(resp.UAST.Token, "foo")
-	require.Equal(resp.Language, "python")
+	require.Equal("foo", resp.UAST.Token)
+	require.Equal("python", resp.Language)
 	require.True(resp.Elapsed.Nanoseconds() > 0)
+}
+
+func TestServiceParseV1(t *testing.T) {
+	require := require.New(t)
+
+	d, tmp := buildMockedDaemon(t)
+	defer os.RemoveAll(tmp)
+
+	s := NewService(d)
+	req := &protocol.ParseRequest{Filename: "foo.py", Content: "foo"}
+	lang, dp, err := s.selectPool(context.TODO(), req.Language, req.Content, req.Filename)
+	require.NoError(err)
+	require.Equal("python", lang)
+
+	resp := &protocol1.ParseResponse{}
+	err = dp.Execute(func(ctx context.Context, driver Driver) error {
+		ctx, cancel := context.WithCancel(ctx)
+		cancel() // simulate context.Done
+
+		// because we have a parseKillDelay ultimately we'll get response without errors
+		resp, err = parseV1(ctx, dp, driver, req)
+		return err
+	}, req.Timeout)
+
+	require.NoError(err)
+	require.Len(resp.Errors, 0)
+	require.Equal("foo", resp.UAST.Token)
 }
 
 func TestServiceNativeParse(t *testing.T) {
