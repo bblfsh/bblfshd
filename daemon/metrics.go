@@ -39,6 +39,7 @@ var (
 )
 
 // Public API metrics
+// TODO(dennwc): add parse timeout metric
 var (
 	parseCalls = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "bblfshd_parse_total",
