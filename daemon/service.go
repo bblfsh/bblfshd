@@ -25,6 +25,8 @@ import (
 var (
 	_ protocol2.DriverServer     = (*ServiceV2)(nil)
 	_ protocol2.DriverHostServer = (*ServiceV2)(nil)
+
+	parseKillDelay = time.Second
 )
 
 type ServiceV2 struct {
@@ -72,7 +74,7 @@ func (s *ServiceV2) Parse(rctx xcontext.Context, req *protocol2.ParseRequest) (r
 	req.Language = language
 
 	err = dp.ExecuteCtx(ctx, func(ctx context.Context, driver Driver) error {
-		resp, err = driver.ServiceV2().Parse(ctx, req)
+		resp, err = parseV2(ctx, dp, driver, req)
 		return err
 	})
 	if err != nil {
@@ -82,6 +84,38 @@ func (s *ServiceV2) Parse(rctx xcontext.Context, req *protocol2.ParseRequest) (r
 		resp.Language = language
 	}
 	return resp, err
+}
+
+func parseV2(ctx context.Context, pool *DriverPool, drv Driver, req *protocol2.ParseRequest) (*protocol2.ParseResponse, error) {
+	var (
+		resp *protocol2.ParseResponse
+		err  error
+	)
+	done := make(chan struct{})
+	go func() {
+		resp, err = drv.ServiceV2().Parse(ctx, req)
+		close(done)
+	}()
+
+	var (
+		ctxKill context.Context
+		cancel  context.CancelFunc
+	)
+	if deadline, ok := ctx.Deadline(); ok {
+		ctxKill, cancel = context.WithDeadline(context.Background(), deadline.Add(parseKillDelay))
+		defer cancel()
+	} else {
+		ctxKill = ctx
+	}
+
+	select {
+	case <-done:
+		return resp, err
+
+	case <-ctxKill.Done():
+		pool.killDriver(drv, "parseV2", ctxKill.Err())
+		return nil, ctxKill.Err()
+	}
 }
 
 // ServerVersion implements protocol2.DriverHostServer.
@@ -228,7 +262,7 @@ func (d *Service) Parse(req *protocol1.ParseRequest) *protocol1.ParseResponse {
 	req.Language = language
 
 	err = dp.Execute(func(ctx context.Context, driver Driver) error {
-		resp, err = driver.Service().Parse(ctx, req)
+		resp, err = parseV1(ctx, dp, driver, req)
 		return err
 	}, req.Timeout)
 
@@ -239,6 +273,38 @@ func (d *Service) Parse(req *protocol1.ParseRequest) *protocol1.ParseResponse {
 
 	resp.Language = language
 	return resp
+}
+
+func parseV1(ctx context.Context, pool *DriverPool, drv Driver, req *protocol1.ParseRequest) (*protocol1.ParseResponse, error) {
+	var (
+		resp *protocol1.ParseResponse
+		err  error
+	)
+	done := make(chan struct{})
+	go func() {
+		resp, err = drv.Service().Parse(ctx, req)
+		close(done)
+	}()
+
+	var (
+		ctxKill context.Context
+		cancel  context.CancelFunc
+	)
+	if deadline, ok := ctx.Deadline(); ok {
+		ctxKill, cancel = context.WithDeadline(context.Background(), deadline.Add(parseKillDelay))
+		defer cancel()
+	} else {
+		ctxKill = ctx
+	}
+
+	select {
+	case <-done:
+		return resp, err
+
+	case <-ctxKill.Done():
+		pool.killDriver(drv, "parseV1", ctxKill.Err())
+		return nil, ctxKill.Err()
+	}
 }
 
 func (d *Service) logResponse(s protocol1.Status, filename string, language string, size int, elapsed time.Duration) {

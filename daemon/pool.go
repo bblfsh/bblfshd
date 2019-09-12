@@ -403,9 +403,15 @@ func (dp *DriverPool) setIdle(d Driver) {
 }
 
 // killDriver stops are removes the driver from the queue.
-func (dp *DriverPool) killDriver(d Driver) {
+func (dp *DriverPool) killDriver(d Driver, info string, err error) {
 	if dp.metrics.spawn.kill != nil {
 		dp.metrics.spawn.kill.Add(1)
+	}
+
+	if err != nil {
+		dp.Logger.Errorf(err, "killDriver(%s): %s", d.ID(), info)
+	} else {
+		dp.Logger.Infof("killDriver(%s): %s", d.ID(), info)
 	}
 
 	dp.drivers.Lock()
@@ -461,13 +467,13 @@ func (dp *DriverPool) scale() {
 				// prefer to kill driver that are returned by clients instead an idle ones
 				// idle map may be accessed without management goroutine, thus it's more
 				// valuable to keep it full
-				dp.killDriver(d)
+				dp.killDriver(d, "scale down - kill driver returned by client", nil)
 				continue
 			default:
 			}
 			// only idle drivers remain - start killing those
 			if d, ok := dp.peekIdle(); ok {
-				dp.killDriver(d)
+				dp.killDriver(d, "scale down - kill idle driver", nil)
 				continue
 			}
 			// no drivers are idle, only way to downscale is to wait for clients to put
@@ -479,7 +485,7 @@ func (dp *DriverPool) scale() {
 				dp.rescaleLater(req)
 				return
 			case d := <-dp.put:
-				dp.killDriver(d)
+				dp.killDriver(d, "scale down - no drivers are idle", nil)
 			}
 		}
 		return
@@ -561,7 +567,7 @@ func (dp *DriverPool) scaleDown(req driverRequest, exact bool) bool {
 		//               scaling policy asks us to drain and then asks to scale
 		//               back up - we could have returned this driver to the
 		//               client instead
-		dp.killDriver(d)
+		dp.killDriver(d, "scaleDown", nil)
 	case <-dp.rescale:
 		// worth to re-evaluate scaling conditions
 	}
@@ -628,11 +634,11 @@ func (dp *DriverPool) drain() {
 		if !ok {
 			break
 		}
-		dp.killDriver(d)
+		dp.killDriver(d, "drain-peekIdle", nil)
 	}
 	for dp.running.Value() > 0 {
 		d := <-dp.put
-		dp.killDriver(d)
+		dp.killDriver(d, "drain-put", nil)
 	}
 }
 
@@ -718,7 +724,7 @@ func (dp *DriverPool) putDriver(d Driver) error {
 	}
 	select {
 	case <-dp.poolCtx.Done():
-		dp.killDriver(d)
+		dp.killDriver(d, "putDriver", dp.poolCtx.Err())
 		return ErrPoolClosed.New()
 	case dp.put <- d:
 	}
@@ -730,12 +736,10 @@ func (dp *DriverPool) putDriver(d Driver) error {
 func (dp *DriverPool) checkStatus(d Driver) error {
 	status, err := d.Status()
 	if err != nil {
-		dp.Logger.Errorf(err, "error getting driver status, removing")
-		dp.killDriver(d)
+		dp.killDriver(d, "error getting driver status, removing", err)
 		return err
 	} else if status != protocol.Running {
-		dp.Logger.Debugf("removing stopped driver")
-		dp.killDriver(d)
+		dp.killDriver(d, "removing stopped driver", nil)
 		return errDriverStopped.New()
 	}
 	return nil
