@@ -18,6 +18,7 @@ import (
 	"github.com/bblfsh/bblfshd/daemon/protocol"
 	"github.com/bblfsh/bblfshd/runtime"
 
+	"github.com/bblfsh/sdk/v3/driver"
 	"github.com/bblfsh/sdk/v3/driver/manifest"
 	protocol2 "github.com/bblfsh/sdk/v3/protocol"
 	protocol1 "gopkg.in/bblfsh/sdk.v1/protocol"
@@ -121,7 +122,7 @@ func (d *Daemon) InstallDriver(language string, image string, update bool) error
 	}
 
 	s, _, err := d.getDriverImage(context.TODO(), language)
-	if err != nil && !ErrMissingDriver.Is(err) {
+	if err != nil && !driver.IsMissingDriver(err) {
 		return ErrRuntime.Wrap(err)
 	}
 	if err == nil {
@@ -218,7 +219,7 @@ func (d *Daemon) getDriverImage(rctx context.Context, language string) (runtime.
 	}
 	dr := driverWithLang(language, list)
 	if dr == nil {
-		return nil, nil, ErrMissingDriver.New(language)
+		return nil, nil, &ErrMissingDriver{language}
 	}
 	img, err := runtime.NewDriverImage(dr.Reference)
 	return img, dr.Manifest, err
