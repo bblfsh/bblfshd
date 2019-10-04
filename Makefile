@@ -30,6 +30,7 @@ GIT_COMMIT=$(shell git rev-parse HEAD | cut -c1-7)
 GIT_DIRTY=$(shell test -n "`git status --porcelain`" && echo "-dirty" || true)
 DEV_PREFIX := dev
 VERSION ?= $(DEV_PREFIX)-$(GIT_COMMIT)$(GIT_DIRTY)
+TAG_DATE=$(shell date +%F)
 
 
 # Go parameters
@@ -52,6 +53,10 @@ ifneq ($(origin TRAVIS_TAG), undefined)
 	VERSION := $(TRAVIS_TAG)
 endif
 
+ifneq ($(origin CRON_TAG), undefined)
+	VERSION := $(CRON_TAG)
+endif
+
 # Build
 LDFLAGS = -X main.version=$(VERSION) -X main.build=$(BUILD)
 
@@ -62,6 +67,7 @@ DOCKER_RUN = $(DOCKER_CMD) run --rm
 DOCKER_BUILD_IMAGE = bblfshd-build
 DOCKER_TAG ?= $(DOCKER_CMD) tag
 DOCKER_PUSH ?= $(DOCKER_CMD) push
+DOCKER_PULL ?= $(DOCKER_CMD) pull
 
 # escape_docker_tag escape colon char to allow use a docker tag as rule
 define escape_docker_tag
@@ -125,8 +131,14 @@ build-fixture:
 	docker build -t $(DOCKER_IMAGE_FIXTURE) .
 
 
-build-drivers: build
-	docker build -f Dockerfile.drivers --build-arg TAG="$(VERSION)" -t "$(call unescape_docker_tag,$(DOCKER_IMAGE_VERSIONED))-drivers" .
+build-drivers:
+ifeq ($(TRAVIS_EVENT_TYPE), cron)
+	$(DOCKER_PULL) $(DOCKER_IMAGE):$(VERSION)
+else
+	make build
+endif
+	echo $(DOCKER_IMAGE):$(VERSION)
+	docker build -f Dockerfile.drivers --build-arg TAG="$(VERSION)" -t "$(DOCKER_IMAGE):$(VERSION)-drivers-$(TAG_DATE)" .
 
 clean:
 	rm -rf $(BUILD_PATH); \
@@ -153,9 +165,9 @@ push-drivers: build-drivers
 		$(DOCKER_CMD) login -u="$$DOCKER_USERNAME" -p="$$DOCKER_PASSWORD"; \
 	fi;
 
-	$(DOCKER_PUSH) "$(call unescape_docker_tag,$(DOCKER_IMAGE_VERSIONED))-drivers"
+	$(DOCKER_PUSH) "$(call unescape_docker_tag,$(DOCKER_IMAGE_VERSIONED))-drivers-$(TAG_DATE)"
 	@if [ "$$TRAVIS_TAG" != "" ]; then \
-		$(DOCKER_TAG) "$(call unescape_docker_tag,$(DOCKER_IMAGE_VERSIONED))-drivers" \
+		$(DOCKER_TAG) "$(call unescape_docker_tag,$(DOCKER_IMAGE_VERSIONED))-drivers-$(TAG_DATE)" \
 			$(call unescape_docker_tag,$(DOCKER_IMAGE)):latest-drivers; \
 		$(DOCKER_PUSH) $(call unescape_docker_tag,$(DOCKER_IMAGE):latest-drivers); \
 	fi;
