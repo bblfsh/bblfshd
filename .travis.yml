@@ -26,8 +26,15 @@ before_install:
   - popd
   - make dependencies
 
+# there's a workaround here because there will be no tags in cron https://github.com/travis-ci/travis-ci/issues/8146
 script:
   - make test-coverage
+  - |
+    if [ "${TRAVIS_EVENT_TYPE}" = "cron" ]; then
+      if CRON_TAG="$( git describe --exact-match "$(git rev-parse HEAD)" 2>/dev/null )"; then
+        make push-drivers
+      fi
+    fi
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
