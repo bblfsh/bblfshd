@@ -31,7 +31,7 @@ script:
   - make test-coverage
   - |
     if [ "${TRAVIS_EVENT_TYPE}" = "cron" ]; then
-      if CRON_TAG="$( git describe --exact-match "$(git rev-parse HEAD)" 2>/dev/null )"; then
+      if CRON_TAG="$( git describe --exact-match "$(git rev-parse HEAD)" --tags 2>/dev/null )"; then
         make push-drivers
       fi
     fi
