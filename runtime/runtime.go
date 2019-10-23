@@ -48,7 +48,7 @@ func (r *Runtime) Init() error {
 	var err error
 	r.f, err = libcontainer.New(
 		filepath.Join(r.Root, containersPath),
-		libcontainer.Cgroupfs,
+		libcontainer.RootlessCgroupfs,
 	)
 
 	return err
@@ -105,7 +105,8 @@ func ContainerConfigFactory(containerID string) *configs.Config {
 	defaultMountFlags := syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
 
 	return &configs.Config{
-		Rootless: true,
+		RootlessEUID: true,
+		RootlessCgroups: true,
 		Namespaces: configs.Namespaces([]configs.Namespace{
 			{Type: configs.NEWNS},
 			{Type: configs.NEWUTS},
@@ -164,12 +165,6 @@ func ContainerConfigFactory(containerID string) *configs.Config {
 				Device:      "mqueue",
 				Flags:       defaultMountFlags,
 			},
-			//{
-			//	Source:      "sysfs",
-			//	Destination: "/sys",
-			//	Device:      "sysfs",
-			//	Flags:       defaultMountFlags | syscall.MS_RDONLY,
-			//},
 			{
 				Source:      "/etc/localtime",
 				Destination: "/etc/localtime",

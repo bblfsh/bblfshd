@@ -53,6 +53,7 @@ func (s *ContainerSuite) TestContainer_Run() {
 	p := &Process{
 		Args:   []string{"/bin/ls"},
 		Stdout: os.Stdout,
+		Init: true,
 	}
 
 	c, err := s.Runtime.Container("run", s.Image, p, nil)
@@ -67,6 +68,7 @@ func (s *ContainerSuite) TestContainer_StartStopStart() {
 	p := &Process{
 		Args:   []string{"/bin/sleep", "5m"},
 		Stdout: os.Stdout,
+		Init: true,
 	}
 
 	c, err := s.Runtime.Container("1", s.Image, p, nil)
@@ -82,6 +84,7 @@ func (s *ContainerSuite) TestContainer_StartStopStart() {
 	p = &Process{
 		Args:   []string{"/bin/sleep", "5m"},
 		Stdout: os.Stdout,
+		Init: true,
 	}
 
 	c, err = s.Runtime.Container("2", s.Image, p, nil)
@@ -103,6 +106,7 @@ func (s *ContainerSuite) TestContainer_StartWait() {
 	p := &Process{
 		Args:   []string{"/bin/ls"},
 		Stdout: out,
+		Init: true,
 	}
 
 	c, err := s.Runtime.Container("wait", s.Image, p, nil)
@@ -125,6 +129,7 @@ func (s *ContainerSuite) TestContainer_StartWaitExit1() {
 	p := &Process{
 		Args:   []string{"/bin/false"},
 		Stdout: out,
+		Init: true,
 	}
 
 	c, err := s.Runtime.Container("wait-exit", s.Image, p, nil)
@@ -147,6 +152,7 @@ func (s *ContainerSuite) TestContainer_StartFailure() {
 	p := &Process{
 		Args:   []string{"/bin/non-existent"},
 		Stdout: out,
+		Init: true,
 	}
 
 	c, err := s.Runtime.Container("start-failure", s.Image, p, nil)
@@ -164,6 +170,7 @@ func (s *ContainerSuite) TestContainer_Env() {
 	p := &Process{
 		Args:   []string{"/bin/env"},
 		Stdout: out,
+		Init: true,
 	}
 
 	c, err := s.Runtime.Container("env", s.Image, p, nil)
