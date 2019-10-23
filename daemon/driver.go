@@ -74,6 +74,7 @@ func NewDriverInstance(r *runtime.Runtime, lang string, i runtime.DriverImage, o
 		Env:    o.Env,
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
+		Init: true,
 	}
 
 	tmp := filepath.Join(r.Root, fmt.Sprintf(TmpPathPattern, id))

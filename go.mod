@@ -9,6 +9,7 @@ require (
 	github.com/beorn7/perks v1.0.0 // indirect
 	github.com/briandowns/spinner v0.0.0-20170614154858-48dbb65d7bd5
 	github.com/cenkalti/backoff v2.1.1+incompatible
+	github.com/checkpoint-restore/go-criu v0.0.0-20190109184317-bdb7599cd87b // indirect
 	github.com/containerd/console v0.0.0-20180220200639-2748ece16665 // indirect
 	github.com/containers/image v0.0.0-20170921085858-33dad2514b7d
 	github.com/containers/storage v0.0.0-20180220103138-477e551dd493 // indirect
@@ -34,9 +35,9 @@ require (
 	github.com/oklog/ulid v1.3.1
 	github.com/olekukonko/tablewriter v0.0.0-20170925234030-a7a4c189eb47
 	github.com/opencontainers/image-spec v1.0.1
-	github.com/opencontainers/runc v1.0.0-rc5
+	github.com/opencontainers/runc v1.0.0-rc9
 	github.com/opencontainers/runtime-spec v0.0.0-20170712232009-96de01bbb42c // indirect
-	github.com/opencontainers/selinux v0.0.0-20170621221121-4a2974bf1ee9 // indirect
+	github.com/opencontainers/selinux v1.3.0 // indirect
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/ostreedev/ostree-go v0.0.0-20170727130318-80ab7dbb8986 // indirect
 	github.com/pkg/errors v0.8.1
@@ -48,9 +49,10 @@ require (
 	github.com/src-d/enry/v2 v2.0.0
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.3.0
-	github.com/syndtr/gocapability v0.0.0-20170704070218-db04d3cc01c8 // indirect
+	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2 // indirect
 	github.com/uber/jaeger-client-go v2.16.0+incompatible
 	github.com/uber/jaeger-lib v2.0.0+incompatible // indirect
+	github.com/urfave/cli v1.22.1 // indirect
 	github.com/vishvananda/netlink v0.0.0-20170710030406-8c5a115d793b // indirect
 	github.com/vishvananda/netns v0.0.0-20170707011535-86bef332bfc3 // indirect
 	golang.org/x/net v0.0.0-20190628185345-da137c7871d7
