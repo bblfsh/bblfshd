@@ -4,8 +4,11 @@ package daemon
 
 import (
 	"context"
+	"crypto/sha1"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 	"unicode/utf8"
 
@@ -29,6 +32,33 @@ var (
 	parseKillDelay = time.Second
 )
 
+func hashSHA1(content string) string {
+	h := sha1.New()
+	_, err := h.Write([]byte(content))
+	if err != nil {
+		panic(err)
+	}
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+func hashGit(content string) string {
+	h := sha1.New()
+	_, err := h.Write([]byte("blob "))
+	if err != nil {
+		panic(err)
+	}
+	size := strconv.FormatUint(uint64(len(content)), 10) + "\x00"
+	_, err = h.Write([]byte(size))
+	if err != nil {
+		panic(err)
+	}
+	_, err = h.Write([]byte(content))
+	if err != nil {
+		panic(err)
+	}
+	return hex.EncodeToString(h.Sum(nil))
+}
+
 type ServiceV2 struct {
 	daemon *Daemon
 }
@@ -49,7 +79,7 @@ func (s *ServiceV2) Parse(rctx xcontext.Context, req *protocol2.ParseRequest) (r
 	resp = &protocol2.ParseResponse{}
 	start := time.Now()
 	defer func() {
-		s.logResponse(gerr, req.Filename, req.Language, len(req.Content), time.Since(start))
+		s.logResponse(gerr, req.Filename, req.Language, req.Content, time.Since(start))
 	}()
 
 	if req.Content == "" {
@@ -141,7 +171,7 @@ func (s *ServiceV2) SupportedLanguages(rctx xcontext.Context, _ *protocol2.Suppo
 
 	start := time.Now()
 	defer func() {
-		s.logResponse(gerr, "", "", 0, time.Since(start))
+		s.logResponse(gerr, "", "", "", time.Since(start))
 	}()
 
 	drivers, err := s.daemon.runtime.ListDrivers()
@@ -159,7 +189,7 @@ func (s *ServiceV2) SupportedLanguages(rctx xcontext.Context, _ *protocol2.Suppo
 	return &protocol2.SupportedLanguagesResponse{Languages: out}, nil
 }
 
-func (s *ServiceV2) logResponse(err error, filename string, language string, size int, elapsed time.Duration) {
+func (s *ServiceV2) logResponse(err error, filename, language, content string, elapsed time.Duration) {
 	fields := log.Fields{"elapsed": elapsed}
 	if filename != "" {
 		fields["filename"] = filename
@@ -169,8 +199,13 @@ func (s *ServiceV2) logResponse(err error, filename string, language string, siz
 		fields["language"] = language
 	}
 
+	if content != "" {
+		fields["sha1"] = hashSHA1(content)
+		fields["githash"] = hashGit(content)
+	}
+
 	l := log.With(fields)
-	text := fmt.Sprintf("request processed content %d bytes", size)
+	text := fmt.Sprintf("request processed content %d bytes", len(content))
 
 	if err != nil {
 		l.Errorf(err, "%s", text)
@@ -237,7 +272,7 @@ func (d *Service) Parse(req *protocol1.ParseRequest) *protocol1.ParseResponse {
 		dt := time.Since(start)
 		parseLatencyV1.Observe(dt.Seconds())
 		resp.Elapsed = dt
-		d.logResponse(resp.Status, req.Filename, req.Language, len(req.Content), resp.Elapsed)
+		d.logResponse(resp.Status, req.Filename, req.Language, req.Content, resp.Elapsed)
 	}()
 
 	if req.Content == "" {
@@ -307,7 +342,7 @@ func parseV1(ctx context.Context, pool *DriverPool, drv Driver, req *protocol1.P
 	}
 }
 
-func (d *Service) logResponse(s protocol1.Status, filename string, language string, size int, elapsed time.Duration) {
+func (d *Service) logResponse(s protocol1.Status, filename, language, content string, elapsed time.Duration) {
 	fields := log.Fields{"elapsed": elapsed}
 	if filename != "" {
 		fields["filename"] = filename
@@ -317,8 +352,13 @@ func (d *Service) logResponse(s protocol1.Status, filename string, language stri
 		fields["language"] = language
 	}
 
+	if content != "" {
+		fields["sha1"] = hashSHA1(content)
+		fields["githash"] = hashGit(content)
+	}
+
 	l := log.With(fields)
-	text := fmt.Sprintf("request processed content %d bytes, status %s", size, s)
+	text := fmt.Sprintf("request processed content %d bytes, status %s", len(content), s)
 
 	switch s {
 	case protocol1.Ok:
@@ -344,7 +384,7 @@ func (d *Service) NativeParse(req *protocol1.NativeParseRequest) *protocol1.Nati
 		dt := time.Since(start)
 		parseLatencyV1.Observe(dt.Seconds())
 		resp.Elapsed = dt
-		d.logResponse(resp.Status, req.Language, req.Language, len(req.Content), resp.Elapsed)
+		d.logResponse(resp.Status, req.Language, req.Language, req.Content, resp.Elapsed)
 	}()
 
 	if req.Content == "" {
@@ -409,7 +449,7 @@ func (d *Service) Version(req *protocol1.VersionRequest) *protocol1.VersionRespo
 	start := time.Now()
 	defer func() {
 		resp.Elapsed = time.Since(start)
-		d.logResponse(resp.Status, "", "", 0, resp.Elapsed)
+		d.logResponse(resp.Status, "", "", "", resp.Elapsed)
 	}()
 	return resp
 }
@@ -446,7 +486,7 @@ func (d *Service) SupportedLanguages(req *protocol1.SupportedLanguagesRequest) *
 	start := time.Now()
 	defer func() {
 		resp.Elapsed = time.Since(start)
-		d.logResponse(resp.Status, "", "", 0, resp.Elapsed)
+		d.logResponse(resp.Status, "", "", "", resp.Elapsed)
 	}()
 
 	drivers, err := d.daemon.runtime.ListDrivers()

@@ -10,6 +10,12 @@ import (
 	"gopkg.in/bblfsh/sdk.v1/protocol"
 )
 
+func TestHash(t *testing.T) {
+	const data = "abc\n"
+	require.Equal(t, "03cfd743661f07975fa2f1220c5194cbaff48451", hashSHA1(data))
+	require.Equal(t, "8baef1b4abc478178b004d62031cf7fe6db6f903", hashGit(data))
+}
+
 func TestServiceParse(t *testing.T) {
 	require := require.New(t)
 
