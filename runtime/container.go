@@ -5,7 +5,7 @@ package runtime
 import (
 	"os"
 	"syscall"
-
+	
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/configs"
 )
@@ -86,15 +86,13 @@ func (c *container) Run() error {
 }
 
 func (c *container) Stop() error {
-	if err := c.process.Signal(syscall.SIGTERM); err != nil {
+	if err := c.process.Signal(syscall.SIGKILL); err != nil {
 		return err
 	}
-
 	// kills all the remaining processes
 	if err := c.Signal(syscall.SIGKILL); err != nil {
 		return err
 	}
-
 	return c.Destroy()
 }
 
