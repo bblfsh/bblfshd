@@ -18,25 +18,56 @@ This project is now part of [source{d} Engine](https://sourced.tech/engine),
 which provides the simplest way to get started with a single command.
 Visit [sourced.tech/engine](https://sourced.tech/engine) for more information.
 
+#### Rootless mode
+
 The recommended way to run *bblfshd* by itself is using Docker:
 
 ```sh
-docker run -d --name bblfshd --privileged -p 9432:9432 -v /var/lib/bblfshd:/var/lib/bblfshd bblfsh/bblfshd
+docker run --name bblfshd \
+  -p 9432:9432 \
+  -v /var/lib/bblfshd:/var/lib/bblfshd \
+  -v /proc:/newproc \
+  --security-opt seccomp=./bblfshd-seccomp.json \
+  bblfshd
 ```
 
 On macOS, use this command instead to use a Docker volume:
 
 ```sh
-docker run -d --name bblfshd --privileged -p 9432:9432 -v bblfsh-storage:/var/lib/bblfshd bblfsh/bblfshd
+docker run --name bblfshd \
+  -p 9432:9432 \
+  -v bblfsh-storage:/var/lib/bblfshd bblfsh/bblfshd \
+  -v /proc:/newproc \
+  --security-opt seccomp=./bblfshd-seccomp.json \
+  bblfshd
 ```
 
 
-The container should be executed with the `--privileged` flag since *bblfshd* is
-based on [container technology](https://github.com/opencontainers/runc/tree/master/libcontainer)
-and interacts with the kernel at a low level. *bblfshd* exposes a gRPC server at
-the port `9432` by default which is used by the [clients](https://github.com/search?q=topic%3Aclient+org%3Abblfsh&type=Repositories)
+To understand the flags `-v /proc:/newproc` and `--security-opt seccomp=./bblfshd-seccomp.json`, 
+where [`bblfshd-seccomp.json`](./bblfshd-seccomp.json) is a file present in this repo, and check 
+further requirements, please refer to [rootless.md](./rootless.md). `bblfshd` is based on 
+[container technology](https://github.com/opencontainers/runc/tree/master/libcontainer)
+and interacts with the kernel at a low level. It exposes a gRPC server at the port `9432` by default 
+which is used by the [clients](https://github.com/search?q=topic%3Aclient+org%3Abblfsh&type=Repositories)
 to interact with the server. Also, we mount the path `/var/lib/bblfshd/` where
 all the driver images and container instances will be stored.
+
+#### Privileged mode
+
+We advise against it, but if you prefer to run `bblfshd` in `privileged` mode to skip configuration steps of 
+[rootless.md](rootless.md), you could do, in Linux:
+
+```sh
+docker run -d --name bblfshd --privileged -p 9432:9432 -v /var/lib/bblfshd:/var/lib/bblfshd bblfsh/bblfshd
+```
+
+or macOs:
+
+```sh
+docker run -d --name bblfshd --privileged -p 9432:9432 -v bblfsh-storage:/var/lib/bblfshd bblfsh/bblfshd
+```
+
+#### Install drivers
 
 Now you need to install the driver images into the daemon, you can install
 the official images just running the command:
