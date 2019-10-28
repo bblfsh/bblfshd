@@ -81,7 +81,11 @@ func init() {
 	ctl.network = cmd.String("ctl-network", "unix", "control server network type: tcp, tcp4, tcp6, unix or unixpacket.")
 	ctl.address = cmd.String("ctl-address", "/var/run/bblfshctl.sock", "control server address to listen.")
 
-	logcfg.level = cmd.String("log-level", "info", "log level: panic, fatal, error, warning, info, debug.")
+	logLevel := os.Getenv("LOG_LEVEL")
+	if logLevel == "" {
+		logLevel = "info"
+	}
+	logcfg.level = cmd.String("log-level", logLevel, "log level: panic, fatal, error, warning, info, debug.")
 	logcfg.format = cmd.String("log-format", "text", "format of the logs: text or json.")
 	logcfg.fields = cmd.String("log-fields", "", "extra fields to add to every log line in json format.")
 
