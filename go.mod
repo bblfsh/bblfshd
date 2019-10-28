@@ -5,7 +5,7 @@ go 1.12
 require (
 	github.com/14rcole/gopopulate v0.0.0-20180821133914-b175b219e774 // indirect
 	github.com/bblfsh/go-client/v4 v4.0.1
-	github.com/bblfsh/sdk/v3 v3.2.5
+	github.com/bblfsh/sdk/v3 v3.3.1
 	github.com/beorn7/perks v1.0.0 // indirect
 	github.com/briandowns/spinner v0.0.0-20170614154858-48dbb65d7bd5
 	github.com/cenkalti/backoff v2.1.1+incompatible
@@ -14,7 +14,6 @@ require (
 	github.com/containers/image v0.0.0-20170921085858-33dad2514b7d
 	github.com/containers/storage v0.0.0-20180220103138-477e551dd493 // indirect
 	github.com/coreos/go-systemd v0.0.0-20170609144627-24036eb3df68 // indirect
-	github.com/coreos/pkg v0.0.0-20170420172956-8dbaa491b063 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.1 // indirect
 	github.com/docker/distribution v0.0.0-20180209234904-6664ec703991
 	github.com/docker/docker v1.13.1 // indirect
@@ -52,7 +51,6 @@ require (
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2 // indirect
 	github.com/uber/jaeger-client-go v2.16.0+incompatible
 	github.com/uber/jaeger-lib v2.0.0+incompatible // indirect
-	github.com/urfave/cli v1.22.1 // indirect
 	github.com/vishvananda/netlink v0.0.0-20170710030406-8c5a115d793b // indirect
 	github.com/vishvananda/netns v0.0.0-20170707011535-86bef332bfc3 // indirect
 	golang.org/x/net v0.0.0-20190628185345-da137c7871d7
