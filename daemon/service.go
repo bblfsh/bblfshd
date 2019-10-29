@@ -199,7 +199,7 @@ func (s *ServiceV2) logResponse(err error, filename, language, content string, e
 	if err != nil {
 		l.Errorf(err, "%s", text)
 	} else {
-		l.Debugf("%s", text)
+		l.Infof("%s", text)
 	}
 }
 
@@ -351,7 +351,7 @@ func (d *Service) logResponse(s protocol1.Status, filename, language, content st
 
 	switch s {
 	case protocol1.Ok:
-		l.Debugf("%s", text)
+		l.Infof("%s", text)
 	case protocol1.Error:
 		l.Warningf("%s", text)
 	case protocol1.Fatal:
