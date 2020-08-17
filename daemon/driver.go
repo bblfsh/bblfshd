@@ -13,8 +13,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/bblfsh/bblfshd/daemon/protocol"
-	"github.com/bblfsh/bblfshd/runtime"
+	"github.com/bblfsh/bblfshd/v2/daemon/protocol"
+	"github.com/bblfsh/bblfshd/v2/runtime"
 
 	protocol2 "github.com/bblfsh/sdk/v3/protocol"
 	"github.com/opencontainers/runc/libcontainer/configs"

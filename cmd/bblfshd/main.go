@@ -16,8 +16,8 @@ import (
 
 	"gopkg.in/src-d/go-log.v1"
 
-	"github.com/bblfsh/bblfshd/daemon"
-	"github.com/bblfsh/bblfshd/runtime"
+	"github.com/bblfsh/bblfshd/v2/daemon"
+	"github.com/bblfsh/bblfshd/v2/runtime"
 
 	cmdutil "github.com/bblfsh/sdk/v3/cmd"
 	"github.com/bblfsh/sdk/v3/driver/manifest/discovery"

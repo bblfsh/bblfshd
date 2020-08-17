@@ -18,7 +18,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/bblfsh/bblfshd/daemon/protocol"
+	"github.com/bblfsh/bblfshd/v2/daemon/protocol"
 	"github.com/bblfsh/sdk/v3/driver/manifest"
 	protocol2 "github.com/bblfsh/sdk/v3/protocol"
 	xcontext "golang.org/x/net/context"

@@ -15,7 +15,7 @@ import (
 	"google.golang.org/grpc"
 	"gopkg.in/bblfsh/sdk.v1/protocol"
 
-	"github.com/bblfsh/bblfshd/runtime"
+	"github.com/bblfsh/bblfshd/v2/runtime"
 )
 
 // actual date format used in bblfshd is different
