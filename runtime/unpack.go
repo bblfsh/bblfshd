@@ -136,6 +136,14 @@ loop:
 		case tar.TypeLink:
 			target := filepath.Join(dest, hdr.Linkname)
 
+			trueTarget, err := filepath.EvalSymlinks(target)
+			if err != nil {
+				return err
+			}
+			if !strings.HasPrefix(trueTarget, dest) {
+				return fmt.Errorf("hardlink %q -> %q outside destination", target, hdr.Linkname)
+			}
+
 			if !strings.HasPrefix(target, dest) {
 				return fmt.Errorf("invalid hardlink %q -> %q", target, hdr.Linkname)
 			}
@@ -147,6 +155,13 @@ loop:
 		case tar.TypeSymlink:
 			target := filepath.Join(filepath.Dir(path), hdr.Linkname)
 
+			trueTarget, err := filepath.EvalSymlinks(target)
+			if err != nil {
+				return err
+			}
+			if !strings.HasPrefix(trueTarget, dest) {
+				return fmt.Errorf("hardlink %q -> %q outside destination", target, hdr.Linkname)
+			}
 			if !strings.HasPrefix(target, dest) {
 				return fmt.Errorf("invalid symlink %q -> %q", path, hdr.Linkname)
 			}
