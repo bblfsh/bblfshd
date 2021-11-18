@@ -26,7 +26,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.0-20170510074858-97311d9f7767 // indirect
 	github.com/oklog/ulid v1.3.1
 	github.com/olekukonko/tablewriter v0.0.0-20170925234030-a7a4c189eb47
-	github.com/opencontainers/image-spec v1.0.1
+	github.com/opencontainers/image-spec v1.0.2
 	github.com/opencontainers/runc v1.0.0-rc95
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/ostreedev/ostree-go v0.0.0-20170727130318-80ab7dbb8986 // indirect
