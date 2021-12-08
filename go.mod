@@ -18,7 +18,7 @@ require (
 	github.com/docker/go-units v0.4.0
 	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 // indirect
 	github.com/gogo/protobuf v1.2.1
-	github.com/golang/protobuf v1.4.3
+	github.com/golang/protobuf v1.5.0
 	github.com/google/go-github v17.0.0+incompatible // indirect
 	github.com/gorilla/context v1.1.1 // indirect
 	github.com/gorilla/mux v0.0.0-20170704074345-ac112f7d75a0 // indirect
@@ -27,7 +27,7 @@ require (
 	github.com/oklog/ulid v1.3.1
 	github.com/olekukonko/tablewriter v0.0.0-20170925234030-a7a4c189eb47
 	github.com/opencontainers/image-spec v1.0.2
-	github.com/opencontainers/runc v1.0.0-rc95
+	github.com/opencontainers/runc v1.0.3
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/ostreedev/ostree-go v0.0.0-20170727130318-80ab7dbb8986 // indirect
 	github.com/pkg/errors v0.9.1
@@ -40,6 +40,7 @@ require (
 	github.com/uber/jaeger-client-go v2.16.0+incompatible
 	github.com/uber/jaeger-lib v2.0.0+incompatible // indirect
 	golang.org/x/net v0.0.0-20201224014010-6772e930b67b
+	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013 // indirect
 	google.golang.org/grpc v1.27.0
 	gopkg.in/bblfsh/sdk.v1 v1.17.0
 	gopkg.in/src-d/go-errors.v1 v1.0.0
