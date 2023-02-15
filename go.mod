@@ -6,7 +6,6 @@ require (
 	github.com/14rcole/gopopulate v0.0.0-20180821133914-b175b219e774 // indirect
 	github.com/bblfsh/go-client/v4 v4.0.1
 	github.com/bblfsh/sdk/v3 v3.3.1
-	github.com/beorn7/perks v1.0.0 // indirect
 	github.com/briandowns/spinner v0.0.0-20170614154858-48dbb65d7bd5
 	github.com/cenkalti/backoff v2.1.1+incompatible
 	github.com/containers/image v0.0.0-20170921085858-33dad2514b7d
@@ -31,12 +30,11 @@ require (
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/ostreedev/ostree-go v0.0.0-20170727130318-80ab7dbb8986 // indirect
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v0.9.2
-	github.com/prometheus/common v0.3.0
-	github.com/prometheus/procfs v0.0.0-20190425082905-87a4384529e0 // indirect
+	github.com/prometheus/client_golang v1.11.1
+	github.com/prometheus/common v0.26.0
 	github.com/src-d/enry/v2 v2.0.0
 	github.com/stretchr/objx v0.2.0 // indirect
-	github.com/stretchr/testify v1.3.0
+	github.com/stretchr/testify v1.4.0
 	github.com/uber/jaeger-client-go v2.16.0+incompatible
 	github.com/uber/jaeger-lib v2.0.0+incompatible // indirect
 	golang.org/x/net v0.0.0-20201224014010-6772e930b67b
