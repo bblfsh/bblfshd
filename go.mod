@@ -16,7 +16,7 @@ require (
 	github.com/docker/go-metrics v0.0.0-20180209012529-399ea8c73916 // indirect
 	github.com/docker/go-units v0.4.0
 	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 // indirect
-	github.com/gogo/protobuf v1.2.1
+	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.5.0
 	github.com/google/go-github v17.0.0+incompatible // indirect
 	github.com/gorilla/context v1.1.1 // indirect
