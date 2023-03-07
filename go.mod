@@ -9,20 +9,16 @@ require (
 	github.com/briandowns/spinner v0.0.0-20170614154858-48dbb65d7bd5
 	github.com/cenkalti/backoff v2.1.1+incompatible
 	github.com/containers/image v0.0.0-20170921085858-33dad2514b7d
-	github.com/containers/storage v0.0.0-20180220103138-477e551dd493 // indirect
+	github.com/containers/storage v1.28.1 // indirect
 	github.com/docker/distribution v2.8.0+incompatible
 	github.com/docker/docker v1.13.1 // indirect
 	github.com/docker/docker-credential-helpers v0.6.0 // indirect
-	github.com/docker/go-metrics v0.0.0-20180209012529-399ea8c73916 // indirect
 	github.com/docker/go-units v0.4.0
 	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 // indirect
-	github.com/gogo/protobuf v1.2.1
+	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.5.0
 	github.com/google/go-github v17.0.0+incompatible // indirect
-	github.com/gorilla/context v1.1.1 // indirect
-	github.com/gorilla/mux v0.0.0-20170704074345-ac112f7d75a0 // indirect
 	github.com/jessevdk/go-flags v1.4.0
-	github.com/mattn/go-runewidth v0.0.0-20170510074858-97311d9f7767 // indirect
 	github.com/oklog/ulid v1.3.1
 	github.com/olekukonko/tablewriter v0.0.0-20170925234030-a7a4c189eb47
 	github.com/opencontainers/image-spec v1.0.2
@@ -33,13 +29,11 @@ require (
 	github.com/prometheus/client_golang v1.11.1
 	github.com/prometheus/common v0.26.0
 	github.com/src-d/enry/v2 v2.0.0
-	github.com/stretchr/objx v0.2.0 // indirect
-	github.com/stretchr/testify v1.4.0
+	github.com/stretchr/testify v1.7.0
 	github.com/uber/jaeger-client-go v2.16.0+incompatible
 	github.com/uber/jaeger-lib v2.0.0+incompatible // indirect
 	golang.org/x/net v0.7.0
-	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013 // indirect
-	google.golang.org/grpc v1.27.0
+	google.golang.org/grpc v1.30.0
 	gopkg.in/bblfsh/sdk.v1 v1.17.0
 	gopkg.in/src-d/go-errors.v1 v1.0.0
 	gopkg.in/src-d/go-log.v1 v1.0.2
