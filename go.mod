@@ -8,7 +8,7 @@ require (
 	github.com/bblfsh/sdk/v3 v3.3.1
 	github.com/briandowns/spinner v0.0.0-20170614154858-48dbb65d7bd5
 	github.com/cenkalti/backoff v2.1.1+incompatible
-	github.com/containers/image v0.0.0-20170921085858-33dad2514b7d
+	github.com/containers/image v3.0.0+incompatible
 	github.com/containers/storage v0.0.0-20180220103138-477e551dd493 // indirect
 	github.com/docker/distribution v2.8.0+incompatible
 	github.com/docker/docker v1.13.1 // indirect
@@ -22,6 +22,8 @@ require (
 	github.com/gorilla/context v1.1.1 // indirect
 	github.com/gorilla/mux v0.0.0-20170704074345-ac112f7d75a0 // indirect
 	github.com/jessevdk/go-flags v1.4.0
+	github.com/klauspost/compress v1.16.0 // indirect
+	github.com/klauspost/pgzip v1.2.5 // indirect
 	github.com/mattn/go-runewidth v0.0.0-20170510074858-97311d9f7767 // indirect
 	github.com/oklog/ulid v1.3.1
 	github.com/olekukonko/tablewriter v0.0.0-20170925234030-a7a4c189eb47
@@ -37,6 +39,8 @@ require (
 	github.com/stretchr/testify v1.4.0
 	github.com/uber/jaeger-client-go v2.16.0+incompatible
 	github.com/uber/jaeger-lib v2.0.0+incompatible // indirect
+	github.com/ulikunitz/xz v0.5.11 // indirect
+	github.com/vbatts/tar-split v0.11.2 // indirect
 	golang.org/x/net v0.7.0
 	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013 // indirect
 	google.golang.org/grpc v1.27.0
