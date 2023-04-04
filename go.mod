@@ -11,7 +11,7 @@ require (
 	github.com/containers/image v3.0.0+incompatible
 	github.com/containers/storage v1.28.1 // indirect
 	github.com/docker/distribution v2.8.0+incompatible
-	github.com/docker/docker v1.13.1 // indirect
+	github.com/docker/docker v20.10.24+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.6.0 // indirect
 	github.com/docker/go-units v0.4.0
 	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 // indirect
@@ -20,6 +20,7 @@ require (
 	github.com/google/go-github v17.0.0+incompatible // indirect
 	github.com/jessevdk/go-flags v1.4.0
 	github.com/klauspost/compress v1.16.0 // indirect
+	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/oklog/ulid v1.3.1
 	github.com/olekukonko/tablewriter v0.0.0-20170925234030-a7a4c189eb47
 	github.com/opencontainers/image-spec v1.0.2
