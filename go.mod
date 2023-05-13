@@ -10,7 +10,7 @@ require (
 	github.com/cenkalti/backoff v2.1.1+incompatible
 	github.com/containers/image v3.0.0+incompatible
 	github.com/containers/storage v1.28.1 // indirect
-	github.com/docker/distribution v2.8.0+incompatible
+	github.com/docker/distribution v2.8.2+incompatible
 	github.com/docker/docker v20.10.24+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.6.0 // indirect
 	github.com/docker/go-units v0.4.0
