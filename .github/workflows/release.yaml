@@ -1,0 +1,60 @@
+name: Release latest docker image
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+
+      - name: Build variables
+        id: build_var
+        run: |
+          echo ::set-output name=SOURCE_NAME::${GITHUB_REF#refs/*/}
+          echo ::set-output name=SOURCE_BRANCH::${GITHUB_REF#refs/heads/}
+          echo ::set-output name=SOURCE_TAG::${GITHUB_REF#refs/tags/}
+          echo ::set-output name=BUILD_DATE::$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          echo ::set-output name=PROJECT_URL::${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}
+          echo ::set-output name=VCS_REF::$GITHUB_SHA
+
+      - name: Build and push Docker images
+        id: docker_build
+        uses: docker/build-push-action@v4
+        with:
+          push: true
+          build-args: |
+            VERSION=${{ steps.build_var.outputs.SOURCE_BRANCH }}
+            VCS_REF=${{ steps.build_var.outputs.VCS_REF }}
+            BUILD_DATE=${{ steps.build_var.outputs.BUILD_DATE }}
+            PROJECT_URL=${{ steps.build_var.outputs.PROJECT_URL }}
+          tags: |
+            w6dio/bblfshd:latest
+
+      - name: Image digest
+        run: echo ${{ steps.docker_build.outputs.digest }}
+
