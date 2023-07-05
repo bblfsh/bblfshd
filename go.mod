@@ -16,7 +16,7 @@ require (
 	github.com/docker/go-units v0.4.0
 	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 // indirect
 	github.com/gogo/protobuf v1.3.2
-	github.com/golang/protobuf v1.5.0
+	github.com/golang/protobuf v1.5.2
 	github.com/google/go-github v17.0.0+incompatible // indirect
 	github.com/jessevdk/go-flags v1.4.0
 	github.com/klauspost/compress v1.16.0 // indirect
@@ -31,13 +31,13 @@ require (
 	github.com/prometheus/client_golang v1.11.1
 	github.com/prometheus/common v0.26.0
 	github.com/src-d/enry/v2 v2.0.0
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.8.1
 	github.com/uber/jaeger-client-go v2.16.0+incompatible
 	github.com/uber/jaeger-lib v2.0.0+incompatible // indirect
 	github.com/ulikunitz/xz v0.5.11 // indirect
 	github.com/vbatts/tar-split v0.11.2 // indirect
 	golang.org/x/net v0.7.0
-	google.golang.org/grpc v1.30.0
+	google.golang.org/grpc v1.53.0
 	gopkg.in/bblfsh/sdk.v1 v1.17.0
 	gopkg.in/src-d/go-errors.v1 v1.0.0
 	gopkg.in/src-d/go-log.v1 v1.0.2
