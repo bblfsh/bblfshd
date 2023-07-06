@@ -15,8 +15,8 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"gopkg.in/src-d/go-log.v1"
 
-	"github.com/bblfsh/bblfshd/daemon/protocol"
-	"github.com/bblfsh/bblfshd/runtime"
+	"github.com/bblfsh/bblfshd/v2/daemon/protocol"
+	"github.com/bblfsh/bblfshd/v2/runtime"
 
 	"github.com/bblfsh/sdk/v3/driver"
 	"github.com/bblfsh/sdk/v3/driver/manifest"

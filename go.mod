@@ -1,4 +1,4 @@
-module github.com/bblfsh/bblfshd
+module github.com/bblfsh/bblfshd/v2
 
 go 1.12
 

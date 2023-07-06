@@ -10,11 +10,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bblfsh/bblfshd/daemon"
+	"github.com/bblfsh/bblfshd/v2/daemon"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/bblfsh/bblfshd/daemon/protocol"
+	"github.com/bblfsh/bblfshd/v2/daemon/protocol"
 	"github.com/bblfsh/sdk/v3/driver/manifest/discovery"
 
 	"github.com/briandowns/spinner"

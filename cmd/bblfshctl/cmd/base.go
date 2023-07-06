@@ -6,7 +6,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/bblfsh/bblfshd/daemon/protocol"
+	"github.com/bblfsh/bblfshd/v2/daemon/protocol"
 
 	"google.golang.org/grpc"
 	sdk "gopkg.in/bblfsh/sdk.v1/protocol"

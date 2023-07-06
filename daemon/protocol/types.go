@@ -1,4 +1,4 @@
-//go:generate proteus -f $GOPATH/src/ -p github.com/bblfsh/bblfshd/daemon/protocol --verbose
+//go:generate proteus -f $GOPATH/src/ -p github.com/bblfsh/bblfshd/v2/daemon/protocol --verbose
 //go:generate stringer -type=Status -output stringer.go
 
 package protocol

@@ -18,7 +18,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/bblfsh/bblfshd/daemon/protocol"
+	"github.com/bblfsh/bblfshd/v2/daemon/protocol"
 	"gopkg.in/src-d/go-errors.v1"
 )
 
