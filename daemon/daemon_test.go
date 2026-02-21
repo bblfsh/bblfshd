@@ -2,15 +2,16 @@ package daemon
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
-	"reflect"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"gopkg.in/bblfsh/sdk.v1/protocol"
@@ -53,7 +54,9 @@ func TestDaemon_InstallNonexistentDriver(t *testing.T) {
 
 	err := s.InstallDriver("", "docker://list", false)
 	require.Error(err, "An error was expected")
-	require.Equal("errcode.Errors", reflect.TypeOf(err).String())
+	var e errcode.Errors
+	ok := errors.As(err, &e)
+	require.True(ok)
 }
 
 func TestDaemonParse_MockedDriverParallelClients(t *testing.T) {

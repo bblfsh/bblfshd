@@ -1,6 +1,8 @@
 package runtime
 
 import (
+	"context"
+	"fmt"
 	"strings"
 
 	"github.com/containers/image/image"
@@ -41,13 +43,14 @@ func (d *driverImage) Name() string {
 
 // Digest computes a digest based on the image layers.
 func (d *driverImage) Digest() (Digest, error) {
-	img, err := d.image()
+	ctx := context.Background()
+	src, img, err := d.image(ctx)
 	if err != nil {
 		return nil, err
 	}
+	defer src.Close()
 
-	defer img.Close()
-	i, err := img.Inspect()
+	i, err := img.Inspect(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -56,28 +59,30 @@ func (d *driverImage) Digest() (Digest, error) {
 }
 
 func (d *driverImage) Inspect() (*types.ImageInspectInfo, error) {
-	img, err := d.image()
+	ctx := context.Background()
+	src, img, err := d.image(ctx)
 	if err != nil {
 		return nil, err
 	}
+	defer src.Close()
 
-	defer img.Close()
-	return img.Inspect()
+	return img.Inspect(ctx)
 }
 
 // WriteTo writes the image to disk at the given path.
 func (d *driverImage) WriteTo(path string) error {
-	img, err := d.image()
+	ctx := context.Background()
+	src, img, err := d.image(ctx)
 	if err != nil {
 		return err
 	}
+	defer src.Close()
 
-	defer img.Close()
 	if err := UnpackImage(img, path); err != nil {
-		return err
+		return fmt.Errorf("failed to unpack image: %w", err)
 	}
 
-	config, err := img.OCIConfig()
+	config, err := img.OCIConfig(ctx)
 	if err != nil {
 		return err
 	}
@@ -88,12 +93,17 @@ func (d *driverImage) WriteTo(path string) error {
 	}, path)
 }
 
-func (d *driverImage) image() (types.Image, error) {
-	raw, err := d.ref.NewImageSource(nil)
+func (d *driverImage) image(ctx context.Context) (types.ImageSource, types.Image, error) {
+	src, err := d.ref.NewImageSource(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	unparsedImage := image.UnparsedFromSource(raw)
-	return image.FromUnparsedImage(unparsedImage)
+	unparsedImage := image.UnparsedInstance(src, nil)
+	img, err := image.FromUnparsedImage(ctx, nil, unparsedImage)
+	if err != nil {
+		src.Close()
+		return nil, nil, err
+	}
+	return src, img, nil
 }

@@ -1,36 +1,39 @@
 # Base builder image with all libraries installed, including the source of the project
-FROM golang:1.12 as builder
+FROM golang:1.25-bookworm AS builder
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         libostree-dev \
         libglib2.0-dev \
-        btrfs-tools \
+        btrfs-progs \
     && apt-get clean
 
-ENV GOPATH=/go
-ENV GO111MODULE=on
-WORKDIR /go/src/github.com/bblfsh/bblfshd
+WORKDIR /bblfsh
+
+ADD go.mod ./
+ADD go.sum ./
+
+RUN go mod download
 
 ADD . .
 
 
 # Actual build image that compiles bblfshd and bblfshctl
-FROM builder as binbuild
+FROM builder AS binbuild
 
 RUN mkdir /build
 
 ARG BBLFSHD_VERSION=dev
-ARG BBLFSHD_BUILD=unknown
+ARG BBLFSHD_BUILD=undefined
 
 ENV GO_LDFLAGS="-X 'main.version=${BBLFSHD_VERSION}' -X 'main.build=${BBLFSHD_BUILD}'"
 
-RUN go build  -tags ostree --ldflags "${GO_LDFLAGS}" -o /build/bblfshd ./cmd/bblfshd/
+RUN go build  -tags ostree,containers_image_ostree --ldflags "${GO_LDFLAGS}" -o /build/bblfshd ./cmd/bblfshd/
 RUN go build --ldflags "${GO_LDFLAGS}" -o /build/bblfshctl ./cmd/bblfshctl/
 
 
 # Final image for bblfshd
-FROM debian:stretch-slim
+FROM debian:bookworm-slim
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --no-install-suggests \
@@ -38,7 +41,7 @@ RUN apt-get update && \
         libostree-1-1 \
     && apt-get clean
 
-ENV TINI_VERSION v0.18.0
+ENV TINI_VERSION=v0.18.0
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
 RUN chmod +x /tini
 

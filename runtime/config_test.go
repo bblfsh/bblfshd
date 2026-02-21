@@ -22,7 +22,9 @@ func TestWriteImageConfig(t *testing.T) {
 		ImageRef: "foo",
 		Image: v1.Image{
 			Author: "foo",
-			OS:     "bar",
+			Platform: v1.Platform{
+				OS: "bar",
+			},
 		},
 	}, dir)
 	require.NoError(err)
@@ -51,7 +53,9 @@ func TestReadImageConfig(t *testing.T) {
 		ImageRef: "foo",
 		Image: v1.Image{
 			Author: "foo",
-			OS:     "bar",
+			Platform: v1.Platform{
+				OS: "bar",
+			},
 		},
 	}, config)
 
