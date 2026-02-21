@@ -3,6 +3,7 @@ package runtime
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -10,24 +11,26 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containers/image/pkg/blobinfocache/none"
 	"github.com/containers/image/types"
 	"github.com/pkg/errors"
 )
 
 func UnpackImage(src types.Image, target string) error {
+	ctx := context.Background()
 	ref := src.Reference()
 	unpackLayer, err := getLayerUnpacker(ref)
 	if err != nil {
 		return err
 	}
 
-	raw, err := ref.NewImageSource(nil)
+	raw, err := ref.NewImageSource(ctx, nil)
 	if err != nil {
 		return err
 	}
 
 	for _, layer := range src.LayerInfos() {
-		rc, _, err := raw.GetBlob(layer)
+		rc, _, err := raw.GetBlob(ctx, layer, none.NoCache)
 		if err != nil {
 			return err
 		}
@@ -85,7 +88,7 @@ loop:
 			parentPath := filepath.Join(dest, parent)
 			if _, err2 := os.Lstat(parentPath); err2 != nil && os.IsNotExist(err2) {
 				if err3 := os.MkdirAll(parentPath, 0755); err3 != nil {
-					return err3
+					return fmt.Errorf("error creating parent directory: %w", err3)
 				}
 			}
 		}
@@ -126,55 +129,44 @@ loop:
 			if err != nil {
 				return errors.Wrap(err, "unable to open file")
 			}
-
-			if _, err := io.Copy(f, tr); err != nil {
-				f.Close()
-				return errors.Wrap(err, "unable to copy")
-			}
+			_, err = io.Copy(f, tr)
 			f.Close()
 
-		case tar.TypeLink:
-			target := filepath.Join(dest, hdr.Linkname)
-
-			trueTarget, err := filepath.EvalSymlinks(target)
 			if err != nil {
-				return err
+				return errors.Wrap(err, "unable to copy")
 			}
-			if !strings.HasPrefix(trueTarget, dest) {
-				return fmt.Errorf("hardlink %q -> %q outside destination", target, hdr.Linkname)
-			}
+
+		case tar.TypeLink:
+			// FIXME: we need to check if the target is inside dest (including traversing symlinks)
+			target := filepath.Join(dest, hdr.Linkname)
 
 			if !strings.HasPrefix(target, dest) {
 				return fmt.Errorf("invalid hardlink %q -> %q", target, hdr.Linkname)
 			}
 
 			if err := os.Link(target, path); err != nil {
-				return err
+				return fmt.Errorf("failed to hardlink %q -> %q: %w", target, hdr.Linkname, err)
 			}
 
 		case tar.TypeSymlink:
+			// FIXME: we need to check if the target is inside dest (including traversing symlinks)
 			target := filepath.Join(filepath.Dir(path), hdr.Linkname)
+			if filepath.IsAbs(hdr.Linkname) {
+				target = filepath.Join(dest, hdr.Linkname)
+			}
 
-			trueTarget, err := filepath.EvalSymlinks(target)
-			if err != nil {
-				return err
-			}
-			if !strings.HasPrefix(trueTarget, dest) {
-				return fmt.Errorf("hardlink %q -> %q outside destination", target, hdr.Linkname)
-			}
 			if !strings.HasPrefix(target, dest) {
 				return fmt.Errorf("invalid symlink %q -> %q", path, hdr.Linkname)
 			}
 
-			err := os.Symlink(hdr.Linkname, path)
-			if err != nil {
+			if err := os.Symlink(hdr.Linkname, path); err != nil {
 				if os.IsExist(err) {
 					if err := os.Remove(path); err != nil {
-						return err
+						return fmt.Errorf("cannot replace symlink %q -> %q: %w", path, hdr.Linkname, err)
 					}
 
 					if err := os.Symlink(hdr.Linkname, path); err != nil {
-						return err
+						return fmt.Errorf("cannot symlink %q -> %q: %w", path, hdr.Linkname, err)
 					}
 				}
 			}

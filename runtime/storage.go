@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -59,7 +60,7 @@ func (s *storage) Install(d DriverImage, update bool) (*DriverImageStatus, error
 	}
 
 	if err := d.WriteTo(tmp); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to write driver image: %w", err)
 	}
 
 	m, err := newDriverImageStatus(tmp)

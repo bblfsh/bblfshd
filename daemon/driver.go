@@ -1,3 +1,4 @@
+//go:build linux && cgo
 // +build linux,cgo
 
 package daemon
@@ -15,7 +16,6 @@ import (
 
 	"github.com/bblfsh/bblfshd/daemon/protocol"
 	"github.com/bblfsh/bblfshd/runtime"
-
 	protocol2 "github.com/bblfsh/sdk/v3/protocol"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"google.golang.org/grpc"
@@ -86,11 +86,15 @@ func NewDriverInstance(r *runtime.Runtime, lang string, i runtime.DriverImage, o
 			Destination: "/tmp/",
 			Device:      "bind",
 			Flags:       syscall.MS_BIND | syscall.MS_REC | syscall.MS_NOSUID,
-			PremountCmds: []configs.Command{
-				{Path: "mkdir", Args: []string{"-p", tmp}},
-			},
 		})
-
+		if cfg.Hooks == nil {
+			cfg.Hooks = make(configs.Hooks)
+		}
+		const hook = configs.CreateRuntime // TODO: is it the right one?
+		cfg.Hooks[hook] = append(cfg.Hooks[hook], configs.NewCommandHook(&configs.Command{
+			Path: "mkdir",
+			Args: []string{"-p", tmp},
+		}))
 		return cfg
 	}
 

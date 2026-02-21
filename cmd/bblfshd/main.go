@@ -6,13 +6,12 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 	"time"
-
-	_ "net/http/pprof"
 
 	"gopkg.in/src-d/go-log.v1"
 
@@ -22,8 +21,9 @@ import (
 	cmdutil "github.com/bblfsh/sdk/v3/cmd"
 	"github.com/bblfsh/sdk/v3/driver/manifest/discovery"
 	"github.com/prometheus/client_golang/prometheus"
+	pversion2 "github.com/prometheus/client_golang/prometheus/collectors/version"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	pversion "github.com/prometheus/common/version"
+	pversion1 "github.com/prometheus/common/version"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 )
 
@@ -67,9 +67,9 @@ var (
 )
 
 func init() {
-	pversion.Version = version
-	pversion.BuildDate = build
-	prometheus.MustRegister(pversion.NewCollector("bblfshd"))
+	pversion1.Version = version
+	pversion1.BuildDate = build
+	prometheus.MustRegister(pversion2.NewCollector("bblfshd"))
 
 	cmd = flag.NewFlagSet("bblfshd", flag.ExitOnError)
 	network = cmd.String("network", "tcp", "network type: tcp, tcp4, tcp6, unix or unixpacket.")

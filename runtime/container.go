@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package runtime
@@ -5,7 +6,7 @@ package runtime
 import (
 	"os"
 	"syscall"
-	
+
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/configs"
 )
@@ -44,7 +45,7 @@ type Command interface {
 	Stop() error
 }
 
-func newContainer(c libcontainer.Container, p *Process, config *ImageConfig) Container {
+func newContainer(c *libcontainer.Container, p *Process, config *ImageConfig) Container {
 	cp := libcontainer.Process(*p)
 	return &container{
 		Container: c,
@@ -54,7 +55,7 @@ func newContainer(c libcontainer.Container, p *Process, config *ImageConfig) Con
 }
 
 type container struct {
-	libcontainer.Container
+	*libcontainer.Container
 	process *libcontainer.Process
 	config  *ImageConfig
 }
@@ -100,6 +101,6 @@ func (c *container) Stop() error {
 }
 
 func (c *container) Signal(sig os.Signal) error {
-	return c.Container.Signal(sig, true)
+	return c.Container.Signal(sig)
 
 }

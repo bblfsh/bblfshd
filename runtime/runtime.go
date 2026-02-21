@@ -1,3 +1,4 @@
+//go:build linux && cgo
 // +build linux,cgo
 
 package runtime
@@ -5,13 +6,14 @@ package runtime
 import (
 	"os"
 	"path/filepath"
-	"runtime"
-	"strings"
 	"syscall"
 
+	"github.com/opencontainers/cgroups"
+	"github.com/opencontainers/cgroups/devices/config"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	_ "github.com/opencontainers/runc/libcontainer/nsenter"
+	"github.com/opencontainers/runc/libcontainer/specconv"
 )
 
 const (
@@ -27,7 +29,6 @@ type Runtime struct {
 	Root                   string
 
 	s *storage
-	f libcontainer.Factory
 }
 
 // NewRuntime create a new runtime using as storage the given path.
@@ -45,13 +46,7 @@ func NewRuntime(path string) *Runtime {
 
 // Init initialize the runtime.
 func (r *Runtime) Init() error {
-	var err error
-	r.f, err = libcontainer.New(
-		filepath.Join(r.Root, containersPath),
-		libcontainer.RootlessCgroupfs,
-	)
-
-	return err
+	return nil
 }
 
 // InstallDriver installs a DriverImage extracting his content to the storage,
@@ -91,7 +86,11 @@ func (r *Runtime) Container(id string, d DriverImage, p *Process, f ConfigFactor
 		return nil, err
 	}
 
-	c, err := r.f.Create(id, cfg)
+	c, err := libcontainer.Create(
+		filepath.Join(r.Root, containersPath),
+		// TODO:  libcontainer.RootlessCgroupfs,
+		id, cfg,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -103,30 +102,31 @@ func (r *Runtime) Container(id string, d DriverImage, p *Process, f ConfigFactor
 // config.Config, with the default setup.
 func ContainerConfigFactory(containerID string) *configs.Config {
 	defaultMountFlags := syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
-
+	var devices []*config.Rule
+	for _, device := range specconv.AllowedDevices {
+		devices = append(devices, &device.Rule)
+	}
 	return &configs.Config{
-		RootlessEUID: true,
+		RootlessEUID:    true,
 		RootlessCgroups: true,
-		Namespaces: configs.Namespaces([]configs.Namespace{
+		Namespaces: configs.Namespaces{
 			{Type: configs.NEWNS},
 			{Type: configs.NEWUTS},
 			{Type: configs.NEWIPC},
 			{Type: configs.NEWPID},
 			{Type: configs.NEWUSER},
-		}),
-		UidMappings: []configs.IDMap{
-			{ContainerID: 0, HostID: os.Getuid(), Size: 1},
 		},
-		GidMappings: []configs.IDMap{
-			{ContainerID: 0, HostID: os.Getgid(), Size: 1},
+		UIDMappings: []configs.IDMap{
+			{ContainerID: 0, HostID: int64(os.Getuid()), Size: 1},
 		},
-		Cgroups: &configs.Cgroup{
+		GIDMappings: []configs.IDMap{
+			{ContainerID: 0, HostID: int64(os.Getgid()), Size: 1},
+		},
+		Cgroups: &cgroups.Cgroup{
 			Name:   containerID,
 			Parent: "system",
-			Resources: &configs.Resources{
-				MemorySwappiness: nil,
-				AllowAllDevices:  nil,
-				AllowedDevices:   configs.DefaultSimpleDevices,
+			Resources: &cgroups.Resources{
+				Devices: devices,
 			},
 		},
 		MaskPaths: []string{
@@ -136,7 +136,7 @@ func ContainerConfigFactory(containerID string) *configs.Config {
 		ReadonlyPaths: []string{
 			"/proc/sys", "/proc/sysrq-trigger", "/proc/irq", "/proc/bus",
 		},
-		Devices:  configs.DefaultSimpleDevices,
+		Devices:  specconv.AllowedDevices,
 		Hostname: containerID,
 		Mounts: []*configs.Mount{
 			{
@@ -197,18 +197,7 @@ func ContainerConfigFactory(containerID string) *configs.Config {
 // https://github.com/opencontainers/runc/blob/master/libcontainer/README.md
 func Bootstrap() {
 	if len(os.Args) > 1 && os.Args[1] == "init" {
-		runtime.GOMAXPROCS(1)
-		runtime.LockOSThread()
-		factory, _ := libcontainer.New("")
-		if err := factory.StartInitialization(); err != nil {
-			if strings.Contains(err.Error(), "permission denied") {
-				panic("error bootstraping container " +
-					"(hint: if SELinux is enabled, compile and load the policy module " +
-					"in this repo's selinux/ directory): " + err.Error())
-			} else {
-				panic(err)
-			}
-		}
+		libcontainer.Init()
 		panic("--this line should have never been executed, congratulations--")
 	}
 }
