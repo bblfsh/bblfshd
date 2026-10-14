@@ -18,12 +18,22 @@ type ParseCommand struct {
 		File string `positional-arg-name:"filename" description:"file to parse"`
 	} `positional-args:"yes"`
 
+	File string `short:"f" long:"file" description:"file to parse"`
+
 	Native bool `long:"native" description:"if native, the native AST will be returned"`
 	UserCommand
 }
 
+func (c *ParseCommand) filePath() string {
+	if c.File != "" {
+		return c.File
+	}
+	return c.Args.File
+}
+
 func (c *ParseCommand) Execute(args []string) error {
-	if c.Args.File == "" {
+	file := c.filePath()
+	if file == "" {
 		return errors.New("file argument is mandatory")
 	}
 	if err := c.UserCommand.Execute(nil); err != nil {
@@ -36,7 +46,7 @@ func (c *ParseCommand) Execute(args []string) error {
 	}
 	defer cli.Close()
 
-	req := cli.NewParseRequest().ReadFile(c.Args.File)
+	req := cli.NewParseRequest().ReadFile(file)
 	if c.Native {
 		req = req.Mode(bblfsh.Native)
 	}

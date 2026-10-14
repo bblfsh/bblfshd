@@ -28,16 +28,37 @@ func (c *ControlCommand) Execute(args []string) error {
 }
 
 type UserCommand struct {
-	Network string `long:"endpoint" default:"tcp" description:"server network type"`
-	Address string `long:"address" default:"localhost:9432" description:"server address to connect"`
+	Network  string `long:"network" default:"tcp" description:"server network type"`
+	Address  string `long:"address" default:"localhost:9432" description:"server address to connect"`
+	Endpoint string `long:"endpoint" description:"server address to connect (alias for --address)"`
 
 	conn *grpc.ClientConn
 	srv  sdk.ProtocolServiceClient
 }
 
+func (c *UserCommand) targetNetwork() string {
+	if c.Endpoint == "tcp" || c.Endpoint == "unix" {
+		return c.Endpoint
+	}
+	if c.Network != "" {
+		return c.Network
+	}
+	return "tcp"
+}
+
+func (c *UserCommand) targetAddress() string {
+	if c.Endpoint != "" && c.Endpoint != "tcp" && c.Endpoint != "unix" {
+		return c.Endpoint
+	}
+	if c.Address != "" {
+		return c.Address
+	}
+	return "localhost:9432"
+}
+
 func (c *UserCommand) Execute(args []string) error {
 	var err error
-	c.conn, err = dialGRPC(c.Network, c.Address)
+	c.conn, err = dialGRPC(c.targetNetwork(), c.targetAddress())
 	c.srv = sdk.NewProtocolServiceClient(c.conn)
 	return err
 }
