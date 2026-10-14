@@ -97,6 +97,25 @@ and an example contained in the Docker image:
 docker exec -it bblfshd bblfshctl parse /opt/bblfsh/etc/examples/python.py
 ```
 
+You can also pass the target file with the `-f` or `--file` flag:
+
+```sh
+docker exec -it bblfshd bblfshctl parse -f /opt/bblfsh/etc/examples/python.py
+```
+
+### Testing with Client Libraries
+
+Client packages such as `bblfsh` on PyPI are SDK libraries designed for programmatic integration. They are not CLI tools and cannot be executed directly with `python -m bblfsh`. Import `bblfsh` in your code instead:
+
+```python
+import bblfsh
+
+client = bblfsh.BblfshClient("localhost:9432")
+response = client.parse("example.py")
+print(response)
+```
+
+
 ## SELinux
 
 If your system has SELinux enabled (which is the default in Fedora, Red Hat, CentOS

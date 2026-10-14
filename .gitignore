@@ -30,5 +30,5 @@ _testmain.go
 *.exe
 *.test
 *.prof
-bblfshd
-bblfshctl
+/bblfshd
+/bblfshctl
